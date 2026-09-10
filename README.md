@@ -2,6 +2,8 @@
 
 Stationary is a .NET 10 toolkit for Bluetooth Fitness Machine Service (FTMS) equipment. It provides high-performance, transport-neutral codecs together with BLE connectivity, serialized Control Point coordination, telemetry presentation, heart-rate support, and a .NET MAUI dashboard for multiplatform app delivery. The dashboard uses ReactiveUI and Reactive Extensions for reactive MVVM and real-time event processing.
 
+![Stationary FTMS dashboard Session view with live telemetry and heart-rate analytics](Screenshot%202026-09-10%20at%2021.51.52.png)
+
 ## Projects
 
 | Project | Purpose |
