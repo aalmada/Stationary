@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Stationary.Ftms.Dashboard.App">
+  <Application.Resources>
+    <Color x:Key="Canvas">#F4F6F3</Color>
+    <Color x:Key="Surface">#FFFFFF</Color>
+    <Color x:Key="SurfaceSubtle">#EAF2EE</Color>
+    <Color x:Key="Ink">#163238</Color>
+    <Color x:Key="Accent">#147D70</Color>
+    <Color x:Key="Line">#D6E1DB</Color>
+    <Color x:Key="Muted">#5A6B6C</Color>
+    <Style TargetType="Label">
+      <Setter Property="TextColor" Value="{StaticResource Ink}" />
+      <Setter Property="FontFamily" Value="Avenir Next" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="BackgroundColor" Value="Transparent" />
+      <Setter Property="TextColor" Value="White" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="FontFamily" Value="Avenir Next" />
+      <Setter Property="FontAttributes" Value="Bold" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <Style x:Key="PanelBorder" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="Stroke" Value="{StaticResource Line}" />
+      <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style x:Key="ActionBorder" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource Accent}" />
+      <Setter Property="Stroke" Value="{StaticResource Accent}" />
+      <Setter Property="StrokeShape" Value="RoundRectangle 5" />
+      <Setter Property="Padding" Value="1" />
+    </Style>
+    <Style x:Key="SecondaryActionBorder" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource SurfaceSubtle}" />
+      <Setter Property="Stroke" Value="{StaticResource Line}" />
+      <Setter Property="StrokeShape" Value="RoundRectangle 5" />
+      <Setter Property="Padding" Value="1" />
+    </Style>
+  </Application.Resources>
+</Application>

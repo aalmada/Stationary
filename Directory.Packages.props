@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.101" />
+    <PackageVersion Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.101" />
+    <PackageVersion Include="Plugin.BLE" Version="3.2.1" />
+    <PackageVersion Include="ReactiveUI" Version="19.6.12" />
+    <PackageVersion Include="ReactiveUI.Maui" Version="19.6.12" />
+    <PackageVersion Include="TUnit" Version="1.66.16" />
+  </ItemGroup>
+</Project>

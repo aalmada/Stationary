@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Stationary.HeartRate</PackageId>
+    <Description>High-performance, transport-neutral Bluetooth Heart Rate Service codecs.</Description>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Stationary.Ble/Stationary.Ble.csproj" />
+  </ItemGroup>
+</Project>

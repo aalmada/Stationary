@@ -1,0 +1,18 @@
+<Solution>
+  <Project Path="src/Stationary.Ftms/Stationary.Ftms.csproj" />
+  <Project Path="src/Stationary.Ftms.Client/Stationary.Ftms.Client.csproj" />
+  <Project Path="src/Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />
+  <Project Path="src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj" />
+  <Project Path="tests/Stationary.Ftms.Tests/Stationary.Ftms.Tests.csproj" />
+  <Project Path="tests/Stationary.Ftms.Client.Tests/Stationary.Ftms.Client.Tests.csproj" />
+  <Project Path="tests/Stationary.Ftms.Dashboard.Core.Tests/Stationary.Ftms.Dashboard.Core.Tests.csproj" />
+  <Folder Name="/benchmarks/" />
+  <Folder Name="/src/">
+    <Project Path="src/Stationary.Ble/Stationary.Ble.csproj" />
+    <Project Path="src/Stationary.HeartRate/Stationary.HeartRate.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Stationary.HeartRate.Tests/Stationary.HeartRate.Tests.csproj" />
+  </Folder>
+  <Project Path="benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj" />
+</Solution>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>

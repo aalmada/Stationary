@@ -1,0 +1,29 @@
+using System.Buffers.Binary;
+
+namespace Stationary.Ftms;
+
+public readonly record struct RowerData(
+    bool MoreData, byte? StrokeRate, ushort? StrokeCount, byte? AverageStrokeRate, uint? TotalDistance,
+    ushort? InstantaneousPace, ushort? AveragePace, short? InstantaneousPower, short? AveragePower,
+    sbyte? ResistanceLevel, ushort? TotalEnergy, ushort? EnergyPerHour, byte? EnergyPerMinute, byte? HeartRate,
+    byte? MetabolicEquivalent, ushort? ElapsedTime, ushort? RemainingTime)
+{
+    private const ushort DefinedFlagsMask = 0x1FFF;
+    public double? MetabolicEquivalentValue => MetabolicEquivalent is byte value ? value / 10d : null;
+    public int GetEncodedLength() => 2 + (!MoreData ? 3 : 0) + (AverageStrokeRate.HasValue ? 1 : 0) + (TotalDistance.HasValue ? 3 : 0) + (InstantaneousPace.HasValue ? 2 : 0) + (AveragePace.HasValue ? 2 : 0) + (InstantaneousPower.HasValue ? 2 : 0) + (AveragePower.HasValue ? 2 : 0) + (ResistanceLevel.HasValue ? 1 : 0) + (HasEnergy ? 5 : 0) + (HeartRate.HasValue ? 1 : 0) + (MetabolicEquivalent.HasValue ? 1 : 0) + (ElapsedTime.HasValue ? 2 : 0) + (RemainingTime.HasValue ? 2 : 0);
+    public static FtmsDecodeStatus TryDecode(ReadOnlySpan<byte> source, out RowerData value, FtmsValidationMode validationMode = FtmsValidationMode.Compatible)
+    {
+        value = default; if (source.Length < 2) return FtmsDecodeStatus.InsufficientData; var flags = BinaryPrimitives.ReadUInt16LittleEndian(source); if (validationMode == FtmsValidationMode.Strict && (flags & ~DefinedFlagsMask) != 0) return FtmsDecodeStatus.InvalidFlags; var reader = new FtmsFieldReader(source[2..]); var moreData = (flags & 1) != 0; byte? strokeRate = null, averageStrokeRate = null, energyPerMinute = null, heartRate = null, metabolicEquivalent = null; ushort? strokeCount = null, instantaneousPace = null, averagePace = null, totalEnergy = null, energyPerHour = null, elapsedTime = null, remainingTime = null; uint? totalDistance = null; short? instantaneousPower = null, averagePower = null; sbyte? resistance = null;
+        if (!moreData) { if (!reader.TryReadByte(out var a) || !reader.TryReadUInt16(out var b)) return FtmsDecodeStatus.InsufficientData; strokeRate = a; strokeCount = b; }
+        if (!StepClimberData.ReadOptional((flags & 2) != 0, ref reader, out averageStrokeRate) || !StepClimberData.ReadOptionalUInt24((flags & 4) != 0, ref reader, out totalDistance) || !StepClimberData.ReadOptional((flags & 8) != 0, ref reader, out instantaneousPace) || !StepClimberData.ReadOptional((flags & 16) != 0, ref reader, out averagePace) || !StepClimberData.ReadOptional((flags & 32) != 0, ref reader, out instantaneousPower) || !StepClimberData.ReadOptional((flags & 64) != 0, ref reader, out averagePower) || !ReadSByte((flags & 128) != 0, ref reader, out resistance) || !StepClimberData.ReadEnergy((flags & 256) != 0, ref reader, out totalEnergy, out energyPerHour, out energyPerMinute) || !StepClimberData.ReadOptional((flags & 512) != 0, ref reader, out heartRate) || !StepClimberData.ReadOptional((flags & 1024) != 0, ref reader, out metabolicEquivalent) || !StepClimberData.ReadOptional((flags & 2048) != 0, ref reader, out elapsedTime) || !StepClimberData.ReadOptional((flags & 4096) != 0, ref reader, out remainingTime)) return FtmsDecodeStatus.InsufficientData;
+        if (validationMode == FtmsValidationMode.Strict && reader.Consumed != source.Length - 2) return FtmsDecodeStatus.TrailingData; value = new(moreData, strokeRate, strokeCount, averageStrokeRate, totalDistance, instantaneousPace, averagePace, instantaneousPower, averagePower, resistance, totalEnergy, energyPerHour, energyPerMinute, heartRate, metabolicEquivalent, elapsedTime, remainingTime); return FtmsDecodeStatus.Success;
+    }
+    public bool TryEncode(Span<byte> destination, out int bytesWritten)
+    {
+        bytesWritten = 0; if ((!MoreData && (!StrokeRate.HasValue || !StrokeCount.HasValue)) || destination.Length < GetEncodedLength()) return false; var writer = new FtmsFieldWriter(destination); writer.WriteUInt16(GetFlags()); if (!MoreData) { writer.WriteByte(StrokeRate!.Value); writer.WriteUInt16(StrokeCount!.Value); }
+        if (AverageStrokeRate is byte a) writer.WriteByte(a); if (TotalDistance is uint b) writer.WriteUInt24(b); if (InstantaneousPace is ushort c) writer.WriteUInt16(c); if (AveragePace is ushort d) writer.WriteUInt16(d); if (InstantaneousPower is short e) writer.WriteInt16(e); if (AveragePower is short f) writer.WriteInt16(f); if (ResistanceLevel is sbyte g) writer.WriteByte((byte)g); StepClimberData.WriteEnergy(ref writer, HasEnergy, TotalEnergy, EnergyPerHour, EnergyPerMinute); if (HeartRate is byte h) writer.WriteByte(h); if (MetabolicEquivalent is byte i) writer.WriteByte(i); if (ElapsedTime is ushort j) writer.WriteUInt16(j); if (RemainingTime is ushort k) writer.WriteUInt16(k); bytesWritten = writer.Written; return true;
+    }
+    private bool HasEnergy => TotalEnergy.HasValue || EnergyPerHour.HasValue || EnergyPerMinute.HasValue;
+    private ushort GetFlags() => (ushort)((MoreData ? 1 : 0) | (AverageStrokeRate.HasValue ? 2 : 0) | (TotalDistance.HasValue ? 4 : 0) | (InstantaneousPace.HasValue ? 8 : 0) | (AveragePace.HasValue ? 16 : 0) | (InstantaneousPower.HasValue ? 32 : 0) | (AveragePower.HasValue ? 64 : 0) | (ResistanceLevel.HasValue ? 128 : 0) | (HasEnergy ? 256 : 0) | (HeartRate.HasValue ? 512 : 0) | (MetabolicEquivalent.HasValue ? 1024 : 0) | (ElapsedTime.HasValue ? 2048 : 0) | (RemainingTime.HasValue ? 4096 : 0));
+    private static bool ReadSByte(bool present, ref FtmsFieldReader reader, out sbyte? value) { value = null; if (!present) return true; if (!reader.TryReadByte(out var raw)) return false; value = unchecked((sbyte)raw); return true; }
+}

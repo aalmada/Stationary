@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Stationary.Ftms/Stationary.Ftms.csproj" />
+    <ProjectReference Include="../Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />
+  </ItemGroup>
+</Project>

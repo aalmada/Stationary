@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.ControlPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Control"
+             BackgroundColor="{StaticResource Canvas}">
+  <Grid x:Name="PageLayout">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup>
+        <VisualState x:Name="Wide">
+          <VisualState.StateTriggers>
+            <AdaptiveTrigger MinWindowWidth="1100" />
+          </VisualState.StateTriggers>
+          <VisualState.Setters>
+            <Setter TargetName="ControlContentGrid" Property="ColumnDefinitions" Value="2*,3*" />
+            <Setter TargetName="ControlContentGrid" Property="ColumnSpacing" Value="24" />
+            <Setter TargetName="TargetControlsPanel" Property="Grid.Column" Value="1" />
+            <Setter TargetName="TargetControlsPanel" Property="Grid.Row" Value="0" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <ScrollView>
+      <VerticalStackLayout Padding="24" Spacing="16">
+      <Grid ColumnDefinitions="*,Auto">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="CONTROL" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Machine state and supported workout targets" TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <ActivityIndicator Grid.Column="1" IsRunning="{Binding IsControlOperationExecuting}" IsVisible="{Binding IsControlOperationExecuting}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
+      </Grid>
+
+      <Border Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8" IsVisible="{Binding IsDisconnected}">
+        <Label Text="No fitness machine connected" TextColor="{StaticResource Muted}" />
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsConnected}">
+        <Grid x:Name="ControlContentGrid" RowDefinitions="Auto,Auto" RowSpacing="16">
+          <VerticalStackLayout x:Name="ControlOverview" Spacing="12">
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="MACHINE STATE" FontSize="12" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding MachineStateText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="CONTROL ACCESS" FontSize="12" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding ControlAccessText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="2">
+              <Label Text="PHYSICAL CONTROLS" FontSize="12" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding PhysicalControlSynchronizationStateText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+          </Grid>
+
+          <Label Text="{Binding ControlStatus}" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding PhysicalControlSynchronizationStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Border Style="{StaticResource ActionBorder}" IsVisible="{Binding IsControlPermissionRequired}" HorizontalOptions="Start">
+            <Button Text="Enable digital controls" Command="{Binding RequestControlCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Request control permission from the fitness machine" />
+          </Border>
+          <HorizontalStackLayout Spacing="12" IsVisible="{Binding IsControllable}">
+            <Border Style="{StaticResource ActionBorder}">
+              <Button Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="128" SemanticProperties.Description="Start or resume the fitness machine session" />
+            </Border>
+            <Border Style="{StaticResource SecondaryActionBorder}">
+              <Button Text="Pause" TextColor="{StaticResource Accent}" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="80" SemanticProperties.Description="Pause the fitness machine session" />
+            </Border>
+          </HorizontalStackLayout>
+          <Label Text="Start, pause, and target changes enable digital controls automatically when needed." TextColor="{StaticResource Muted}" FontSize="12" IsVisible="{Binding IsControlPermissionRequired}" />
+          </VerticalStackLayout>
+
+          <VerticalStackLayout x:Name="TargetControlsPanel" Grid.Row="1" Spacing="10" IsVisible="{Binding AreTargetControlsAvailable}">
+            <Label Text="Targets" FontAttributes="Bold" />
+            <ContentView IsVisible="{Binding HasPowerTargetControl}" HorizontalOptions="Fill">
+              <Grid BindingContext="{Binding PowerTargetControl}" x:DataType="viewModels:TargetControlViewModel" RowDefinitions="Auto,Auto" RowSpacing="6" HorizontalOptions="Fill">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Label Text="{Binding Name}" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                      <Label Text="{Binding ValueStateText}" TextColor="{StaticResource Muted}" />
+                      <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="16" WidthRequest="16" />
+                    </HorizontalStackLayout>
+                  </Grid>
+                  <Slider Grid.Row="1" HorizontalOptions="Fill" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=TwoWay}" SemanticProperties.Description="Adjust and apply target power automatically" />
+              </Grid>
+            </ContentView>
+            <CollectionView ItemsSource="{Binding ManualTargetControls}" IsVisible="{Binding HasManualTargetControls}" SelectionMode="None" HeightRequest="240">
+              <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="viewModels:TargetControlViewModel">
+                  <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="12" RowSpacing="6">
+                    <Label Text="{Binding Name}" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                      <Label Text="{Binding ValueStateText}" TextColor="{StaticResource Muted}" />
+                      <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="16" WidthRequest="16" />
+                    </HorizontalStackLayout>
+                    <Grid Grid.Row="1" ColumnDefinitions="*,72,44,44" ColumnSpacing="8">
+                      <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" />
+                      <Entry Grid.Column="1" Text="{Binding ValueText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="End" />
+                      <Button Grid.Column="2" Text="-" Command="{Binding DecreaseCommand}" SemanticProperties.Description="Decrease target by one device increment" />
+                      <Button Grid.Column="3" Text="+" Command="{Binding IncreaseCommand}" SemanticProperties.Description="Increase target by one device increment" />
+                    </Grid>
+                    <FlexLayout Grid.Row="2" BindableLayout.ItemsSource="{Binding Presets}" Direction="Row" Wrap="Wrap" Margin="0,4,0,0">
+                      <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="x:Double">
+                          <Button Text="{Binding StringFormat='{}{0:F0}'}" FontSize="12" Padding="8,4" Margin="0,0,6,0" Command="{Binding BindingContext.ApplyPresetCommand, Source={RelativeSource AncestorType={x:Type Grid}}}" CommandParameter="{Binding}" SemanticProperties.Description="Set this target preset" />
+                        </DataTemplate>
+                      </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                    <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ActionBorder}">
+                      <Button Text="Apply" Command="{Binding ApplyCommand}" WidthRequest="72" SemanticProperties.Description="Apply this target to the fitness machine" />
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </CollectionView.ItemTemplate>
+            </CollectionView>
+          </VerticalStackLayout>
+        </Grid>
+      </Border>
+    </VerticalStackLayout>
+    </ScrollView>
+  </Grid>
+</ContentPage>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.RidePage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Ride"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+      <VerticalStackLayout Spacing="4">
+        <Label Text="STATIONARY" FontAttributes="Bold" FontSize="30" />
+        <Label Text="Live ride monitor" TextColor="{StaticResource Muted}" FontSize="14" />
+      </VerticalStackLayout>
+      <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
+        <Label Text="HEART RATE" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
+        <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="End" />
+        <Label Text="{Binding HeartRate.CurrentZoneText}" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
+      </VerticalStackLayout>
+    </Grid>
+
+    <Border Grid.Row="1" Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+        <HorizontalStackLayout Grid.Column="1" Spacing="8" IsVisible="{Binding IsControllable}">
+          <Border Style="{StaticResource ActionBorder}">
+            <Button Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Start or resume the fitness machine session" />
+          </Border>
+          <Border Style="{StaticResource SecondaryActionBorder}">
+            <Button Text="Pause" TextColor="{StaticResource Accent}" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Pause the fitness machine session" />
+          </Border>
+        </HorizontalStackLayout>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="12">
+      <Border Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="SPEED" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding Telemetry.SpeedText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+      </Border>
+      <Border Grid.Column="1" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="POWER" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding Telemetry.PowerText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+      </Border>
+      <Border Grid.Column="2" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="CADENCE" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding Telemetry.CadenceText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsControlPermissionRequired}">
+      <Label Text="Starting the session will request machine control." TextColor="{StaticResource Muted}" FontSize="12" />
+      <Label Grid.Column="1" Text="{Binding ControlStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
+    </Grid>
+
+    <Border Grid.Row="4" Style="{StaticResource PanelBorder}">
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="20">
+        <VerticalStackLayout Spacing="3">
+          <Label Text="EXTERNAL HEART RATE" FontSize="12" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="24" FontAttributes="Bold" />
+        </VerticalStackLayout>
+        <VerticalStackLayout Grid.Column="1" Spacing="3">
+          <Label Text="CURRENT ZONE" FontSize="12" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding HeartRate.CurrentZoneText}" FontAttributes="Bold" />
+          <Label Text="{Binding HeartRate.CurrentZoneRangeText}" FontSize="11" TextColor="{StaticResource Muted}" />
+        </VerticalStackLayout>
+        <VerticalStackLayout Grid.Column="2" Spacing="3">
+          <Label Text="MACHINE STATE" FontSize="12" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding MachineStateText}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+        <VerticalStackLayout Grid.Column="3" Spacing="3">
+          <Label Text="TELEMETRY" FontSize="12" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding Telemetry.HealthText}" FontSize="11" TextColor="{StaticResource Muted}" />
+        </VerticalStackLayout>
+      </Grid>
+    </Border>
+    </Grid>
+  </ScrollView>
+</ContentPage>

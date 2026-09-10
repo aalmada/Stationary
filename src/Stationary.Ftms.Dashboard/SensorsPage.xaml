@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:services="clr-namespace:Stationary.Ftms.Dashboard.Services"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.SensorsPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Sensors"
+             BackgroundColor="{StaticResource Canvas}">
+  <Grid x:Name="PageLayout">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup>
+        <VisualState x:Name="Wide">
+          <VisualState.StateTriggers>
+            <AdaptiveTrigger MinWindowWidth="1100" />
+          </VisualState.StateTriggers>
+          <VisualState.Setters>
+            <Setter TargetName="ContentGrid" Property="ColumnDefinitions" Value="*,*" />
+            <Setter TargetName="ContentGrid" Property="ColumnSpacing" Value="16" />
+            <Setter TargetName="SensorsHeader" Property="Grid.ColumnSpan" Value="2" />
+            <Setter TargetName="StatusPanel" Property="Grid.ColumnSpan" Value="2" />
+            <Setter TargetName="HeartRatePanel" Property="Grid.Column" Value="1" />
+            <Setter TargetName="HeartRatePanel" Property="Grid.Row" Value="2" />
+            <Setter TargetName="DeviceCapabilitiesPanel" Property="Grid.ColumnSpan" Value="2" />
+            <Setter TargetName="DeviceCapabilitiesPanel" Property="Grid.Row" Value="3" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <ScrollView>
+      <Grid x:Name="ContentGrid" Padding="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16">
+      <Grid x:Name="SensorsHeader" ColumnDefinitions="*,Auto">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="SENSORS" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Fitness machine and heart-rate connections" TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <ActivityIndicator Grid.Column="1" IsRunning="{Binding IsWorking}" IsVisible="{Binding IsWorking}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
+      </Grid>
+
+      <Border x:Name="StatusPanel" Grid.Row="1" Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8">
+        <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" />
+      </Border>
+
+      <Border x:Name="FitnessMachinePanel" Grid.Row="2" Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Fitness machine" FontAttributes="Bold" />
+              <Label Text="{Binding MachineStateText}" TextColor="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsDisconnected}">
+              <Button Text="Find machine" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for nearby FTMS fitness machines" />
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsConnected}">
+              <Button Text="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect from the active fitness machine" />
+            </Border>
+          </Grid>
+
+          <VerticalStackLayout Spacing="12" IsVisible="{Binding IsDevicePickerVisible}">
+            <Label Text="Nearby FTMS devices" FontAttributes="Bold" />
+            <CollectionView ItemsSource="{Binding DiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedDevice}" HeightRequest="168">
+              <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:FtmsDiscoveredDevice">
+                  <VerticalStackLayout Padding="8" Spacing="2">
+                    <Label Text="{Binding Name}" FontAttributes="Bold" />
+                    <Label Text="{Binding MachineType}" TextColor="{StaticResource Muted}" />
+                  </VerticalStackLayout>
+                </DataTemplate>
+              </CollectionView.ItemTemplate>
+            </CollectionView>
+            <HorizontalStackLayout Spacing="12">
+              <Border Style="{StaticResource ActionBorder}">
+                <Button Text="Scan again" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for nearby FTMS fitness machines" />
+              </Border>
+              <Border Style="{StaticResource ActionBorder}">
+                <Button Text="Connect selected" Command="{Binding ConnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect to the selected fitness machine" />
+              </Border>
+            </HorizontalStackLayout>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border x:Name="HeartRatePanel" Grid.Row="3" Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Heart-rate sensor" FontAttributes="Bold" />
+              <Label Text="{Binding HeartRateConnectionStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsHeartRateConnected}">
+              <Button Text="Disconnect" Command="{Binding DisconnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect the heart-rate sensor" />
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsHeartRateDisconnected}">
+              <Button Text="Add sensor" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for Bluetooth heart-rate sensors" />
+            </Border>
+          </Grid>
+
+          <VerticalStackLayout Spacing="8" IsVisible="{Binding IsHeartRateDevicePickerVisible}">
+            <Label Text="Nearby heart-rate sensors" FontAttributes="Bold" />
+            <CollectionView ItemsSource="{Binding HeartRateDiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedHeartRateDevice}" HeightRequest="120">
+              <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:HeartRateDiscoveredDevice">
+                  <Label Text="{Binding Name}" Padding="8" FontAttributes="Bold" />
+                </DataTemplate>
+              </CollectionView.ItemTemplate>
+            </CollectionView>
+            <HorizontalStackLayout Spacing="12">
+              <Border Style="{StaticResource ActionBorder}">
+                <Button Text="Scan again" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for Bluetooth heart-rate sensors" />
+              </Border>
+              <Border Style="{StaticResource ActionBorder}">
+                <Button Text="Connect selected" Command="{Binding ConnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect the selected heart-rate sensor" />
+              </Border>
+            </HorizontalStackLayout>
+          </VerticalStackLayout>
+
+          <Grid ColumnDefinitions="Auto,96,Auto" ColumnSpacing="10">
+            <Label Text="CYCLING LTHR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
+              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource ActionBorder}">
+              <Button Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />
+            </Border>
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border x:Name="DeviceCapabilitiesPanel" Grid.Row="4" Style="{StaticResource PanelBorder}" IsVisible="{Binding IsConnected}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="Device capabilities" FontAttributes="Bold" />
+          <Label Text="Live now" FontAttributes="Bold" FontSize="12" TextColor="{StaticResource Muted}" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding LiveCapabilities}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="local:DeviceCapability">
+                <VerticalStackLayout Margin="0,0,16,10" Spacing="1">
+                  <Label Text="{Binding Name}" FontAttributes="Bold" />
+                  <Label Text="{Binding Status}" FontSize="12" TextColor="{StaticResource Muted}">
+                    <Label.Triggers>
+                      <DataTrigger TargetType="Label" Binding="{Binding IsNotProvided}" Value="True">
+                        <Setter Property="TextColor" Value="#B42318" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                      </DataTrigger>
+                    </Label.Triggers>
+                  </Label>
+                </VerticalStackLayout>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+          <Label Text="Available controls" FontAttributes="Bold" FontSize="12" TextColor="{StaticResource Muted}" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding AvailableControlCapabilities}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="local:DeviceCapability">
+                <Label Text="{Binding Name}" Margin="0,0,16,8" />
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+          <Button Text="Unavailable telemetry" TextColor="{StaticResource Accent}" HorizontalOptions="Start" Padding="0" Command="{Binding ToggleUnavailableCapabilitiesCommand}" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding UnavailableCapabilities}" Direction="Row" Wrap="Wrap" AlignItems="Start" IsVisible="{Binding ShowUnavailableCapabilities}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="local:DeviceCapability">
+                <VerticalStackLayout Margin="0,0,16,10" Spacing="1">
+                  <Label Text="{Binding Name}" FontAttributes="Bold" />
+                  <Label Text="{Binding Status}" FontSize="12" TextColor="#B42318" />
+                </VerticalStackLayout>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+        </VerticalStackLayout>
+      </Border>
+      </Grid>
+    </ScrollView>
+  </Grid>
+</ContentPage>
