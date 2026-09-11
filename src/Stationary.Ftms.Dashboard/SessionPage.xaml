@@ -45,29 +45,37 @@
       <VerticalStackLayout x:Name="SessionOverviewColumn" Grid.Row="2" Spacing="16" HorizontalOptions="Fill">
       <Border x:Name="SessionSummaryPanel" Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
         <VerticalStackLayout Spacing="10">
-          <Label Text="Session summary" FontAttributes="Bold" />
-          <FlexLayout Direction="Row" Wrap="Wrap" AlignItems="Start">
-            <VerticalStackLayout Margin="0,0,24,0" Spacing="2">
+          <Grid ColumnDefinitions="*,Auto">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Session summary" FontAttributes="Bold" />
+              <Label Text="Current power" FontSize="12" TextColor="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Label Grid.Column="1" Text="{Binding Telemetry.PowerText}" FontSize="{Binding Telemetry.HeartRateValueFontSize}" FontAttributes="Bold" VerticalOptions="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="20">
+            <VerticalStackLayout Spacing="2">
               <Label Text="DISTANCE" FontSize="12" TextColor="{StaticResource Muted}" />
               <Label Text="{Binding Telemetry.SessionDistanceText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
             </VerticalStackLayout>
-            <VerticalStackLayout Margin="0,0,24,0" Spacing="2">
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
               <Label Text="ELAPSED" FontSize="12" TextColor="{StaticResource Muted}" />
               <Label Text="{Binding Telemetry.SessionElapsedTimeText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
             </VerticalStackLayout>
-            <VerticalStackLayout Margin="0,0,24,0" Spacing="2">
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
               <Label Text="ENERGY" FontSize="12" TextColor="{StaticResource Muted}" />
               <Label Text="{Binding Telemetry.SessionEnergyText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
             </VerticalStackLayout>
-            <VerticalStackLayout Margin="0,0,24,0" Spacing="2">
-              <Label Text="AVERAGE POWER" FontSize="12" TextColor="{StaticResource Muted}" />
+          </Grid>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="SESSION AVERAGE POWER" FontSize="12" TextColor="{StaticResource Muted}" />
               <Label Text="{Binding Telemetry.SessionAveragePowerText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
             </VerticalStackLayout>
-            <VerticalStackLayout Spacing="2">
-              <Label Text="AVERAGE SPEED" FontSize="12" TextColor="{StaticResource Muted}" />
-              <Label Text="{Binding Telemetry.SessionAverageSpeedText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="SESSION MAXIMUM POWER" FontSize="12" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding Telemetry.SessionMaximumPowerText}" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" FontAttributes="Bold" />
             </VerticalStackLayout>
-          </FlexLayout>
+          </Grid>
         </VerticalStackLayout>
       </Border>
 
@@ -182,29 +190,29 @@
 
       <Border x:Name="TelemetryAnalysisPanel" Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
         <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
-          <Label Text="Metrics and analysis" FontAttributes="Bold" />
-          <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="24">
-            <FlexLayout BindableLayout.ItemsSource="{Binding Telemetry.Metrics}" Direction="Row" Wrap="Wrap" AlignItems="Start">
-              <BindableLayout.ItemTemplate>
-                <DataTemplate x:DataType="local:TelemetryMetric">
-                  <VerticalStackLayout Margin="0,0,24,12" Spacing="2">
-                    <Label Text="{Binding Name}" TextColor="{StaticResource Muted}" FontSize="12" />
-                    <Label Text="{Binding Value}" FontAttributes="Bold" />
-                  </VerticalStackLayout>
-                </DataTemplate>
-              </BindableLayout.ItemTemplate>
-            </FlexLayout>
-            <FlexLayout Grid.Column="1" BindableLayout.ItemsSource="{Binding Telemetry.Insights}" Direction="Row" Wrap="Wrap" AlignItems="Start">
-              <BindableLayout.ItemTemplate>
-                <DataTemplate x:DataType="local:TelemetryInsight">
-                  <VerticalStackLayout Margin="0,0,24,8" Spacing="2">
-                    <Label Text="{Binding Name}" TextColor="{StaticResource Muted}" FontSize="12" />
-                    <Label Text="{Binding Value}" FontAttributes="Bold" />
-                    <Label Text="{Binding Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
-                  </VerticalStackLayout>
-                </DataTemplate>
-              </BindableLayout.ItemTemplate>
-            </FlexLayout>
+          <Label Text="Analysis" FontAttributes="Bold" />
+          <!-- Fixed 4-item Grid avoids FlexLayout's Wrap clipping of multi-line text. -->
+          <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Name}" TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Name}" TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="{Binding Telemetry.SpeedTrendInsight.Name}" TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.SpeedTrendInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.SpeedTrendInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="2">
+              <Label Text="{Binding Telemetry.CadenceConsistencyInsight.Name}" TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.CadenceConsistencyInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.CadenceConsistencyInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
           </Grid>
         </Grid>
       </Border>

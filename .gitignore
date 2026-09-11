@@ -39,3 +39,5 @@ project.fragment.lock.json
 
 # APM dependencies
 apm_modules/
+
+.DS_Store

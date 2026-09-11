@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Reactive;
 
 using ReactiveUI;
@@ -30,7 +28,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private string sessionElapsedTimeText = "--:--:--";
     private string sessionEnergyText = "--";
     private string sessionAveragePowerText = "--";
-    private string sessionAverageSpeedText = "--";
+    private string sessionMaximumPowerText = "--";
     private bool isStale;
     private bool useMetricUnits = Preferences.Default.Get(MetricUnitsPreferenceKey, true);
     private bool useLargeTelemetryText = Preferences.Default.Get(LargeTelemetryTextPreferenceKey, false);
@@ -41,22 +39,48 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private IReadOnlyList<PowerCadenceSample> powerCadenceSamples = [];
     private TelemetrySnapshot? latestSnapshot;
     private readonly WorkoutSessionClock sessionClock = new();
-    private double? sessionDistanceBaseline;
-    private ushort? sessionElapsedTimeBaseline;
-    private ushort? sessionEnergyBaseline;
+    private uint? previousDistanceCounter;
+    private ushort? previousEnergyCounter;
+    private double sessionDistanceMeters;
+    private int sessionEnergyKilocalories;
+    private double sessionPowerTotal;
+    private int sessionPowerSampleCount;
+    private double? sessionMaximumPower;
+    private TelemetryInsight torqueResponseInsight;
+    private TelemetryInsight powerPacingInsight;
+    private TelemetryInsight speedTrendInsight;
+    private TelemetryInsight cadenceConsistencyInsight;
 
     public TelemetryPresentationViewModel()
     {
-        Metrics = [];
-        Insights = [];
         SetMetricUnitsCommand = ReactiveCommand.Create<bool>(value => UseMetricUnits = value);
         SetLargeTelemetryTextCommand = ReactiveCommand.Create<bool>(value => UseLargeTelemetryText = value);
         SetHighContrastTelemetryCommand = ReactiveCommand.Create<bool>(value => UseHighContrastTelemetry = value);
     }
 
-    public ObservableCollection<TelemetryMetric> Metrics { get; }
+    public TelemetryInsight TorqueResponseInsight
+    {
+        get => torqueResponseInsight;
+        private set => this.RaiseAndSetIfChanged(ref torqueResponseInsight, value);
+    }
 
-    public ObservableCollection<TelemetryInsight> Insights { get; }
+    public TelemetryInsight PowerPacingInsight
+    {
+        get => powerPacingInsight;
+        private set => this.RaiseAndSetIfChanged(ref powerPacingInsight, value);
+    }
+
+    public TelemetryInsight SpeedTrendInsight
+    {
+        get => speedTrendInsight;
+        private set => this.RaiseAndSetIfChanged(ref speedTrendInsight, value);
+    }
+
+    public TelemetryInsight CadenceConsistencyInsight
+    {
+        get => cadenceConsistencyInsight;
+        private set => this.RaiseAndSetIfChanged(ref cadenceConsistencyInsight, value);
+    }
 
     public ReactiveCommand<bool, Unit> SetMetricUnitsCommand { get; }
 
@@ -200,10 +224,10 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         private set => this.RaiseAndSetIfChanged(ref sessionAveragePowerText, value);
     }
 
-    public string SessionAverageSpeedText
+    public string SessionMaximumPowerText
     {
-        get => sessionAverageSpeedText;
-        private set => this.RaiseAndSetIfChanged(ref sessionAverageSpeedText, value);
+        get => sessionMaximumPowerText;
+        private set => this.RaiseAndSetIfChanged(ref sessionMaximumPowerText, value);
     }
 
     public IReadOnlyList<TelemetrySample> PowerChartSamples
@@ -245,8 +269,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     public void StartSession(DateTimeOffset timestamp)
     {
         sessionClock.Start(timestamp);
-        SetSessionBaselines(latestSnapshot);
-        ClearSessionSummary();
+        ResetSessionStatistics();
         RefreshPresentation();
     }
 
@@ -277,7 +300,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         }
 
         sessionClock.Reset();
-        SetSessionBaselines(null);
+        ResetSessionStatistics();
         ClearSessionSummary();
     }
 
@@ -287,7 +310,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         $"Elapsed time,{SessionElapsedTimeText}",
         $"Energy,{SessionEnergyText}",
         $"Average power,{SessionAveragePowerText}",
-        $"Average speed,{SessionAverageSpeedText}");
+        $"Maximum power,{SessionMaximumPowerText}");
 
     private void RefreshPresentation()
     {
@@ -305,7 +328,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         CadenceText = PresentField(snapshot, TelemetryField.Cadence, snapshot.CadenceRpm, cadence => $"{cadence:F0} rpm", CadenceText, "-- rpm");
         HealthText = $"Live - last packet {snapshot.CapturedAt.ToLocalTime():T}";
         IsStale = false;
-        UpdateMetrics(snapshot);
+        TrackSessionStatistics(snapshot);
         UpdateSessionSummary(snapshot);
     }
 
@@ -320,6 +343,10 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         CadenceChartSummary = GetChartSummary(CadenceChartSamples, "rpm");
         PowerCadenceSummary = GetPowerCadenceSummary(PowerCadenceSamples);
         UpdateInsights();
+        if (latestSnapshot is { } snapshot)
+        {
+            UpdateSessionSummary(snapshot);
+        }
     }
 
     public void MarkStale()
@@ -335,12 +362,10 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         CadenceText = "-- rpm";
         HealthText = "Waiting for telemetry";
         IsStale = false;
-        Metrics.Clear();
-        Insights.Clear();
         SetChartSamples(null);
         latestSnapshot = null;
         sessionClock.Reset();
-        SetSessionBaselines(null);
+        ResetSessionStatistics();
         ClearSessionSummary();
     }
 
@@ -351,35 +376,6 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
                 ? format(measurement)
                 : unavailable;
 
-    private void UpdateMetrics(TelemetrySnapshot snapshot)
-    {
-        Metrics.Clear();
-        AddMetric("Average speed", snapshot.AverageSpeedKilometersPerHour, "F1", UseMetricUnits ? "km/h" : "mph", UseMetricUnits ? 1d : 0.621_371d);
-        AddMetric("Average cadence", snapshot.AverageCadenceRpm, "F0", "rpm");
-        AddMetric("Average power", snapshot.AveragePowerWatts, "F0", "W");
-        AddMetric("Resistance", snapshot.ResistanceTenths is short resistance ? resistance / 10d : null, "F1", "");
-        AddMetric("Incline", snapshot.InclinationTenths is short incline ? incline / 10d : null, "F1", "%");
-        AddMetric("Ramp angle", snapshot.RampAngleTenths is short rampAngle ? rampAngle / 10d : null, "F1", "degrees");
-        AddMetric("Distance", snapshot.TotalDistanceMeters, UseMetricUnits ? "F0" : "F2", UseMetricUnits ? "m" : "mi", UseMetricUnits ? 1d : 0.000_621_371d);
-        AddMetric("Positive elevation", snapshot.PositiveElevationGainMeters, "F0", "m");
-        AddMetric("Negative elevation", snapshot.NegativeElevationGainMeters, "F0", "m");
-        AddMetric("Instantaneous pace", snapshot.InstantaneousPaceSecondsPerKilometre, "F0", "s/km");
-        AddMetric("Average pace", snapshot.AveragePaceSecondsPerKilometre, "F0", "s/km");
-        AddMetric("Steps", snapshot.StepCount, "F0", "");
-        AddMetric("Strides", snapshot.StrideCount, "F0", "");
-        AddMetric("Strokes", snapshot.StrokeCount, "F0", "");
-        AddMetric("Floors", snapshot.Floors, "F0", "");
-        AddMetric("Direction", snapshot.IsMovingBackward is bool movingBackward ? movingBackward ? "Backward" : "Forward" : null);
-        AddMetric("Energy", snapshot.TotalEnergyKilocalories, "F0", "kcal");
-        AddMetric("Energy per hour", snapshot.EnergyPerHourKilocalories, "F0", "kcal/h");
-        AddMetric("Energy per minute", snapshot.EnergyPerMinuteKilocalories, "F0", "kcal/min");
-        AddMetric("Fitness machine heart rate", snapshot.HeartRateBeatsPerMinute is > 0 ? snapshot.HeartRateBeatsPerMinute : null, "F0", "bpm");
-        AddMetric("MET", snapshot.MetabolicEquivalentTenths is byte metabolicEquivalent ? metabolicEquivalent / 10d : null, "F1", "");
-        AddMetric("Elapsed time", snapshot.ElapsedTimeSeconds is ushort elapsed ? TimeSpan.FromSeconds(elapsed).ToString(@"hh\:mm\:ss") : null);
-        AddMetric("Remaining time", snapshot.RemainingTimeSeconds is ushort remaining ? TimeSpan.FromSeconds(remaining).ToString(@"hh\:mm\:ss") : null);
-        AddMetric("Force on belt", snapshot.ForceOnBeltNewtons, "F0", "N");
-    }
-
     private void UpdateSessionSummary(TelemetrySnapshot snapshot)
     {
         if (!sessionClock.HasStarted)
@@ -388,36 +384,70 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             return;
         }
 
-        if (sessionClock.IsPaused)
+        SessionDistanceText = UpdateSessionDistance(snapshot.TotalDistanceMeters) is double distance
+            ? UseMetricUnits ? $"{distance:F0} m" : $"{distance * 0.000_621_371d:F2} mi"
+            : "--";
+        SessionElapsedTimeText = sessionClock.GetElapsed(snapshot.CapturedAt)?.ToString(@"hh\:mm\:ss") ?? "--:--:--";
+        SessionEnergyText = UpdateSessionEnergy(snapshot.TotalEnergyKilocalories) is int energy ? $"{energy} kcal" : "--";
+        SessionAveragePowerText = sessionPowerSampleCount > 0 ? $"{sessionPowerTotal / sessionPowerSampleCount:F0} W" : "--";
+        SessionMaximumPowerText = sessionMaximumPower is double maximumPower ? $"{maximumPower:F0} W" : "--";
+    }
+
+    private void TrackSessionStatistics(TelemetrySnapshot snapshot)
+    {
+        if (!sessionClock.HasStarted || sessionClock.IsPaused || snapshot.PowerWatts is not short power)
         {
             return;
         }
 
-        double? distance = snapshot.TotalDistanceMeters is uint totalDistance && sessionDistanceBaseline is double distanceBaseline
-            ? totalDistance - distanceBaseline
-            : null;
-        SessionDistanceText = distance is double sessionDistance
-            ? UseMetricUnits ? $"{sessionDistance:F0} m" : $"{sessionDistance * 0.000_621_371d:F2} mi"
-            : "--";
-        TimeSpan? elapsed = snapshot.ElapsedTimeSeconds is ushort deviceElapsed && sessionElapsedTimeBaseline is ushort elapsedBaseline
-            ? TimeSpan.FromSeconds(deviceElapsed - elapsedBaseline)
-            : sessionClock.GetElapsed(snapshot.CapturedAt);
-        SessionElapsedTimeText = elapsed?.ToString(@"hh\:mm\:ss") ?? "--:--:--";
-        int? energy = snapshot.TotalEnergyKilocalories is ushort totalEnergy && sessionEnergyBaseline is ushort energyBaseline
-            ? totalEnergy - energyBaseline
-            : null;
-        SessionEnergyText = energy is int sessionEnergy ? $"{sessionEnergy} kcal" : "--";
-        SessionAveragePowerText = snapshot.AveragePowerWatts is short averagePower ? $"{averagePower:F0} W" : "--";
-        SessionAverageSpeedText = snapshot.AverageSpeedKilometersPerHour is double averageSpeed
-            ? UseMetricUnits ? $"{averageSpeed:F1} km/h" : $"{averageSpeed * 0.621_371d:F1} mph"
-            : "--";
+        sessionPowerTotal += power;
+        sessionPowerSampleCount++;
+        sessionMaximumPower = sessionMaximumPower is double currentMaximum
+            ? double.Max(currentMaximum, power)
+            : power;
     }
 
-    private void SetSessionBaselines(TelemetrySnapshot? snapshot)
+    private double? UpdateSessionDistance(uint? totalDistance)
     {
-        sessionDistanceBaseline = snapshot?.TotalDistanceMeters;
-        sessionElapsedTimeBaseline = snapshot?.ElapsedTimeSeconds;
-        sessionEnergyBaseline = snapshot?.TotalEnergyKilocalories;
+        if (totalDistance is not uint value)
+        {
+            return null;
+        }
+
+        if (previousDistanceCounter is uint previous && value >= previous)
+        {
+            sessionDistanceMeters += value - previous;
+        }
+
+        previousDistanceCounter = value;
+        return sessionDistanceMeters;
+    }
+
+    private int? UpdateSessionEnergy(ushort? totalEnergy)
+    {
+        if (totalEnergy is not ushort value)
+        {
+            return null;
+        }
+
+        if (previousEnergyCounter is ushort previous && value >= previous)
+        {
+            sessionEnergyKilocalories += value - previous;
+        }
+
+        previousEnergyCounter = value;
+        return sessionEnergyKilocalories;
+    }
+
+    private void ResetSessionStatistics()
+    {
+        previousDistanceCounter = null;
+        previousEnergyCounter = null;
+        sessionDistanceMeters = 0d;
+        sessionEnergyKilocalories = 0;
+        sessionPowerTotal = 0d;
+        sessionPowerSampleCount = 0;
+        sessionMaximumPower = null;
     }
 
     private void ClearSessionSummary()
@@ -426,7 +456,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         SessionElapsedTimeText = "--:--:--";
         SessionEnergyText = "--";
         SessionAveragePowerText = "--";
-        SessionAverageSpeedText = "--";
+        SessionMaximumPowerText = "--";
     }
 
     private static string GetChartSummary(IReadOnlyList<TelemetrySample> samples, string unit)
@@ -442,13 +472,16 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         return $"Now {current:F0} {unit}\n5m avg {average:F0} {unit}\nMax {maximum:F0} {unit}";
     }
 
+    private static double? GetChartAverage(IReadOnlyList<TelemetrySample> samples) => samples.Count > 0
+        ? samples.Average(sample => sample.Value)
+        : null;
+
     private void UpdateInsights()
     {
-        Insights.Clear();
-        Insights.Add(CreatePowerCadenceInsight(PowerCadenceSamples));
-        Insights.Add(CreatePacingInsight("Power pacing", PowerChartSamples, "W", 1d));
-        Insights.Add(CreatePacingInsight("Speed trend", SpeedChartSamples, UseMetricUnits ? "km/h" : "mph", UseMetricUnits ? 1d : 0.621_371d));
-        Insights.Add(CreateCadenceInsight(CadenceChartSamples));
+        TorqueResponseInsight = CreatePowerCadenceInsight(PowerCadenceSamples);
+        PowerPacingInsight = CreatePacingInsight("Power pacing", PowerChartSamples, "W", 1d);
+        SpeedTrendInsight = CreatePacingInsight("Speed trend", SpeedChartSamples, UseMetricUnits ? "km/h" : "mph", UseMetricUnits ? 1d : 0.621_371d);
+        CadenceConsistencyInsight = CreateCadenceInsight(CadenceChartSamples);
     }
 
     private static IReadOnlyList<PowerCadenceSample> PairPowerAndCadence(IReadOnlyList<TelemetrySample> powerSamples, IReadOnlyList<TelemetrySample> cadenceSamples)
@@ -637,19 +670,4 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         return true;
     }
 
-    private void AddMetric(string name, double? value, string format, string unit, double multiplier = 1d)
-    {
-        if (value is double number)
-        {
-            Metrics.Add(new(name, $"{(number * multiplier).ToString(format, CultureInfo.CurrentCulture)} {unit}".TrimEnd()));
-        }
-    }
-
-    private void AddMetric(string name, string? value)
-    {
-        if (value is not null)
-        {
-            Metrics.Add(new(name, value));
-        }
-    }
 }

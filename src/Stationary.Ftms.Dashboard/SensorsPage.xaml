@@ -118,7 +118,7 @@
           <Grid ColumnDefinitions="Auto,96,Auto" ColumnSpacing="10">
             <Label Text="CYCLING LTHR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
-              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
+              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
             </Border>
             <Border Grid.Column="2" Style="{StaticResource ActionBorder}">
               <Button Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />

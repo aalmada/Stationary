@@ -12,6 +12,7 @@ public partial class App : Application
     public App(IServiceProvider services, DashboardViewModel viewModel)
     {
         InitializeComponent();
+        UserAppTheme = AppTheme.Light;
         appShell = services.GetRequiredService<AppShell>();
         this.viewModel = viewModel;
     }
