@@ -1,111 +1,11 @@
 lockfile_version: '1'
-generated_at: '2026-09-06T13:05:28.411097+00:00'
+generated_at: '2026-09-11T19:29:42.831863+00:00'
 apm_version: 0.28.0
 dependencies:
 - repo_url: netfabric/intelligentium
-  name: dotnet
-  host: github.com
-  resolved_commit: ad2113b469f6618ea60b6e32e3a8803a10918930
-  version: 0.7.1
-  virtual_path: plugins/dotnet
-  is_virtual: true
-  package_type: apm_package
-  deployed_files:
-  - .agents/skills/csharp-best-practices
-  - .agents/skills/csharp-best-practices/SKILL.md
-  - .agents/skills/csharp-best-practices/references/async.md
-  - .agents/skills/csharp-best-practices/references/language-features.md
-  - .agents/skills/csharp-best-practices/references/performance.md
-  - .agents/skills/csharp-best-practices/references/source-generators.md
-  - .agents/skills/csharp-file-based-app
-  - .agents/skills/csharp-file-based-app/SKILL.md
-  - .agents/skills/csharp-file-based-app/references/directives-reference.md
-  - .agents/skills/csharp-file-based-app/references/runtime-behavior.md
-  - .agents/skills/dotnet-agent-guardrails
-  - .agents/skills/dotnet-agent-guardrails/SKILL.md
-  - .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md
-  - .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md
-  - .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md
-  - .agents/skills/dotnet-agent-guardrails/references/testing-contract.md
-  - .agents/skills/dotnet-benchmarking
-  - .agents/skills/dotnet-benchmarking/SKILL.md
-  - .agents/skills/dotnet-benchmarking/references/comparing-configurations.md
-  - .agents/skills/dotnet-benchmarking/references/interpreting-results.md
-  - .agents/skills/dotnet-benchmarking/references/runtime-variant-testing.md
-  - .agents/skills/dotnet-benchmarking/references/writing-benchmarks.md
-  - .agents/skills/dotnet-enumerable
-  - .agents/skills/dotnet-enumerable/SKILL.md
-  - .agents/skills/dotnet-enumerable/references/async-enumeration.md
-  - .agents/skills/dotnet-enumerable/references/custom-iterators.md
-  - .agents/skills/dotnet-enumerable/references/enumerable-interfaces.md
-  - .agents/skills/dotnet-enumerable/references/iteration-performance.md
-  - .agents/skills/dotnet-enumerable/references/linq-patterns.md
-  - .agents/skills/dotnet-enumerable/references/tooling.md
-  - .agents/skills/dotnet-generic-math
-  - .agents/skills/dotnet-generic-math/SKILL.md
-  - .agents/skills/dotnet-generic-math/references/interfaces.md
-  - .agents/skills/dotnet-generic-math/references/patterns.md
-  - .agents/skills/dotnet-simd
-  - .agents/skills/dotnet-simd/SKILL.md
-  - .agents/skills/dotnet-simd/references/hardware-intrinsics.md
-  - .agents/skills/dotnet-simd/references/performance-optimization-ladder.md
-  - .agents/skills/dotnet-simd/references/tensor-primitives.md
-  - .agents/skills/dotnet-simd/references/testing-and-benchmarking.md
-  - .agents/skills/dotnet-simd/references/vector-t-and-fixed-shape.md
-  - .agents/skills/dotnet-simd/references/vector128-vectorization.md
-  - .agents/skills/dotnet-solution-setup
-  - .agents/skills/dotnet-solution-setup/SKILL.md
-  - .agents/skills/dotnet-solution-setup/references/central-package-management.md
-  - .agents/skills/dotnet-solution-setup/references/directory-build-props.md
-  - .agents/skills/dotnet-solution-setup/references/repo-scaffold.md
-  deployed_file_hashes:
-    .agents/skills/csharp-best-practices/SKILL.md: sha256:d1c92ce9f55209c7c9e51032571ad063807a6eaa033c540c89f0040e14051574
-    .agents/skills/csharp-best-practices/references/async.md: sha256:62f464b610d805fa2679c11bb9a1629a36aa626747200378ccc0d50418832e0a
-    .agents/skills/csharp-best-practices/references/language-features.md: sha256:e266b226a649c219abeda5761b9c086a835de4793085de3ecd1be88586829fe2
-    .agents/skills/csharp-best-practices/references/performance.md: sha256:c5860ca395890622fc9df47a1dd96c5dd1f661af32e6b9eb7855351bcb94cf72
-    .agents/skills/csharp-best-practices/references/source-generators.md: sha256:ed3930ebaabfb03e2d3398daec25adbfdebbea7ae62afcc74e7f4484586a24df
-    .agents/skills/csharp-file-based-app/SKILL.md: sha256:5ea7aeea7fe640247c5eac3cd6b1533f063c55886d20c3ca01f9c01317d54688
-    .agents/skills/csharp-file-based-app/references/directives-reference.md: sha256:693eb060099de2665e9650361bd276c2ace84c912850134ec5448713a832c531
-    .agents/skills/csharp-file-based-app/references/runtime-behavior.md: sha256:1b219f542476a6f2c0b360be4f20f4e961427c43bb37bd16cf37c277cb1292bf
-    .agents/skills/dotnet-agent-guardrails/SKILL.md: sha256:319102a5b95e4da0b0e5fa90b969c596f8ba25e22b2b631f1521a7bf8d3352f6
-    .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md: sha256:c13c1cea13842fe364e21cdcefe7a177fd7cab7ae0fefacf347aae6c2b8aecba
-    .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md: sha256:8fc799949cbdce10460ffa2e2ccfc0e3f6347cc49034d1bf5f09e629e540bca6
-    .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md: sha256:e9348cf0ad1d78cd8a3cf443227670c55b802109d42a6dcfd4ac72b3e75a338b
-    .agents/skills/dotnet-agent-guardrails/references/testing-contract.md: sha256:13ab02ff8b9e66ba8b28986b8007436767341d76b6af196f87bc0a32be677da7
-    .agents/skills/dotnet-benchmarking/SKILL.md: sha256:6b031572f25a2264fe245a7b291ae3e1386d1db7efb41d1064218610f703011c
-    .agents/skills/dotnet-benchmarking/references/comparing-configurations.md: sha256:03584501ccb08761e5aaef7a9fdddef9ddc481ffe99bcf78ce97f90302dd6e9e
-    .agents/skills/dotnet-benchmarking/references/interpreting-results.md: sha256:dadd07191a32bf80b1a1bdf6e1773555291ccb81ce40680f7981d1bbd853bd42
-    .agents/skills/dotnet-benchmarking/references/runtime-variant-testing.md: sha256:017071a7d47054a00292a497ca20d8bc41ff5c2ade7074743c06e79a388fd972
-    .agents/skills/dotnet-benchmarking/references/writing-benchmarks.md: sha256:979b935aa552f4918aa97c942517a947f9e800493461984d22241196e85e5a20
-    .agents/skills/dotnet-enumerable/SKILL.md: sha256:cb4f731a683a86f2e4dabda3a41203d012da8b02640a3c0ffc0a424639833c89
-    .agents/skills/dotnet-enumerable/references/async-enumeration.md: sha256:4c30a9602d53ab7682fe2ea59d912076fe7b57197a9f5af3c0ab20ce20d8e3f2
-    .agents/skills/dotnet-enumerable/references/custom-iterators.md: sha256:f3bc270e65cff87255d96564435915a0d9591e714c1a116040e6b0b6faa50500
-    .agents/skills/dotnet-enumerable/references/enumerable-interfaces.md: sha256:e87f7a85ba163c2e426f3437eb5b2c45b72a1f3c00d371b0b3aebdd6e71af750
-    .agents/skills/dotnet-enumerable/references/iteration-performance.md: sha256:f5ab97b1564beaf7454fc3682359c9c67ae3a2f3df40918de5678506a9695d6c
-    .agents/skills/dotnet-enumerable/references/linq-patterns.md: sha256:ce3d51940dddc39899f4b80eaeecf816f74f35ce8d95d79e71c007b31826d7fc
-    .agents/skills/dotnet-enumerable/references/tooling.md: sha256:7426769485348febfa4070344e1e465ab4dfceb9830b9d7866d985f72c183468
-    .agents/skills/dotnet-generic-math/SKILL.md: sha256:35c387b18127bc91421a762771d55a82d3d92784c67001823ea8e850e836dc80
-    .agents/skills/dotnet-generic-math/references/interfaces.md: sha256:1b7c69159977dc4c5a6de9c311262a07332905b0a926c0bcf9df15d83520a215
-    .agents/skills/dotnet-generic-math/references/patterns.md: sha256:ac85676b9244cda9d2a4e8db224cffadbbac587467fb9bfcc221224c1cc79c5d
-    .agents/skills/dotnet-simd/SKILL.md: sha256:da5c2270359847549d541a50223326c8041d00502ff2c698be1795d87b75f91b
-    .agents/skills/dotnet-simd/references/hardware-intrinsics.md: sha256:002733a4ff315a516e2be9ad2a113c9d078b415c85321837a07588093bfa3c31
-    .agents/skills/dotnet-simd/references/performance-optimization-ladder.md: sha256:1385cf226a7c388953bae913cafbf8dac4120e8052dade79d79b23459ee29806
-    .agents/skills/dotnet-simd/references/tensor-primitives.md: sha256:57f08c2fe734dd9d2eac45990a869b17b619de688545ad94281f2cf01f658e7f
-    .agents/skills/dotnet-simd/references/testing-and-benchmarking.md: sha256:cf7c2e2b727e83b822bb0571ac88bf92cc44df3f4e44d992dcf5a4becbf20de1
-    .agents/skills/dotnet-simd/references/vector-t-and-fixed-shape.md: sha256:281b375e8cc8aaf1dff8cc19d0a564a7b90431dc77e4c2d9db049924ec20f29a
-    .agents/skills/dotnet-simd/references/vector128-vectorization.md: sha256:b6429af7ff7edc2a15da304b16cf0bd469319a5a0e03a59c03123a933eae3e10
-    .agents/skills/dotnet-solution-setup/SKILL.md: sha256:6c958ac9cf260b498e6e80aa19747b71eca631f37a58a725a597d8439d7e7e25
-    .agents/skills/dotnet-solution-setup/references/central-package-management.md: sha256:0535110ac73800af2ef7d8a4b8cee40472caa355dc0dfd4380e4180367c9c15a
-    .agents/skills/dotnet-solution-setup/references/directory-build-props.md: sha256:6b751c7a8527bdf75c6139c95f0cda3aa71b3e167f9c086e37a0909120b92e7e
-    .agents/skills/dotnet-solution-setup/references/repo-scaffold.md: sha256:3f1beca10ba8b2772c9fdac1557375f8fc707b496bb5d45a5d2a5200117e7c26
-  content_hash: sha256:96048a352b1363b1da271195c92a5853cda7e848aa35493702ab2b87d8bbae67
-  discovered_via: intelligentium
-  marketplace_plugin_name: dotnet
-  declared_license: MIT
-- repo_url: netfabric/intelligentium
   name: agent-authoring
   host: github.com
-  resolved_commit: ad2113b469f6618ea60b6e32e3a8803a10918930
+  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
   version: 0.15.0
   virtual_path: plugins/agent-authoring
   is_virtual: true
@@ -279,13 +179,11 @@ dependencies:
     .agents/skills/toon/references/format-spec.md: sha256:dada3b52077ed2991bf700bee6a0ed2f36c79aa93497fc6778eb438b451fac38
     .agents/skills/toon/references/llm-integration-patterns.md: sha256:cc5c20c4b740042cff6b90ad77fdfceb4ad008a02771adf1b809c078206e3c66
   content_hash: sha256:1febd7fb1557f972e375062b9f58ff4defc55b4ffdf5a8508133ca1a3c116732
-  discovered_via: intelligentium
-  marketplace_plugin_name: agent-authoring
   declared_license: MIT
 - repo_url: netfabric/intelligentium
   name: codebase-memory
   host: github.com
-  resolved_commit: ad2113b469f6618ea60b6e32e3a8803a10918930
+  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
   version: 0.1.2
   virtual_path: plugins/codebase-memory
   is_virtual: true
@@ -302,12 +200,183 @@ dependencies:
     .agents/skills/codebase-memory/references/integration-guide.md: sha256:b8a8d2b5849e3c81051f8f2c4ab08d04b1bdca5151c43d8cced943ab7fef1b93
     .agents/skills/codebase-memory/references/tools.md: sha256:25fcaa9a684a2c52d4dbfab16fd0cc81ce09a251143f53360c960482e70bdfae
   content_hash: sha256:0c25fda5abfd9589ef8dc26d834555a91ac00de7159a100872d5733ec2ad0c48
-  discovered_via: intelligentium
-  marketplace_plugin_name: codebase-memory
+  declared_license: MIT
+- repo_url: netfabric/intelligentium
+  name: dotnet
+  host: github.com
+  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
+  version: 0.8.0
+  virtual_path: plugins/dotnet
+  is_virtual: true
+  package_type: apm_package
+  deployed_files:
+  - .agents/skills/csharp-best-practices
+  - .agents/skills/csharp-best-practices/SKILL.md
+  - .agents/skills/csharp-best-practices/references/async.md
+  - .agents/skills/csharp-best-practices/references/language-features.md
+  - .agents/skills/csharp-best-practices/references/performance.md
+  - .agents/skills/csharp-best-practices/references/source-generators.md
+  - .agents/skills/csharp-file-based-app
+  - .agents/skills/csharp-file-based-app/SKILL.md
+  - .agents/skills/csharp-file-based-app/references/directives-reference.md
+  - .agents/skills/csharp-file-based-app/references/runtime-behavior.md
+  - .agents/skills/dotnet-agent-guardrails
+  - .agents/skills/dotnet-agent-guardrails/SKILL.md
+  - .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md
+  - .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md
+  - .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md
+  - .agents/skills/dotnet-agent-guardrails/references/testing-contract.md
+  - .agents/skills/dotnet-benchmarking
+  - .agents/skills/dotnet-benchmarking/SKILL.md
+  - .agents/skills/dotnet-benchmarking/references/comparing-configurations.md
+  - .agents/skills/dotnet-benchmarking/references/interpreting-results.md
+  - .agents/skills/dotnet-benchmarking/references/runtime-variant-testing.md
+  - .agents/skills/dotnet-benchmarking/references/writing-benchmarks.md
+  - .agents/skills/dotnet-channels
+  - .agents/skills/dotnet-channels/SKILL.md
+  - .agents/skills/dotnet-channels/references/bounded-capacity-and-backpressure.md
+  - .agents/skills/dotnet-channels/references/concurrency-and-consumption.md
+  - .agents/skills/dotnet-channels/references/contracts-and-api.md
+  - .agents/skills/dotnet-channels/references/hosted-services-and-di.md
+  - .agents/skills/dotnet-channels/references/in-memory-messaging-boundaries.md
+  - .agents/skills/dotnet-channels/references/sources.md
+  - .agents/skills/dotnet-channels/references/testing-and-review.md
+  - .agents/skills/dotnet-enumerable
+  - .agents/skills/dotnet-enumerable/SKILL.md
+  - .agents/skills/dotnet-enumerable/references/async-enumeration.md
+  - .agents/skills/dotnet-enumerable/references/custom-iterators.md
+  - .agents/skills/dotnet-enumerable/references/enumerable-interfaces.md
+  - .agents/skills/dotnet-enumerable/references/iteration-performance.md
+  - .agents/skills/dotnet-enumerable/references/linq-patterns.md
+  - .agents/skills/dotnet-enumerable/references/tooling.md
+  - .agents/skills/dotnet-generic-math
+  - .agents/skills/dotnet-generic-math/SKILL.md
+  - .agents/skills/dotnet-generic-math/references/interfaces.md
+  - .agents/skills/dotnet-generic-math/references/patterns.md
+  - .agents/skills/dotnet-simd
+  - .agents/skills/dotnet-simd/SKILL.md
+  - .agents/skills/dotnet-simd/references/hardware-intrinsics.md
+  - .agents/skills/dotnet-simd/references/performance-optimization-ladder.md
+  - .agents/skills/dotnet-simd/references/tensor-primitives.md
+  - .agents/skills/dotnet-simd/references/testing-and-benchmarking.md
+  - .agents/skills/dotnet-simd/references/vector-t-and-fixed-shape.md
+  - .agents/skills/dotnet-simd/references/vector128-vectorization.md
+  - .agents/skills/dotnet-solution-setup
+  - .agents/skills/dotnet-solution-setup/SKILL.md
+  - .agents/skills/dotnet-solution-setup/references/central-package-management.md
+  - .agents/skills/dotnet-solution-setup/references/directory-build-props.md
+  - .agents/skills/dotnet-solution-setup/references/repo-scaffold.md
+  deployed_file_hashes:
+    .agents/skills/csharp-best-practices/SKILL.md: sha256:d1c92ce9f55209c7c9e51032571ad063807a6eaa033c540c89f0040e14051574
+    .agents/skills/csharp-best-practices/references/async.md: sha256:62f464b610d805fa2679c11bb9a1629a36aa626747200378ccc0d50418832e0a
+    .agents/skills/csharp-best-practices/references/language-features.md: sha256:e266b226a649c219abeda5761b9c086a835de4793085de3ecd1be88586829fe2
+    .agents/skills/csharp-best-practices/references/performance.md: sha256:c5860ca395890622fc9df47a1dd96c5dd1f661af32e6b9eb7855351bcb94cf72
+    .agents/skills/csharp-best-practices/references/source-generators.md: sha256:ed3930ebaabfb03e2d3398daec25adbfdebbea7ae62afcc74e7f4484586a24df
+    .agents/skills/csharp-file-based-app/SKILL.md: sha256:5ea7aeea7fe640247c5eac3cd6b1533f063c55886d20c3ca01f9c01317d54688
+    .agents/skills/csharp-file-based-app/references/directives-reference.md: sha256:693eb060099de2665e9650361bd276c2ace84c912850134ec5448713a832c531
+    .agents/skills/csharp-file-based-app/references/runtime-behavior.md: sha256:1b219f542476a6f2c0b360be4f20f4e961427c43bb37bd16cf37c277cb1292bf
+    .agents/skills/dotnet-agent-guardrails/SKILL.md: sha256:319102a5b95e4da0b0e5fa90b969c596f8ba25e22b2b631f1521a7bf8d3352f6
+    .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md: sha256:c13c1cea13842fe364e21cdcefe7a177fd7cab7ae0fefacf347aae6c2b8aecba
+    .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md: sha256:8fc799949cbdce10460ffa2e2ccfc0e3f6347cc49034d1bf5f09e629e540bca6
+    .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md: sha256:e9348cf0ad1d78cd8a3cf443227670c55b802109d42a6dcfd4ac72b3e75a338b
+    .agents/skills/dotnet-agent-guardrails/references/testing-contract.md: sha256:13ab02ff8b9e66ba8b28986b8007436767341d76b6af196f87bc0a32be677da7
+    .agents/skills/dotnet-benchmarking/SKILL.md: sha256:6b031572f25a2264fe245a7b291ae3e1386d1db7efb41d1064218610f703011c
+    .agents/skills/dotnet-benchmarking/references/comparing-configurations.md: sha256:03584501ccb08761e5aaef7a9fdddef9ddc481ffe99bcf78ce97f90302dd6e9e
+    .agents/skills/dotnet-benchmarking/references/interpreting-results.md: sha256:dadd07191a32bf80b1a1bdf6e1773555291ccb81ce40680f7981d1bbd853bd42
+    .agents/skills/dotnet-benchmarking/references/runtime-variant-testing.md: sha256:017071a7d47054a00292a497ca20d8bc41ff5c2ade7074743c06e79a388fd972
+    .agents/skills/dotnet-benchmarking/references/writing-benchmarks.md: sha256:979b935aa552f4918aa97c942517a947f9e800493461984d22241196e85e5a20
+    .agents/skills/dotnet-channels/SKILL.md: sha256:977245887bb43d8234e5d343427818f45c6c06ad77fd66f8b16ec3627c51a5bb
+    .agents/skills/dotnet-channels/references/bounded-capacity-and-backpressure.md: sha256:23128d9c6ec4144b3f4fbdfb76ef16b15ac7ae1790a534d485f073ab607b329b
+    .agents/skills/dotnet-channels/references/concurrency-and-consumption.md: sha256:f18dba2c73f33e13be3c5dad39ec33d59f1e472810239ed33f5326bf569d40a7
+    .agents/skills/dotnet-channels/references/contracts-and-api.md: sha256:f93fd1b0dc2e397c0b12054ff460ebba2a4faef795ea935e0de144460b159879
+    .agents/skills/dotnet-channels/references/hosted-services-and-di.md: sha256:a8752dd0b23ca3d355347fda5ad5eaecf572e98a90bf9ac3cbe3fbc6c4dbebc3
+    .agents/skills/dotnet-channels/references/in-memory-messaging-boundaries.md: sha256:ef5790a2ccec44633539c617df7f3ff8330e567fb89e48ab274289e220b6aad1
+    .agents/skills/dotnet-channels/references/sources.md: sha256:de4905c4f46105789890fa8a444a905dde3d51a07254cc216ee94a702af24054
+    .agents/skills/dotnet-channels/references/testing-and-review.md: sha256:9e00e890d74042feec28238305f6e30ec36a2a4d77b00e14d8bdeeeadc8f23f2
+    .agents/skills/dotnet-enumerable/SKILL.md: sha256:cb4f731a683a86f2e4dabda3a41203d012da8b02640a3c0ffc0a424639833c89
+    .agents/skills/dotnet-enumerable/references/async-enumeration.md: sha256:4c30a9602d53ab7682fe2ea59d912076fe7b57197a9f5af3c0ab20ce20d8e3f2
+    .agents/skills/dotnet-enumerable/references/custom-iterators.md: sha256:f3bc270e65cff87255d96564435915a0d9591e714c1a116040e6b0b6faa50500
+    .agents/skills/dotnet-enumerable/references/enumerable-interfaces.md: sha256:e87f7a85ba163c2e426f3437eb5b2c45b72a1f3c00d371b0b3aebdd6e71af750
+    .agents/skills/dotnet-enumerable/references/iteration-performance.md: sha256:f5ab97b1564beaf7454fc3682359c9c67ae3a2f3df40918de5678506a9695d6c
+    .agents/skills/dotnet-enumerable/references/linq-patterns.md: sha256:ce3d51940dddc39899f4b80eaeecf816f74f35ce8d95d79e71c007b31826d7fc
+    .agents/skills/dotnet-enumerable/references/tooling.md: sha256:7426769485348febfa4070344e1e465ab4dfceb9830b9d7866d985f72c183468
+    .agents/skills/dotnet-generic-math/SKILL.md: sha256:35c387b18127bc91421a762771d55a82d3d92784c67001823ea8e850e836dc80
+    .agents/skills/dotnet-generic-math/references/interfaces.md: sha256:1b7c69159977dc4c5a6de9c311262a07332905b0a926c0bcf9df15d83520a215
+    .agents/skills/dotnet-generic-math/references/patterns.md: sha256:ac85676b9244cda9d2a4e8db224cffadbbac587467fb9bfcc221224c1cc79c5d
+    .agents/skills/dotnet-simd/SKILL.md: sha256:da5c2270359847549d541a50223326c8041d00502ff2c698be1795d87b75f91b
+    .agents/skills/dotnet-simd/references/hardware-intrinsics.md: sha256:002733a4ff315a516e2be9ad2a113c9d078b415c85321837a07588093bfa3c31
+    .agents/skills/dotnet-simd/references/performance-optimization-ladder.md: sha256:1385cf226a7c388953bae913cafbf8dac4120e8052dade79d79b23459ee29806
+    .agents/skills/dotnet-simd/references/tensor-primitives.md: sha256:57f08c2fe734dd9d2eac45990a869b17b619de688545ad94281f2cf01f658e7f
+    .agents/skills/dotnet-simd/references/testing-and-benchmarking.md: sha256:cf7c2e2b727e83b822bb0571ac88bf92cc44df3f4e44d992dcf5a4becbf20de1
+    .agents/skills/dotnet-simd/references/vector-t-and-fixed-shape.md: sha256:281b375e8cc8aaf1dff8cc19d0a564a7b90431dc77e4c2d9db049924ec20f29a
+    .agents/skills/dotnet-simd/references/vector128-vectorization.md: sha256:b6429af7ff7edc2a15da304b16cf0bd469319a5a0e03a59c03123a933eae3e10
+    .agents/skills/dotnet-solution-setup/SKILL.md: sha256:6c958ac9cf260b498e6e80aa19747b71eca631f37a58a725a597d8439d7e7e25
+    .agents/skills/dotnet-solution-setup/references/central-package-management.md: sha256:0535110ac73800af2ef7d8a4b8cee40472caa355dc0dfd4380e4180367c9c15a
+    .agents/skills/dotnet-solution-setup/references/directory-build-props.md: sha256:6b751c7a8527bdf75c6139c95f0cda3aa71b3e167f9c086e37a0909120b92e7e
+    .agents/skills/dotnet-solution-setup/references/repo-scaffold.md: sha256:3f1beca10ba8b2772c9fdac1557375f8fc707b496bb5d45a5d2a5200117e7c26
+  content_hash: sha256:c15403a560140e93a037a010418fa2ae2d8ef7ebebf9128625ff7936cc307273
+  declared_license: MIT
+- repo_url: netfabric/intelligentium
+  name: dotnet-rx
+  host: github.com
+  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
+  version: 0.1.0
+  virtual_path: plugins/dotnet-rx
+  is_virtual: true
+  package_type: marketplace_plugin
+  deployed_files:
+  - .agents/skills/dotnet-rx
+  - .agents/skills/dotnet-rx/SKILL.md
+  - .agents/skills/dotnet-rx/references/creating-and-interop.md
+  - .agents/skills/dotnet-rx/references/custom-operators-and-review.md
+  - .agents/skills/dotnet-rx/references/errors-resources-and-flow.md
+  - .agents/skills/dotnet-rx/references/model-and-lifetimes.md
+  - .agents/skills/dotnet-rx/references/operator-selection.md
+  - .agents/skills/dotnet-rx/references/packages-and-versioning.md
+  - .agents/skills/dotnet-rx/references/scheduling-and-concurrency.md
+  - .agents/skills/dotnet-rx/references/sources.md
+  - .agents/skills/dotnet-rx/references/subjects-and-multicasting.md
+  - .agents/skills/dotnet-rx/references/testing.md
+  - .agents/skills/reactiveui
+  - .agents/skills/reactiveui/SKILL.md
+  - .agents/skills/reactiveui/references/activation-and-lifetimes.md
+  - .agents/skills/reactiveui/references/collections-validation-and-services.md
+  - .agents/skills/reactiveui/references/commands-and-errors.md
+  - .agents/skills/reactiveui/references/interactions-routing-and-location.md
+  - .agents/skills/reactiveui/references/migration-and-review.md
+  - .agents/skills/reactiveui/references/packages-startup-and-platforms.md
+  - .agents/skills/reactiveui/references/scheduling-and-testing.md
+  - .agents/skills/reactiveui/references/sources.md
+  - .agents/skills/reactiveui/references/view-model-state-and-generators.md
+  - .agents/skills/reactiveui/references/views-bindings-and-events.md
+  deployed_file_hashes:
+    .agents/skills/dotnet-rx/SKILL.md: sha256:edcea0b380ccddf403e05f09776574f40df00dbb033ed14133d200b4a4ca68d8
+    .agents/skills/dotnet-rx/references/creating-and-interop.md: sha256:def2e2f16d8c5764708fe61e8289de087808b4f7611197c9d4e73a36a6614c2a
+    .agents/skills/dotnet-rx/references/custom-operators-and-review.md: sha256:514f4c9cb9e283a26adf5eea2b8a64d0d11bc14ac936c102d6e8e9df4f9f94f3
+    .agents/skills/dotnet-rx/references/errors-resources-and-flow.md: sha256:8801d045b4f8eee3a3ea68db0e471f83fd6db12102080436555e7b142c3047a0
+    .agents/skills/dotnet-rx/references/model-and-lifetimes.md: sha256:335c18c92b7a572d4c9e5f62e24453085a302347b8c5a315c377573e614f91f7
+    .agents/skills/dotnet-rx/references/operator-selection.md: sha256:92091d4b58aa5c1a849c7f92698a60ac7665186c5a696f89d87751fec5b1c7ce
+    .agents/skills/dotnet-rx/references/packages-and-versioning.md: sha256:d3a1c74a299cd727382736ddc1a65b70db00af4bee14abf8375f956e5c697027
+    .agents/skills/dotnet-rx/references/scheduling-and-concurrency.md: sha256:4340457aaf2f17872027026f3ba902127fc1b1a9d43c146fe8f1cf80d7fc290e
+    .agents/skills/dotnet-rx/references/sources.md: sha256:5e3729e06e7e1c83d06bad3759d693612387424668f8e5c882a0cbe081dbfd04
+    .agents/skills/dotnet-rx/references/subjects-and-multicasting.md: sha256:bef1b0fdaaa3f6d9946e7d09e281d9674083707578c3c3f3d50964e6f980ad99
+    .agents/skills/dotnet-rx/references/testing.md: sha256:b050bf1a3dd3190e74e307b3c50a4d5360036f20315865d0b2a2ff546693af99
+    .agents/skills/reactiveui/SKILL.md: sha256:46cfdb4210587906c76093ee9e2ea0013e837a34a9c2b7f00bafef1278169f84
+    .agents/skills/reactiveui/references/activation-and-lifetimes.md: sha256:6b11e6298a5fd97317c5efc62c9e7e60a2e16f012b92ce2b963391a07c20d282
+    .agents/skills/reactiveui/references/collections-validation-and-services.md: sha256:ed76d0ab737c82679623c3a2a35ac67fec0c1db1826f7788245e98de05eb3873
+    .agents/skills/reactiveui/references/commands-and-errors.md: sha256:0d019ed23666315a5fe03e070c86a71007469f7d382d9ba1d900aa44110f7f1e
+    .agents/skills/reactiveui/references/interactions-routing-and-location.md: sha256:705eb4a200c1f91933ab90067f081debcbefffeee9657719c94d8c6544f0ac17
+    .agents/skills/reactiveui/references/migration-and-review.md: sha256:f796c72d37657112b4d31b3b1ef78c0b0f331cec0bf80546b68c0f4e5253ee77
+    .agents/skills/reactiveui/references/packages-startup-and-platforms.md: sha256:4f07d726c15041a35a2671efb14c848154df3e9787387e411498abd577c1e21b
+    .agents/skills/reactiveui/references/scheduling-and-testing.md: sha256:da5c91ec763578530309983bdc10f021a63537c471b9a41a9bbb80c6545d8792
+    .agents/skills/reactiveui/references/sources.md: sha256:8714c6bb0a3f995b1052d61a8d42852406a9956a40fb4e34d4ebc04e6e2295cf
+    .agents/skills/reactiveui/references/view-model-state-and-generators.md: sha256:fa80f2185260827edd64bcc6def3208395a4af11b86a151ebd0770d0df546c86
+    .agents/skills/reactiveui/references/views-bindings-and-events.md: sha256:bc159e2879fc733415ff14cd4913ee0c354d4ef8bfd834fe0fa9860c8cf92ffc
+  content_hash: sha256:e7fbf9fe9e50c6f3b06317cd5be349686fdd65f44532df3b92a9b5f2cb25a400
   declared_license: MIT
 deployments:
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration
   runtime: null
   scope: project
@@ -316,7 +385,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/SKILL.md
   runtime: null
   scope: project
@@ -325,7 +394,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:0b556cd904c216a701eb973c3c8f678cb2dd831f715c3e1a3192cda16b0dc60c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/references/graph-concepts.md
   runtime: null
   scope: project
@@ -334,7 +403,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:5c45dcd98ecbcc19eb4277b1ff9adad21573da0c1136ce00a72e94cc1d64cef0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/references/harness-implementation.md
   runtime: null
   scope: project
@@ -343,7 +412,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:69873d5f3f110ae51df12228a0e7a78812af3f6e83f0351afe50f91618307978
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/references/model-selection.md
   runtime: null
   scope: project
@@ -352,7 +421,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:a9a137f991352be457f48e5dd1d314b0bad54d482f0aca38fb5672ecb6bbd0d0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/references/scaffolding-workflow.md
   runtime: null
   scope: project
@@ -361,7 +430,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:a5ea125040eeaa7e520637b578018be9c1d16d3c8539f7e31bae91cade2d8b90
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-graph-orchestration/references/topologies.md
   runtime: null
   scope: project
@@ -370,7 +439,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:8195432b62f40e145ea55170cbfff363e3645af64e6994750956d994ce5d1964
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs
   runtime: null
   scope: project
@@ -379,7 +448,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/SKILL.md
   runtime: null
   scope: project
@@ -388,7 +457,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:ccac64260708f4067551bd309df4660acab7bc1d2ecc863008ca7bbc0b68bc94
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/codex-gemini-opencode.md
   runtime: null
   scope: project
@@ -397,7 +466,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:20790e9f103e2a07cf6c33f0038351faa0bbc98413ce72eb6183e145aa0db522
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/concepts-and-safety.md
   runtime: null
   scope: project
@@ -406,7 +475,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:4683bfdd9fd377046fd74099cf75b4f6eea734580b3bb862dbb2394b5d20ef9f
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/copilot-and-claude.md
   runtime: null
   scope: project
@@ -415,7 +484,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:54199a5d5918ae6c5657fe8bbe8657139de24d5b32bc231985d91fc77be24984
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/path-matrix.md
   runtime: null
   scope: project
@@ -424,7 +493,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:593581b7a34ecf25f631928c3b5a1adf3408f2262da50c777f900d00d3fbca30
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/query-recipes.md
   runtime: null
   scope: project
@@ -433,7 +502,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:0772d4946f56512a918949461a1a65bb426d130bd161a277c252e60b1f61d118
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/sources.md
   runtime: null
   scope: project
@@ -442,7 +511,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:962291be539cf620554ba80d8221428cef663cc0b7a4e62e0a9eeb5483a536da
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/references/vscode-and-editors.md
   runtime: null
   scope: project
@@ -451,7 +520,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:15594ebd0a07f87a0937ff7c554fa1154dc0d73d442cee7f31ad71a0baf64b2c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/scripts/harness_logs.py
   runtime: null
   scope: project
@@ -460,7 +529,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:b72786723f8fa56c9e7d84fec5dbb49ac4ebb6a4cf4fa0546bf7d6c9d048eac0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-harness-logs/scripts/test_harness_logs.py
   runtime: null
   scope: project
@@ -469,7 +538,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:53536cb3172a6cde349d602d76614fe071ded9ba75da5cccf6c9e5b240e59d9c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-markdown-best-practices
   runtime: null
   scope: project
@@ -478,7 +547,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-markdown-best-practices/SKILL.md
   runtime: null
   scope: project
@@ -487,7 +556,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:efd57d3ebcdc1f2554ac83bdda2edfb010fca63c44c3f2e3fd7f03fb86a2b9db
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agent-markdown-best-practices/references/compact-agent-content.md
   runtime: null
   scope: project
@@ -496,7 +565,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:9e0afaebda0b024b08b06043a5f148351c528146a9bcd3a904b62f76c1d03e5d
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agents-md
   runtime: null
   scope: project
@@ -505,7 +574,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agents-md/SKILL.md
   runtime: null
   scope: project
@@ -514,7 +583,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:c2b5704189079a1e846e29f52c0915eae5b5035816622578119ecc1f69a6b92d
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agents-md/references/anatomy-and-discovery.md
   runtime: null
   scope: project
@@ -523,7 +592,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:a1146d237f8973a3d78052290cf55a58d23ed0bb8030d8f6c11ac38849c04795
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agents-md/references/authoring-workflow.md
   runtime: null
   scope: project
@@ -532,7 +601,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:efad24313e8ed24a26c018eebf37023aae3c3cd1a37b652de942eb3122d15e23
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/agents-md/references/quality-and-security.md
   runtime: null
   scope: project
@@ -541,7 +610,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:09b07b6876c0d97fd8d56b21cef3ccc677153f35b5d72e5938e281bbb90eaf86
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents
   runtime: null
   scope: project
@@ -550,7 +619,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents/SKILL.md
   runtime: null
   scope: project
@@ -559,7 +628,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:8bef9519a3d9469a1b3ddb33a9a40e4d8bda328c11d63b6e7048834cb9cd55fe
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents/references/authoring-workflow.md
   runtime: null
   scope: project
@@ -568,7 +637,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:34df4e7fdaa99dbaa46480abbc66ac31fa3cc45b6cda6de906224e65a3caabb9
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents/references/delegation-and-squads.md
   runtime: null
   scope: project
@@ -577,7 +646,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:8c809373e596060f8369488edc0011ad6aed475c37db946df8bb6c68a01fae22
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents/references/frontmatter-reference.md
   runtime: null
   scope: project
@@ -586,7 +655,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:e4704d175268eb35269ab16e4a2e17c6dbb6aacd691c2dddeaca4170ae696683
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/claude-code-custom-agents/references/undocumented-and-gotchas.md
   runtime: null
   scope: project
@@ -595,7 +664,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:757c39e849a320d0d21d60705e51fb6240f9ac3c40bab65460ee285faea81e12
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/codebase-memory
   runtime: null
   scope: project
@@ -604,7 +673,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/codebase-memory
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/codebase-memory/SKILL.md
   runtime: null
   scope: project
@@ -613,7 +682,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/codebase-memory
   content_hash: sha256:240a4cca4a6bed0d0d2cae0b359349b4184a33f781f4c7f34289b0a2fd8b49ab
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/codebase-memory/references/installation.md
   runtime: null
   scope: project
@@ -622,7 +691,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/codebase-memory
   content_hash: sha256:34d7bdded5ec515c380015918dbafa3aee2f9254a0a7aaa2e10d6724c88621f9
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/codebase-memory/references/integration-guide.md
   runtime: null
   scope: project
@@ -631,7 +700,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/codebase-memory
   content_hash: sha256:b8a8d2b5849e3c81051f8f2c4ab08d04b1bdca5151c43d8cced943ab7fef1b93
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/codebase-memory/references/tools.md
   runtime: null
   scope: project
@@ -640,7 +709,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/codebase-memory
   content_hash: sha256:25fcaa9a684a2c52d4dbfab16fd0cc81ce09a251143f53360c960482e70bdfae
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents
   runtime: null
   scope: project
@@ -649,7 +718,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents/SKILL.md
   runtime: null
   scope: project
@@ -658,7 +727,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:78dcedd8ed4483f4b523a415f0bce5def3153bfd08c3408a97b535de6fdfd029
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents/references/authoring-workflow.md
   runtime: null
   scope: project
@@ -667,7 +736,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:d207259347077c11c7a5b8fd933fad90b497cfa71dd60a630b5b52e4ccca1cce
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents/references/delegation-and-squads.md
   runtime: null
   scope: project
@@ -676,7 +745,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:abb9971c0b1a9cc4755c826ff1d04deba06e5f66de745de88ae912cdf3e5ce2d
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents/references/frontmatter-reference.md
   runtime: null
   scope: project
@@ -685,7 +754,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:4a0271f89a12714ae06479383c0d2b6683fd393962fa71a5e1e6a71b5deafe37
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-cli-custom-agents/references/undocumented-and-gotchas.md
   runtime: null
   scope: project
@@ -694,7 +763,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:3b053b07f84960a0e4b97cde8cf45125fdb654c5ef177517988608b1064014db
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions
   runtime: null
   scope: project
@@ -703,7 +772,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions/SKILL.md
   runtime: null
   scope: project
@@ -712,7 +781,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:fe472304ee2de77fae86fa76f99a2fb15e30461fe76d3ca341935858b7f5df8e
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions/references/authentication.md
   runtime: null
   scope: project
@@ -721,7 +790,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:dd8989e7dbb184fbc9ea4cca33159bbb7c46cd425b75782315976d105f83ee2a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions/references/cli-invocation-patterns.md
   runtime: null
   scope: project
@@ -730,7 +799,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:79f4a19ef74c2e8c460e110e5bce94ccb97dd71c9a06b353ca2a40a8d514026c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions/references/gh-aw-vs-direct.md
   runtime: null
   scope: project
@@ -739,7 +808,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:4decd77ce57997fa27f5a6f2922e0d4edf3ef7dca51342065bdab2629cf0411a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-github-actions/references/security-and-cost.md
   runtime: null
   scope: project
@@ -748,7 +817,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:2d8cf99a02ddbb121ed82cff99008eede4be1b6baf631c9352f8261b6bda1f7c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk
   runtime: null
   scope: project
@@ -757,7 +826,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk/SKILL.md
   runtime: null
   scope: project
@@ -766,7 +835,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:dc852fe506071a4d7bbe038957670c09030f655f8f43e223302940b32de5306a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk/references/advanced-features.md
   runtime: null
   scope: project
@@ -775,7 +844,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:2569fa16d680cb03f488e31fb44ab49a8321545166d640cb569ecd31beb9bf9c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk/references/core-session-api.md
   runtime: null
   scope: project
@@ -784,7 +853,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:52602af806dd9ee95a214e1a25b1d8853f2f183f2cc4d4575a6502d1602ae8e2
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk/references/language-quickstarts.md
   runtime: null
   scope: project
@@ -793,7 +862,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:d754b0268c63db6576c0edcc6d6f5539e1f8e91279b0586ed7e2bdf6d0095718
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/copilot-sdk/references/setup-and-auth.md
   runtime: null
   scope: project
@@ -802,7 +871,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:b17b03ee2b6335971a47ea7cbfe16c88f4cf4ca1cf8e440dca2517352ae22861
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/create-skill
   runtime: null
   scope: project
@@ -811,7 +880,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/create-skill/SKILL.md
   runtime: null
   scope: project
@@ -820,7 +889,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:4c80ec0f890c2ca21266b09d12ea75a0f0893d0a4c6123bf12a76bcd74c79bdb
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/create-skill/references/research-workflow.md
   runtime: null
   scope: project
@@ -829,7 +898,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:ad05a64d8bf6d133a1be2a0e8b789f5a2601ef6e3b00bd9e29c69d6ca3b60f65
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/create-skill/references/structure.md
   runtime: null
   scope: project
@@ -838,7 +907,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:209255de5bf812600ec790fffa3d1c2e3608e627f2e8867fe54fbc3187efd588
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices
   runtime: null
   scope: project
@@ -847,7 +916,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices/SKILL.md
   runtime: null
   scope: project
@@ -856,7 +925,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:d1c92ce9f55209c7c9e51032571ad063807a6eaa033c540c89f0040e14051574
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices/references/async.md
   runtime: null
   scope: project
@@ -865,7 +934,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:62f464b610d805fa2679c11bb9a1629a36aa626747200378ccc0d50418832e0a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices/references/language-features.md
   runtime: null
   scope: project
@@ -874,7 +943,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:e266b226a649c219abeda5761b9c086a835de4793085de3ecd1be88586829fe2
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices/references/performance.md
   runtime: null
   scope: project
@@ -883,7 +952,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:c5860ca395890622fc9df47a1dd96c5dd1f661af32e6b9eb7855351bcb94cf72
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-best-practices/references/source-generators.md
   runtime: null
   scope: project
@@ -892,7 +961,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:ed3930ebaabfb03e2d3398daec25adbfdebbea7ae62afcc74e7f4484586a24df
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-file-based-app
   runtime: null
   scope: project
@@ -901,7 +970,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-file-based-app/SKILL.md
   runtime: null
   scope: project
@@ -910,7 +979,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:5ea7aeea7fe640247c5eac3cd6b1533f063c55886d20c3ca01f9c01317d54688
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-file-based-app/references/directives-reference.md
   runtime: null
   scope: project
@@ -919,7 +988,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:693eb060099de2665e9650361bd276c2ace84c912850134ec5448713a832c531
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/csharp-file-based-app/references/runtime-behavior.md
   runtime: null
   scope: project
@@ -928,7 +997,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:1b219f542476a6f2c0b360be4f20f4e961427c43bb37bd16cf37c277cb1292bf
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails
   runtime: null
   scope: project
@@ -937,7 +1006,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails/SKILL.md
   runtime: null
   scope: project
@@ -946,7 +1015,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:319102a5b95e4da0b0e5fa90b969c596f8ba25e22b2b631f1521a7bf8d3352f6
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md
   runtime: null
   scope: project
@@ -955,7 +1024,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:c13c1cea13842fe364e21cdcefe7a177fd7cab7ae0fefacf347aae6c2b8aecba
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md
   runtime: null
   scope: project
@@ -964,7 +1033,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:8fc799949cbdce10460ffa2e2ccfc0e3f6347cc49034d1bf5f09e629e540bca6
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md
   runtime: null
   scope: project
@@ -973,7 +1042,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:e9348cf0ad1d78cd8a3cf443227670c55b802109d42a6dcfd4ac72b3e75a338b
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-agent-guardrails/references/testing-contract.md
   runtime: null
   scope: project
@@ -982,7 +1051,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:13ab02ff8b9e66ba8b28986b8007436767341d76b6af196f87bc0a32be677da7
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking
   runtime: null
   scope: project
@@ -991,7 +1060,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking/SKILL.md
   runtime: null
   scope: project
@@ -1000,7 +1069,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:6b031572f25a2264fe245a7b291ae3e1386d1db7efb41d1064218610f703011c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking/references/comparing-configurations.md
   runtime: null
   scope: project
@@ -1009,7 +1078,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:03584501ccb08761e5aaef7a9fdddef9ddc481ffe99bcf78ce97f90302dd6e9e
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking/references/interpreting-results.md
   runtime: null
   scope: project
@@ -1018,7 +1087,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:dadd07191a32bf80b1a1bdf6e1773555291ccb81ce40680f7981d1bbd853bd42
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking/references/runtime-variant-testing.md
   runtime: null
   scope: project
@@ -1027,7 +1096,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:017071a7d47054a00292a497ca20d8bc41ff5c2ade7074743c06e79a388fd972
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-benchmarking/references/writing-benchmarks.md
   runtime: null
   scope: project
@@ -1036,7 +1105,88 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:979b935aa552f4918aa97c942517a947f9e800493461984d22241196e85e5a20
 - kind: project-relative
-  target: agents
+  target: copilot
+  value: .agents/skills/dotnet-channels
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:977245887bb43d8234e5d343427818f45c6c06ad77fd66f8b16ec3627c51a5bb
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/bounded-capacity-and-backpressure.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:23128d9c6ec4144b3f4fbdfb76ef16b15ac7ae1790a534d485f073ab607b329b
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/concurrency-and-consumption.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:f18dba2c73f33e13be3c5dad39ec33d59f1e472810239ed33f5326bf569d40a7
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/contracts-and-api.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:f93fd1b0dc2e397c0b12054ff460ebba2a4faef795ea935e0de144460b159879
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/hosted-services-and-di.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:a8752dd0b23ca3d355347fda5ad5eaecf572e98a90bf9ac3cbe3fbc6c4dbebc3
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/in-memory-messaging-boundaries.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:ef5790a2ccec44633539c617df7f3ff8330e567fb89e48ab274289e220b6aad1
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/sources.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:de4905c4f46105789890fa8a444a905dde3d51a07254cc216ee94a702af24054
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-channels/references/testing-and-review.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet
+  active_owner: netfabric/intelligentium/plugins/dotnet
+  content_hash: sha256:9e00e890d74042feec28238305f6e30ec36a2a4d77b00e14d8bdeeeadc8f23f2
+- kind: project-relative
+  target: copilot
   value: .agents/skills/dotnet-enumerable
   runtime: null
   scope: project
@@ -1045,7 +1195,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/SKILL.md
   runtime: null
   scope: project
@@ -1054,7 +1204,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:cb4f731a683a86f2e4dabda3a41203d012da8b02640a3c0ffc0a424639833c89
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/async-enumeration.md
   runtime: null
   scope: project
@@ -1063,7 +1213,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:4c30a9602d53ab7682fe2ea59d912076fe7b57197a9f5af3c0ab20ce20d8e3f2
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/custom-iterators.md
   runtime: null
   scope: project
@@ -1072,7 +1222,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:f3bc270e65cff87255d96564435915a0d9591e714c1a116040e6b0b6faa50500
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/enumerable-interfaces.md
   runtime: null
   scope: project
@@ -1081,7 +1231,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:e87f7a85ba163c2e426f3437eb5b2c45b72a1f3c00d371b0b3aebdd6e71af750
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/iteration-performance.md
   runtime: null
   scope: project
@@ -1090,7 +1240,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:f5ab97b1564beaf7454fc3682359c9c67ae3a2f3df40918de5678506a9695d6c
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/linq-patterns.md
   runtime: null
   scope: project
@@ -1099,7 +1249,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:ce3d51940dddc39899f4b80eaeecf816f74f35ce8d95d79e71c007b31826d7fc
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-enumerable/references/tooling.md
   runtime: null
   scope: project
@@ -1108,7 +1258,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:7426769485348febfa4070344e1e465ab4dfceb9830b9d7866d985f72c183468
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-generic-math
   runtime: null
   scope: project
@@ -1117,7 +1267,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-generic-math/SKILL.md
   runtime: null
   scope: project
@@ -1126,7 +1276,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:35c387b18127bc91421a762771d55a82d3d92784c67001823ea8e850e836dc80
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-generic-math/references/interfaces.md
   runtime: null
   scope: project
@@ -1135,7 +1285,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:1b7c69159977dc4c5a6de9c311262a07332905b0a926c0bcf9df15d83520a215
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-generic-math/references/patterns.md
   runtime: null
   scope: project
@@ -1144,7 +1294,115 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:ac85676b9244cda9d2a4e8db224cffadbbac587467fb9bfcc221224c1cc79c5d
 - kind: project-relative
-  target: agents
+  target: copilot
+  value: .agents/skills/dotnet-rx
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:edcea0b380ccddf403e05f09776574f40df00dbb033ed14133d200b4a4ca68d8
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/creating-and-interop.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:def2e2f16d8c5764708fe61e8289de087808b4f7611197c9d4e73a36a6614c2a
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/custom-operators-and-review.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:514f4c9cb9e283a26adf5eea2b8a64d0d11bc14ac936c102d6e8e9df4f9f94f3
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/errors-resources-and-flow.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:8801d045b4f8eee3a3ea68db0e471f83fd6db12102080436555e7b142c3047a0
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/model-and-lifetimes.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:335c18c92b7a572d4c9e5f62e24453085a302347b8c5a315c377573e614f91f7
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/operator-selection.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:92091d4b58aa5c1a849c7f92698a60ac7665186c5a696f89d87751fec5b1c7ce
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/packages-and-versioning.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:d3a1c74a299cd727382736ddc1a65b70db00af4bee14abf8375f956e5c697027
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/scheduling-and-concurrency.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:4340457aaf2f17872027026f3ba902127fc1b1a9d43c146fe8f1cf80d7fc290e
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/sources.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:5e3729e06e7e1c83d06bad3759d693612387424668f8e5c882a0cbe081dbfd04
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/subjects-and-multicasting.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:bef1b0fdaaa3f6d9946e7d09e281d9674083707578c3c3f3d50964e6f980ad99
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/dotnet-rx/references/testing.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:b050bf1a3dd3190e74e307b3c50a4d5360036f20315865d0b2a2ff546693af99
+- kind: project-relative
+  target: copilot
   value: .agents/skills/dotnet-simd
   runtime: null
   scope: project
@@ -1153,7 +1411,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/SKILL.md
   runtime: null
   scope: project
@@ -1162,7 +1420,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:da5c2270359847549d541a50223326c8041d00502ff2c698be1795d87b75f91b
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/hardware-intrinsics.md
   runtime: null
   scope: project
@@ -1171,7 +1429,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:002733a4ff315a516e2be9ad2a113c9d078b415c85321837a07588093bfa3c31
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/performance-optimization-ladder.md
   runtime: null
   scope: project
@@ -1180,7 +1438,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:1385cf226a7c388953bae913cafbf8dac4120e8052dade79d79b23459ee29806
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/tensor-primitives.md
   runtime: null
   scope: project
@@ -1189,7 +1447,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:57f08c2fe734dd9d2eac45990a869b17b619de688545ad94281f2cf01f658e7f
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/testing-and-benchmarking.md
   runtime: null
   scope: project
@@ -1198,7 +1456,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:cf7c2e2b727e83b822bb0571ac88bf92cc44df3f4e44d992dcf5a4becbf20de1
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/vector-t-and-fixed-shape.md
   runtime: null
   scope: project
@@ -1207,7 +1465,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:281b375e8cc8aaf1dff8cc19d0a564a7b90431dc77e4c2d9db049924ec20f29a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-simd/references/vector128-vectorization.md
   runtime: null
   scope: project
@@ -1216,7 +1474,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:b6429af7ff7edc2a15da304b16cf0bd469319a5a0e03a59c03123a933eae3e10
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-solution-setup
   runtime: null
   scope: project
@@ -1225,7 +1483,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-solution-setup/SKILL.md
   runtime: null
   scope: project
@@ -1234,7 +1492,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:6c958ac9cf260b498e6e80aa19747b71eca631f37a58a725a597d8439d7e7e25
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-solution-setup/references/central-package-management.md
   runtime: null
   scope: project
@@ -1243,7 +1501,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:0535110ac73800af2ef7d8a4b8cee40472caa355dc0dfd4380e4180367c9c15a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-solution-setup/references/directory-build-props.md
   runtime: null
   scope: project
@@ -1252,7 +1510,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:6b751c7a8527bdf75c6139c95f0cda3aa71b3e167f9c086e37a0909120b92e7e
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/dotnet-solution-setup/references/repo-scaffold.md
   runtime: null
   scope: project
@@ -1261,7 +1519,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:3f1beca10ba8b2772c9fdac1557375f8fc707b496bb5d45a5d2a5200117e7c26
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices
   runtime: null
   scope: project
@@ -1270,7 +1528,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices/SKILL.md
   runtime: null
   scope: project
@@ -1279,7 +1537,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:14b8eabe547cdfbde852d37bd5ba8df3e48d651e36d88cb9998597f6a7dfa15f
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices/references/headings-and-structure.md
   runtime: null
   scope: project
@@ -1288,7 +1546,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:5ab224aaac9580430c58883ae64bc8f48eea824dd4f86eeaf3c55d4c14f40874
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices/references/links-images-and-whitespace.md
   runtime: null
   scope: project
@@ -1297,7 +1555,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:40890f9118576259aa0eafe487b095249a2a3dcf23e8cd597d491d63e346d2f2
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices/references/lists-and-code-blocks.md
   runtime: null
   scope: project
@@ -1306,7 +1564,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:1a0a91658b8482252da1849690633be0fa5a6a997d12a24253737c3e83e413ae
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/markdown-best-practices/references/tables.md
   runtime: null
   scope: project
@@ -1315,7 +1573,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:d4c8af9952b9e19ce9856d2b4919c6f445e596dffd09209962aa28951b1d1ec0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams
   runtime: null
   scope: project
@@ -1324,7 +1582,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams/SKILL.md
   runtime: null
   scope: project
@@ -1333,7 +1591,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:c1293957d97e3fd5cbf7f82a84900f17832a7e5fbe6cbba22448aa10549dcc24
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams/references/charts-and-comparison.md
   runtime: null
   scope: project
@@ -1342,7 +1600,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:dda0c2a90075e10fd387d365e11e4c285c539624ed7ab9a5cd0735f4be4fa1de
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams/references/planning-and-tracking.md
   runtime: null
   scope: project
@@ -1351,7 +1609,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:5212334877d83869278319da0c1ca78bf7108084d6352582ad9b6b07d782c774
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams/references/process-and-time.md
   runtime: null
   scope: project
@@ -1360,7 +1618,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:46b2aa577e0b8e00c0043572c952dcfa4204d258bc6bfec48bc88ba7fa335f1b
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/mermaid-diagrams/references/structure-and-data.md
   runtime: null
   scope: project
@@ -1369,7 +1627,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:60bc731c2e93cbaa8ba1a3bfdd145acb7409fbe3a069ea951760687a73db0516
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/model-selection
   runtime: null
   scope: project
@@ -1378,7 +1636,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/model-selection/SKILL.md
   runtime: null
   scope: project
@@ -1387,7 +1645,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:1fbc25c8f0f0fbad227261a3e96c0561c0d96a62e992adb805d36ee449f16e74
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/model-selection/references/cache-and-cost.md
   runtime: null
   scope: project
@@ -1396,7 +1654,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:27b97a631c2bfc34c28b2a98c702dd48e192b7b9254cd25872ff30c3f467092f
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/model-selection/references/harness-mapping.md
   runtime: null
   scope: project
@@ -1405,7 +1663,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:79748f822d1e9a34acc0bb1938cdd4640afa31b6f3bd831ed4556129bd1f2db5
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/model-selection/references/selection-criteria.md
   runtime: null
   scope: project
@@ -1414,7 +1672,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:f6cee1e1b0b638fa59da6f0f01fab4560ae7c485f2c7e083b1eeb697a409704f
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf
   runtime: null
   scope: project
@@ -1423,7 +1681,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf/SKILL.md
   runtime: null
   scope: project
@@ -1432,7 +1690,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:a39407f3e85c610371bff2bf9fd091b1897e945508c30e8c0930355bad1baa70
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf/references/consumer-guide.md
   runtime: null
   scope: project
@@ -1441,7 +1699,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:2b3b00e3d4e415f2101dbe670150c039ed8cb81cad85ae26560ce56f4edd94f0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf/references/efficient-reading.md
   runtime: null
   scope: project
@@ -1450,7 +1708,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:c02fc884bda5eab617efb5d5beef02aed896ee14e4c4577b8c88abc7609bf08a
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf/references/producer-guide.md
   runtime: null
   scope: project
@@ -1459,7 +1717,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:9628745086693e1b00b528e04da7a731962ffc7a93e5919a33ec42438fbffa73
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/okf/references/specification.md
   runtime: null
   scope: project
@@ -1468,7 +1726,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:0705b003640b9b78cafc562d066a46bbb4262b6f2e49df9828dd87695908c8b1
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/python-tui-apps
   runtime: null
   scope: project
@@ -1477,7 +1735,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/python-tui-apps/SKILL.md
   runtime: null
   scope: project
@@ -1486,7 +1744,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:0930360f91005bcbfb70f47e6cb609d7b241430986ae30919f1b47c7887db980
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/python-tui-apps/references/implementation.md
   runtime: null
   scope: project
@@ -1495,7 +1753,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:8d0606ed0b94d50d171c74fc913cd15aa69812a992653c40bf88f3695db5d6b2
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/python-tui-apps/references/testing-and-accessibility.md
   runtime: null
   scope: project
@@ -1504,7 +1762,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:79c9fd2582e0fda37f0180dc7ed79739659d6aad7ad02dbd2086953debed38e5
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/python-tui-apps/references/ux-and-components.md
   runtime: null
   scope: project
@@ -1513,7 +1771,115 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:40ddc1ce1b779c53160e05c722320d970460b70e3cbed9f9b693a01647c830a4
 - kind: project-relative
-  target: agents
+  target: copilot
+  value: .agents/skills/reactiveui
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:46cfdb4210587906c76093ee9e2ea0013e837a34a9c2b7f00bafef1278169f84
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/activation-and-lifetimes.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:6b11e6298a5fd97317c5efc62c9e7e60a2e16f012b92ce2b963391a07c20d282
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/collections-validation-and-services.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:ed76d0ab737c82679623c3a2a35ac67fec0c1db1826f7788245e98de05eb3873
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/commands-and-errors.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:0d019ed23666315a5fe03e070c86a71007469f7d382d9ba1d900aa44110f7f1e
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/interactions-routing-and-location.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:705eb4a200c1f91933ab90067f081debcbefffeee9657719c94d8c6544f0ac17
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/migration-and-review.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:f796c72d37657112b4d31b3b1ef78c0b0f331cec0bf80546b68c0f4e5253ee77
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/packages-startup-and-platforms.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:4f07d726c15041a35a2671efb14c848154df3e9787387e411498abd577c1e21b
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/scheduling-and-testing.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:da5c91ec763578530309983bdc10f021a63537c471b9a41a9bbb80c6545d8792
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/sources.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:8714c6bb0a3f995b1052d61a8d42852406a9956a40fb4e34d4ebc04e6e2295cf
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/view-model-state-and-generators.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:fa80f2185260827edd64bcc6def3208395a4af11b86a151ebd0770d0df546c86
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/reactiveui/references/views-bindings-and-events.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/dotnet-rx
+  active_owner: netfabric/intelligentium/plugins/dotnet-rx
+  content_hash: sha256:bc159e2879fc733415ff14cd4913ee0c354d4ef8bfd834fe0fa9860c8cf92ffc
+- kind: project-relative
+  target: copilot
   value: .agents/skills/ripgrep
   runtime: null
   scope: project
@@ -1522,7 +1888,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/ripgrep/SKILL.md
   runtime: null
   scope: project
@@ -1531,7 +1897,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:7be129c8e768477d26c0987a5e8ec03105de012030640c1cfbb60e7850458993
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/ripgrep/references/installation.md
   runtime: null
   scope: project
@@ -1540,7 +1906,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:dba2bcae5a91dd1151578b3af873f4135bd1265d47aa69a451af090ed5c2f7b3
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/ripgrep/references/usage.md
   runtime: null
   scope: project
@@ -1549,7 +1915,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:d41019948896ac1fbe338271ddedaea1fd5eac7a2c9ccd1fc3c7689a955368da
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/toon
   runtime: null
   scope: project
@@ -1558,7 +1924,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: null
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/toon/SKILL.md
   runtime: null
   scope: project
@@ -1567,7 +1933,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:81aa0780366cbf2a4174de423131787b584dea8cf3d2d6c6337f247a2aaba029
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/toon/references/cli-and-libraries.md
   runtime: null
   scope: project
@@ -1576,7 +1942,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:62fddd27a4c77d3adef571d605064555ad3625035ed3cef6989a31f69c81bfa0
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/toon/references/format-spec.md
   runtime: null
   scope: project
@@ -1585,7 +1951,7 @@ deployments:
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:dada3b52077ed2991bf700bee6a0ed2f36c79aa93497fc6778eb438b451fac38
 - kind: project-relative
-  target: agents
+  target: copilot
   value: .agents/skills/toon/references/llm-integration-patterns.md
   runtime: null
   scope: project

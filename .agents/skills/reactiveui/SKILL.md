@@ -1,6 +1,6 @@
 ---
 name: reactiveui
-description: "Design, implement, migrate, debug, review, and test ReactiveUI 24+ applications. USE FOR: ReactiveObject; WhenAnyValue; ObservableAsPropertyHelper/ToProperty; ReactiveCommand; WhenActivated; Bind/OneWayBind/BindCommand; Interaction; routing and view location; RxAppBuilder; source generators; ReactiveUI.Primitives vs *.Reactive distributions; schedulers; DynamicData; validation; WPF, Avalonia, MAUI, WinUI, WinForms, Blazor. DO NOT USE FOR: generic Rx.NET pipelines without MVVM (use dotnet-reactive-extensions); unrelated MVVM frameworks; visual UI design."
+description: "Design, implement, migrate, debug, review, and test ReactiveUI 24+ applications. USE FOR: ReactiveObject; WhenAnyValue; ObservableAsPropertyHelper/ToProperty; ReactiveCommand; WhenActivated; Bind/OneWayBind/BindCommand; Interaction; routing and view location; RxAppBuilder; source generators; ReactiveUI.Primitives vs *.Reactive distributions; schedulers; DynamicData; validation; WPF, Avalonia, MAUI, WinUI, WinForms, Blazor. DO NOT USE FOR: generic Rx.NET pipelines without MVVM (use dotnet-rx); unrelated MVVM frameworks; visual UI design."
 ---
 
 # ReactiveUI
@@ -16,7 +16,7 @@ Build testable MVVM applications by expressing state, work, and lifetime as obse
 
 ## Workflow
 
-1. For structural codebase queries, complete the [CBM readiness preflight](../codebase-memory/references/integration-guide.md#mandatory-readiness-owner-and-preflight), then use its CLI; read project files directly only for configuration or non-indexed text.
+1. Use available code-indexing tools for structural codebase queries; read project files directly only for configuration or non-indexed text.
 2. Inspect the target framework, UI platform, ReactiveUI version, package graph, trimming/AOT requirements, DI container, and public uses of `Unit`, `IScheduler`, subjects, or ReactiveUI.Primitives types.
 3. Choose one v24 distribution before writing imports or package references; keep core, platform, routing, and testing packages in that family.
 4. Initialize ReactiveUI once at the composition root with `RxAppBuilder` and the platform extension. Prefer explicit view registration when trimming or Native AOT matters.
@@ -57,7 +57,7 @@ The families share the ReactiveUI feature set but expose different namespaces an
 - Use `WhenAnyValue` only on properties with supported change notification; nested null intermediates suppress emissions until the chain becomes evaluable.
 - Prefer `ReactiveUI.SourceGenerators` for new code. Treat ReactiveUI.Fody and manual global initialization as migration paths, not defaults.
 - Explicit view registration removes assembly scanning; it does not remove v24 trimming/dynamic-code annotations from expression-based observation and binding APIs. Validate the published artifact.
-- Load the [Rx.NET skill](../dotnet-reactive-extensions/SKILL.md) for generic observable contracts, operator semantics, multicasting, backpressure limits, and System.Reactive testing details.
+- Load the [Rx.NET skill](../../../apm_modules/netfabric/intelligentium/plugins/dotnet-rx/.apm/skills/dotnet-rx/SKILL.md) for generic observable contracts, operator semantics, multicasting, backpressure limits, and System.Reactive testing details.
 
 ## Reference Files
 

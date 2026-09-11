@@ -12,6 +12,7 @@ dependencies:
     - netfabric/intelligentium/plugins/dotnet
     - netfabric/intelligentium/plugins/agent-authoring
     - netfabric/intelligentium/plugins/codebase-memory
+    - netfabric/intelligentium/plugins/dotnet-rx
   mcp: []
 includes: auto
 scripts: {}

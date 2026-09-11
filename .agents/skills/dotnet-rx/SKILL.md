@@ -1,5 +1,5 @@
 ---
-name: dotnet-reactive-extensions
+name: dotnet-rx
 description: "Design, implement, debug, review, and test Reactive Extensions for .NET (Rx.NET) pipelines with System.Reactive. USE FOR: IObservable<T>/IObserver<T>; Observable creation and adapters; LINQ-style operator selection; hot/cold/connectable streams; Subjects; Publish/Replay/RefCount/AutoConnect; schedulers and concurrency; disposal and cancellation; errors/retry; backpressure limits; Task/event/IAsyncEnumerable interop; virtual-time TestScheduler tests; Rx.NET 7 migration and UI packages. DO NOT USE FOR: ReactiveUI application architecture; RxJS/RxJava syntax; simple .NET events with no stream composition; producer-consumer workloads requiring built-in backpressure (prefer Channels or IAsyncEnumerable)."
 ---
 

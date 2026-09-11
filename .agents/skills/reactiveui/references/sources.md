@@ -84,7 +84,7 @@ The current v24 source/public API wins over old Blazor guidance: inspect `Reacti
 | [Testing handbook](https://www.reactiveui.net/documentation/handbook/testing/) | Scheduler injection, `With`, command and OAPH tests |
 | [ReactiveUI.Testing package](https://www.nuget.org/packages/ReactiveUI.Testing) | Default-family test assets |
 | [ReactiveUI.Testing.Reactive package](https://www.nuget.org/packages/ReactiveUI.Testing.Reactive) | System.Reactive-family test assets and `TestScheduler` helpers |
-| [Rx.NET skill](../../dotnet-reactive-extensions/SKILL.md) | Observable contracts, System.Reactive operators, virtual time, multicasting, flow limits |
+| [Rx.NET skill](../../../../apm_modules/netfabric/intelligentium/plugins/dotnet-rx/.apm/skills/dotnet-rx/SKILL.md) | Observable contracts, System.Reactive operators, virtual time, multicasting, flow limits |
 
 Testing public API files in the repository confirm that `SchedulerExtensions.With` targets `ISequencer` in the default package and `IScheduler` in `.Reactive`; only the `.Reactive` package exposes `Microsoft.Reactive.Testing.TestScheduler` helpers.
 
