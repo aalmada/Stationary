@@ -26,6 +26,7 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     private bool isStale;
     private bool isSessionPaused;
     private IReadOnlyList<TelemetrySample> chartSamples = [];
+    private IReadOnlyList<double> zoneTransitionValues = [];
 
     public HeartRatePresentationViewModel()
     {
@@ -98,6 +99,12 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     {
         get => chartSamples;
         private set => this.RaiseAndSetIfChanged(ref chartSamples, value);
+    }
+
+    public IReadOnlyList<double> ZoneTransitionValues
+    {
+        get => zoneTransitionValues;
+        private set => this.RaiseAndSetIfChanged(ref zoneTransitionValues, value);
     }
 
     public Color ChartColor => Color.FromArgb("B42318");
@@ -222,6 +229,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
         {
             ZoneDurations.Add(new(zone));
         }
+
+        ZoneTransitionValues = [.. profile.Zones.Skip(1).Select(static zone => (double)zone.MinimumBeatsPerMinute)];
 
         if (persist)
         {

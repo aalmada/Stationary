@@ -140,7 +140,7 @@
                 <Label Text="Heart rate" TextColor="{Binding HeartRate.ChartColor}" />
                 <Label Text="{Binding HeartRate.CurrentZoneText}" FontSize="11" TextColor="{StaticResource Muted}" />
               </VerticalStackLayout>
-              <local:TelemetryChart Grid.Column="1" Points="{Binding HeartRate.ChartSamples}" StrokeColor="{Binding HeartRate.ChartColor}" />
+              <local:TelemetryChart Grid.Column="1" Points="{Binding HeartRate.ChartSamples}" ReferenceValues="{Binding HeartRate.ZoneTransitionValues}" StrokeColor="{Binding HeartRate.ChartColor}" />
               <Label Grid.Column="2" Text="{Binding HeartRate.ChartSummary}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
             <Grid Grid.Row="4" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
