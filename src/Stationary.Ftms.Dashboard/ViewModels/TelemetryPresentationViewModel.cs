@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Reactive;
 
 using ReactiveUI;
 
@@ -48,11 +49,20 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     {
         Metrics = [];
         Insights = [];
+        SetMetricUnitsCommand = ReactiveCommand.Create<bool>(value => UseMetricUnits = value);
+        SetLargeTelemetryTextCommand = ReactiveCommand.Create<bool>(value => UseLargeTelemetryText = value);
+        SetHighContrastTelemetryCommand = ReactiveCommand.Create<bool>(value => UseHighContrastTelemetry = value);
     }
 
     public ObservableCollection<TelemetryMetric> Metrics { get; }
 
     public ObservableCollection<TelemetryInsight> Insights { get; }
+
+    public ReactiveCommand<bool, Unit> SetMetricUnitsCommand { get; }
+
+    public ReactiveCommand<bool, Unit> SetLargeTelemetryTextCommand { get; }
+
+    public ReactiveCommand<bool, Unit> SetHighContrastTelemetryCommand { get; }
 
     public string SpeedText
     {
@@ -106,6 +116,9 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             {
                 Preferences.Default.Set(LargeTelemetryTextPreferenceKey, value);
                 this.RaisePropertyChanged(nameof(TelemetryValueFontSize));
+                this.RaisePropertyChanged(nameof(RideMetricCardHeight));
+                this.RaisePropertyChanged(nameof(SessionMetricValueFontSize));
+                this.RaisePropertyChanged(nameof(HeartRateValueFontSize));
             }
         }
     }
@@ -125,7 +138,13 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         }
     }
 
-    public double TelemetryValueFontSize => UseLargeTelemetryText ? 40 : 32;
+    public double TelemetryValueFontSize => UseLargeTelemetryText ? 46 : 32;
+
+    public double RideMetricCardHeight => UseLargeTelemetryText ? 132 : 112;
+
+    public double SessionMetricValueFontSize => UseLargeTelemetryText ? 20 : 14;
+
+    public double HeartRateValueFontSize => UseLargeTelemetryText ? 30 : 24;
 
     public Color PowerChartColor => Color.FromArgb(UseHighContrastTelemetry ? "005A4F" : "147D70");
 

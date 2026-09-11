@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Stationary.Ftms.Dashboard.Core;
 
 namespace Stationary.Ftms.Dashboard;
@@ -28,6 +30,18 @@ public sealed class TelemetryChart : GraphicsView
             chart.Invalidate();
         });
 
+    public static readonly BindableProperty ValueLabelFormatProperty = BindableProperty.Create(
+        nameof(ValueLabelFormat),
+        typeof(string),
+        typeof(TelemetryChart),
+        defaultValue: "F0",
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.ValueLabelFormat = value as string ?? "F0";
+            chart.Invalidate();
+        });
+
     public static readonly BindableProperty ReferenceValuesProperty = BindableProperty.Create(
         nameof(ReferenceValues),
         typeof(IReadOnlyList<double>),
@@ -37,6 +51,18 @@ public sealed class TelemetryChart : GraphicsView
         {
             var chart = (TelemetryChart)bindable;
             chart.drawable.ReferenceValues = value as IReadOnlyList<double> ?? [];
+            chart.Invalidate();
+        });
+
+    public static readonly BindableProperty HighContrastProperty = BindableProperty.Create(
+        nameof(HighContrast),
+        typeof(bool),
+        typeof(TelemetryChart),
+        defaultValue: false,
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.HighContrast = value is true;
             chart.Invalidate();
         });
 
@@ -59,14 +85,29 @@ public sealed class TelemetryChart : GraphicsView
         set => SetValue(StrokeColorProperty, value);
     }
 
+    public string ValueLabelFormat
+    {
+        get => (string)GetValue(ValueLabelFormatProperty);
+        set => SetValue(ValueLabelFormatProperty, value);
+    }
+
     public IReadOnlyList<double> ReferenceValues
     {
         get => (IReadOnlyList<double>)GetValue(ReferenceValuesProperty);
         set => SetValue(ReferenceValuesProperty, value);
     }
 
+    public bool HighContrast
+    {
+        get => (bool)GetValue(HighContrastProperty);
+        set => SetValue(HighContrastProperty, value);
+    }
+
     private sealed class TelemetryDrawable : IDrawable
     {
+        private const float Inset = 3;
+        private const float VerticalLabelWidth = 32;
+        private const float VerticalLabelHeight = 12;
         private static readonly float[] AverageDashPattern = [4f, 3f];
         private static readonly float[] ReferenceDashPattern = [2f, 2f];
 
@@ -74,21 +115,24 @@ public sealed class TelemetryChart : GraphicsView
 
         public Color StrokeColor { get; set; } = Colors.Teal;
 
+        public string ValueLabelFormat { get; set; } = "F0";
+
         public IReadOnlyList<double> ReferenceValues { get; set; } = [];
+
+        public bool HighContrast { get; set; }
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
-            const float inset = 3;
-            var width = dirtyRect.Width - (inset * 2);
-            var height = dirtyRect.Height - (inset * 2);
-            if (width <= 0 || height <= 0)
+            var plot = new RectF(
+                Inset + VerticalLabelWidth,
+                Inset + (VerticalLabelHeight / 2),
+                dirtyRect.Width - (Inset * 2) - VerticalLabelWidth,
+                dirtyRect.Height - (Inset * 2) - VerticalLabelHeight);
+            if (plot.Width <= 0 || plot.Height <= 0)
             {
                 return;
             }
 
-            canvas.StrokeColor = Color.FromArgb("D6DED8");
-            canvas.StrokeSize = 1;
-            canvas.DrawLine(inset, inset + (height / 2), inset + width, inset + (height / 2));
             if (Points.Count == 0)
             {
                 return;
@@ -97,7 +141,8 @@ public sealed class TelemetryChart : GraphicsView
             var minimum = Points.Min(point => point.Value);
             var maximum = Points.Max(point => point.Value);
             var range = maximum - minimum;
-            canvas.StrokeColor = Color.FromArgb("66746D");
+            DrawRangeGuides(canvas, plot, minimum, maximum);
+            canvas.StrokeColor = Color.FromArgb(HighContrast ? "33433D" : "66746D");
             canvas.StrokeDashPattern = ReferenceDashPattern;
             foreach (var referenceValue in ReferenceValues)
             {
@@ -106,16 +151,17 @@ public sealed class TelemetryChart : GraphicsView
                     continue;
                 }
 
-                var referenceY = inset + height - (float)(range > 0 ? (referenceValue - minimum) / range * height : height / 2);
-                canvas.DrawLine(inset, referenceY, inset + width, referenceY);
+                var referenceY = ToY(referenceValue, minimum, range, plot);
+                canvas.DrawLine(plot.Left, referenceY, plot.Right, referenceY);
             }
 
             canvas.StrokeDashPattern = [];
             var average = Points.Average(point => point.Value);
-            var averageY = inset + height - (float)(range > 0 ? (average - minimum) / range * height : height / 2);
+            var averageY = ToY(average, minimum, range, plot);
             canvas.StrokeColor = StrokeColor;
+            canvas.StrokeSize = HighContrast ? 1.5f : 1f;
             canvas.StrokeDashPattern = AverageDashPattern;
-            canvas.DrawLine(inset, averageY, inset + width, averageY);
+            canvas.DrawLine(plot.Left, averageY, plot.Right, averageY);
             canvas.StrokeDashPattern = [];
             if (Points.Count < 2)
             {
@@ -123,17 +169,42 @@ public sealed class TelemetryChart : GraphicsView
             }
 
             canvas.StrokeColor = StrokeColor;
-            canvas.StrokeSize = 2;
+            canvas.StrokeSize = HighContrast ? 3f : 2f;
             for (var index = 1; index < Points.Count; index++)
             {
                 var previous = Points[index - 1];
                 var current = Points[index];
-                var previousX = inset + (width * (index - 1) / (Points.Count - 1));
-                var currentX = inset + (width * index / (Points.Count - 1));
-                var previousY = inset + height - (float)(range > 0 ? (previous.Value - minimum) / range * height : height / 2);
-                var currentY = inset + height - (float)(range > 0 ? (current.Value - minimum) / range * height : height / 2);
+                var previousX = plot.Left + (plot.Width * (index - 1) / (Points.Count - 1));
+                var currentX = plot.Left + (plot.Width * index / (Points.Count - 1));
+                var previousY = ToY(previous.Value, minimum, range, plot);
+                var currentY = ToY(current.Value, minimum, range, plot);
                 canvas.DrawLine(previousX, previousY, currentX, currentY);
             }
         }
+
+        private void DrawRangeGuides(ICanvas canvas, RectF plot, double minimum, double maximum)
+        {
+            var guideColor = Color.FromArgb(HighContrast ? "8A9A94" : "D6DED8");
+            canvas.StrokeColor = guideColor;
+            canvas.StrokeSize = HighContrast ? 1.5f : 1f;
+            canvas.StrokeDashPattern = [];
+            canvas.DrawLine(plot.Left, plot.Top, plot.Right, plot.Top);
+            canvas.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom);
+            canvas.FontColor = guideColor;
+            canvas.FontSize = 9;
+            canvas.DrawString(
+                maximum.ToString(ValueLabelFormat, CultureInfo.InvariantCulture),
+                new RectF(Inset, plot.Top - (VerticalLabelHeight / 2), VerticalLabelWidth - Inset, VerticalLabelHeight),
+                HorizontalAlignment.Right,
+                VerticalAlignment.Center);
+            canvas.DrawString(
+                minimum.ToString(ValueLabelFormat, CultureInfo.InvariantCulture),
+                new RectF(Inset, plot.Bottom - (VerticalLabelHeight / 2), VerticalLabelWidth - Inset, VerticalLabelHeight),
+                HorizontalAlignment.Right,
+                VerticalAlignment.Center);
+        }
+
+        private static float ToY(double value, double minimum, double range, RectF plot) =>
+            plot.Bottom - (float)(range > 0 ? (value - minimum) / range * plot.Height : plot.Height / 2);
     }
 }

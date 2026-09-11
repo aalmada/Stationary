@@ -117,20 +117,23 @@ public sealed class AppShell : Shell
         menu.Add(new MenuFlyoutItem
         {
             Text = "Toggle Metric Units",
-            Command = new Command(() => viewModel.Telemetry.UseMetricUnits = !viewModel.Telemetry.UseMetricUnits),
+            Command = CreateToggleCommand(viewModel.Telemetry.SetMetricUnitsCommand, () => viewModel.Telemetry.UseMetricUnits),
         });
         menu.Add(new MenuFlyoutItem
         {
             Text = "Toggle Large Values",
-            Command = new Command(() => viewModel.Telemetry.UseLargeTelemetryText = !viewModel.Telemetry.UseLargeTelemetryText),
+            Command = CreateToggleCommand(viewModel.Telemetry.SetLargeTelemetryTextCommand, () => viewModel.Telemetry.UseLargeTelemetryText),
         });
         menu.Add(new MenuFlyoutItem
         {
             Text = "Toggle High Contrast",
-            Command = new Command(() => viewModel.Telemetry.UseHighContrastTelemetry = !viewModel.Telemetry.UseHighContrastTelemetry),
+            Command = CreateToggleCommand(viewModel.Telemetry.SetHighContrastTelemetryCommand, () => viewModel.Telemetry.UseHighContrastTelemetry),
         });
         return menu;
     }
+
+    private static ICommand CreateToggleCommand(ICommand setValueCommand, Func<bool> getCurrentValue) =>
+        new Command(() => setValueCommand.Execute(!getCurrentValue()));
 
     private MenuFlyoutItem CreateNavigationItem(string text, string route) => new()
     {

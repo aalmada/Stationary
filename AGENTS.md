@@ -20,7 +20,7 @@
 - Use central package management in `Directory.Packages.props`; do not hand-edit `apm.lock.yaml`.
 - Run `dotnet format` after C# changes and fix every reported Roslyn analyzer issue; do not suppress analyzer diagnostics to bypass a fix.
 - Keep dashboard workflows functional end to end: show a control only when the connected device supports it, await the FTMS response, and present accepted, rejected, and unavailable states.
-- For dashboard asynchronous workflows, compose state with System.Reactive and ReactiveUI. Use `ReactiveCommand`, `IsExecuting`, `ThrownExceptions`, observable state derivation, and bindings for UI feedback; do not introduce imperative busy counters or event-driven UI state when an observable composition is available.
+- For every dashboard UI state change, use ReactiveUI: route user input and settings through `ReactiveCommand`, service events through observable pipelines, and derive display and availability state with `ToProperty` and bindings. Do not mutate bound state from code-behind, direct two-way controls, or imperative event handlers; use `IsExecuting` and `ThrownExceptions` for command feedback.
 - Keep client-side Control Point operations serialized and telemetry delivery latest-only; do not block BLE notification callbacks on dashboard consumption.
 
 ## Scope And Safety

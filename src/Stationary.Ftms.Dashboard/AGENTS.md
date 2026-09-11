@@ -9,7 +9,7 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 
 ## Reactive UI
 
-- Use the installed System.Reactive and ReactiveUI packages for every asynchronous UI workflow.
+- Use the installed System.Reactive and ReactiveUI packages for every dashboard state change: route user input and settings through `ReactiveCommand`, service events through observable pipelines, and derived state through bindings and `ToProperty`. Do not mutate bound state from code-behind, direct two-way controls, or imperative event handlers.
 - Adapt service events with observables at the boundary; compose, schedule, and dispose subscriptions through ReactiveUI lifetimes.
 - Model writable state with `ReactiveObject`; derive display and availability state with observable pipelines and `ToProperty`.
 - Use `ReactiveCommand` for user operations. Derive `CanExecute` from observable state, bind `IsExecuting` to local progress feedback, and handle `ThrownExceptions` visibly.

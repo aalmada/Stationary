@@ -28,6 +28,18 @@ public sealed class PowerCadenceMap : GraphicsView
             map.Invalidate();
         });
 
+    public static readonly BindableProperty HighContrastProperty = BindableProperty.Create(
+        nameof(HighContrast),
+        typeof(bool),
+        typeof(PowerCadenceMap),
+        defaultValue: false,
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var map = (PowerCadenceMap)bindable;
+            map.drawable.HighContrast = value is true;
+            map.Invalidate();
+        });
+
     private readonly PowerCadenceDrawable drawable = new();
 
     public PowerCadenceMap()
@@ -47,6 +59,12 @@ public sealed class PowerCadenceMap : GraphicsView
         set => SetValue(AccentColorProperty, value);
     }
 
+    public bool HighContrast
+    {
+        get => (bool)GetValue(HighContrastProperty);
+        set => SetValue(HighContrastProperty, value);
+    }
+
     private sealed class PowerCadenceDrawable : IDrawable
     {
         private const float Inset = 5;
@@ -56,6 +74,8 @@ public sealed class PowerCadenceMap : GraphicsView
         public IReadOnlyList<PowerCadenceSample> Points { get; set; } = [];
 
         public Color AccentColor { get; set; } = Colors.Teal;
+
+        public bool HighContrast { get; set; }
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
@@ -96,30 +116,30 @@ public sealed class PowerCadenceMap : GraphicsView
                 maximumPower = 100d;
             }
 
-            DrawGrid(canvas, plot, minimumCadence, maximumCadence, maximumPower);
+            DrawGrid(canvas, plot, minimumCadence, maximumCadence, maximumPower, HighContrast);
             canvas.FillColor = AccentColor;
             foreach (var point in Points)
             {
                 canvas.FillCircle(
                     ToX(point.CadenceRpm, minimumCadence, maximumCadence, plot),
                     ToY(point.PowerWatts, maximumPower, plot),
-                    2.25f);
+                    HighContrast ? 3f : 2.25f);
             }
 
             var latest = Points[^1];
             var latestX = ToX(latest.CadenceRpm, minimumCadence, maximumCadence, plot);
             var latestY = ToY(latest.PowerWatts, maximumPower, plot);
             canvas.FillColor = Colors.White;
-            canvas.FillCircle(latestX, latestY, 5f);
+            canvas.FillCircle(latestX, latestY, HighContrast ? 6f : 5f);
             canvas.FillColor = AccentColor;
-            canvas.FillCircle(latestX, latestY, 3.25f);
+            canvas.FillCircle(latestX, latestY, HighContrast ? 4f : 3.25f);
         }
 
-        private static void DrawGrid(ICanvas canvas, RectF plot, double minimumCadence, double maximumCadence, double maximumPower)
+        private static void DrawGrid(ICanvas canvas, RectF plot, double minimumCadence, double maximumCadence, double maximumPower, bool highContrast)
         {
-            canvas.StrokeColor = Color.FromArgb("D6DED8");
-            canvas.StrokeSize = 1;
-            canvas.FontColor = Color.FromArgb("66746D");
+            canvas.StrokeColor = Color.FromArgb(highContrast ? "8A9A94" : "D6DED8");
+            canvas.StrokeSize = highContrast ? 1.5f : 1f;
+            canvas.FontColor = Color.FromArgb(highContrast ? "33433D" : "66746D");
             canvas.FontSize = 9;
             for (var index = 0; index < 3; index++)
             {

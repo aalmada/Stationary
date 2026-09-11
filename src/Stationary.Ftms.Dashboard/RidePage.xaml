@@ -16,7 +16,7 @@
       </VerticalStackLayout>
       <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
         <Label Text="HEART RATE" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
-        <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="End" />
+        <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="{Binding Telemetry.HeartRateValueFontSize}" FontAttributes="Bold" HorizontalTextAlignment="End" />
         <Label Text="{Binding HeartRate.CurrentZoneText}" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
       </VerticalStackLayout>
     </Grid>
@@ -36,19 +36,19 @@
     </Border>
 
     <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="12">
-      <Border Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+      <Border Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
         <VerticalStackLayout Spacing="4">
           <Label Text="SPEED" TextColor="{StaticResource Muted}" />
           <Label Text="{Binding Telemetry.SpeedText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
         </VerticalStackLayout>
       </Border>
-      <Border Grid.Column="1" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+      <Border Grid.Column="1" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
         <VerticalStackLayout Spacing="4">
           <Label Text="POWER" TextColor="{StaticResource Muted}" />
           <Label Text="{Binding Telemetry.PowerText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
         </VerticalStackLayout>
       </Border>
-      <Border Grid.Column="2" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="112">
+      <Border Grid.Column="2" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
         <VerticalStackLayout Spacing="4">
           <Label Text="CADENCE" TextColor="{StaticResource Muted}" />
           <Label Text="{Binding Telemetry.CadenceText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
@@ -65,7 +65,7 @@
       <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="20">
         <VerticalStackLayout Spacing="3">
           <Label Text="EXTERNAL HEART RATE" FontSize="12" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="24" FontAttributes="Bold" />
+          <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="{Binding Telemetry.HeartRateValueFontSize}" FontAttributes="Bold" />
         </VerticalStackLayout>
         <VerticalStackLayout Grid.Column="1" Spacing="3">
           <Label Text="CURRENT ZONE" FontSize="12" TextColor="{StaticResource Muted}" />
