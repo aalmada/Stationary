@@ -20,6 +20,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 {
     private const byte StopControlInformation = 0x01;
     private const byte PauseControlInformation = 0x02;
+    private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
 
     private readonly IFtmsDiscoveryService discoveryService;
     private readonly IHeartRateDiscoveryService heartRateDiscoveryService;
@@ -80,6 +81,8 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private bool isScanning;
     private bool isHeartRateScanning;
     private bool showUnavailableCapabilities;
+    private DateTimeOffset? chartTimeRangeStart;
+    private DateTimeOffset? chartTimeRangeEnd;
     private int isDisposed;
 
     private enum WorkoutSessionState
@@ -159,6 +162,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .Subscribe(chart =>
             {
                 Telemetry.SetChartSamples(chart);
+                UpdateChartTimeRange();
             }, HandleTelemetryPipelineError));
         subscriptions.Add(telemetrySessionReset
             .StartWith(Unit.Default)
@@ -187,6 +191,8 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 {
                     HeartRate.Clear();
                 }
+
+                UpdateChartTimeRange();
             }, HandleHeartRatePipelineError));
         var canScan = this.WhenAnyValue(
                 viewModel => viewModel.IsScanning,
@@ -418,6 +424,18 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     public TelemetryPresentationViewModel Telemetry { get; }
 
     public HeartRatePresentationViewModel HeartRate { get; }
+
+    public DateTimeOffset? ChartTimeRangeStart
+    {
+        get => chartTimeRangeStart;
+        private set => this.RaiseAndSetIfChanged(ref chartTimeRangeStart, value);
+    }
+
+    public DateTimeOffset? ChartTimeRangeEnd
+    {
+        get => chartTimeRangeEnd;
+        private set => this.RaiseAndSetIfChanged(ref chartTimeRangeEnd, value);
+    }
 
     public ObservableCollection<TargetControlViewModel> TargetControls { get; }
 
@@ -703,6 +721,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         heartRateSessionSubscriptions.Dispose();
         heartRateScanSubscriptions.Dispose();
         subscriptions.Dispose();
+        HeartRate.Dispose();
         isBusy.Dispose();
         operationStatus.Dispose();
         statusText.Dispose();
@@ -2050,6 +2069,25 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             {
                 history.Add(new(capturedAt, measurement));
             }
+        }
+    }
+
+    private void UpdateChartTimeRange()
+    {
+        DateTimeOffset? latest = null;
+        UpdateLatest(Telemetry.PowerChartSamples, ref latest);
+        UpdateLatest(Telemetry.SpeedChartSamples, ref latest);
+        UpdateLatest(Telemetry.CadenceChartSamples, ref latest);
+        UpdateLatest(HeartRate.ChartSamples, ref latest);
+        ChartTimeRangeEnd = latest;
+        ChartTimeRangeStart = latest - ChartWindow;
+    }
+
+    private static void UpdateLatest(IReadOnlyList<TelemetrySample> samples, ref DateTimeOffset? latest)
+    {
+        if (samples.Count > 0 && (latest is null || samples[^1].CapturedAt > latest))
+        {
+            latest = samples[^1].CapturedAt;
         }
     }
 

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Stationary.Ftms/Stationary.Ftms.csproj" />
+    <PackageReference Include="System.Reactive" />
   </ItemGroup>
 </Project>

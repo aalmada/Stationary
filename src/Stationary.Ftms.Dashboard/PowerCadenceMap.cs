@@ -117,22 +117,26 @@ public sealed class PowerCadenceMap : GraphicsView
             }
 
             DrawGrid(canvas, plot, minimumCadence, maximumCadence, maximumPower, HighContrast);
-            canvas.FillColor = AccentColor;
-            foreach (var point in Points)
+            canvas.FillColor = AccentColor.WithAlpha(HighContrast ? 0.65f : 0.45f);
+            for (var index = 0; index < Points.Count - 1; index++)
             {
+                var point = Points[index];
                 canvas.FillCircle(
                     ToX(point.CadenceRpm, minimumCadence, maximumCadence, plot),
                     ToY(point.PowerWatts, maximumPower, plot),
-                    HighContrast ? 3f : 2.25f);
+                    HighContrast ? 2.75f : 2f);
             }
 
             var latest = Points[^1];
             var latestX = ToX(latest.CadenceRpm, minimumCadence, maximumCadence, plot);
             var latestY = ToY(latest.PowerWatts, maximumPower, plot);
             canvas.FillColor = Colors.White;
-            canvas.FillCircle(latestX, latestY, HighContrast ? 6f : 5f);
+            canvas.FillCircle(latestX, latestY, HighContrast ? 8f : 7f);
+            canvas.StrokeColor = Color.FromArgb(HighContrast ? "17201D" : "33433D");
+            canvas.StrokeSize = HighContrast ? 2.5f : 2f;
+            canvas.DrawCircle(latestX, latestY, HighContrast ? 8f : 7f);
             canvas.FillColor = AccentColor;
-            canvas.FillCircle(latestX, latestY, HighContrast ? 4f : 3.25f);
+            canvas.FillCircle(latestX, latestY, HighContrast ? 4.5f : 4f);
         }
 
         private static void DrawGrid(ICanvas canvas, RectF plot, double minimumCadence, double maximumCadence, double maximumPower, bool highContrast)

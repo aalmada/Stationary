@@ -1,4 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 using ReactiveUI;
 
@@ -6,11 +9,13 @@ using Stationary.Ftms.Dashboard.Core;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
-public sealed class HeartRatePresentationViewModel : ReactiveObject
+public sealed class HeartRatePresentationViewModel : ReactiveObject, IDisposable
 {
     private const string LactateThresholdPreferenceKey = "HeartRateCyclingLactateThreshold";
     private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
+    private readonly ISubject<HeartRateObservation> chartObservations = Subject.Synchronize(new Subject<HeartRateObservation>());
+    private readonly SerialDisposable chartRegionSubscription = new();
     private TelemetryHistory chartHistory = new(ChartWindow);
     private HeartRateZoneProfile? zoneProfile;
     private HeartRateSessionAnalytics? sessionAnalytics;
@@ -26,6 +31,7 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     private bool isStale;
     private bool isSessionPaused;
     private IReadOnlyList<TelemetrySample> chartSamples = [];
+    private IReadOnlyList<TransitionRegion<Color>> chartBackgroundRegions = [];
     private IReadOnlyList<double> zoneTransitionValues = [];
 
     public HeartRatePresentationViewModel()
@@ -101,6 +107,12 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
         private set => this.RaiseAndSetIfChanged(ref chartSamples, value);
     }
 
+    public IReadOnlyList<TransitionRegion<Color>> ChartBackgroundRegions
+    {
+        get => chartBackgroundRegions;
+        private set => this.RaiseAndSetIfChanged(ref chartBackgroundRegions, value);
+    }
+
     public IReadOnlyList<double> ZoneTransitionValues
     {
         get => zoneTransitionValues;
@@ -126,7 +138,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     {
         latestObservation = observation;
         chartHistory.Add(new(observation.CapturedAt, observation.BeatsPerMinute));
-        ChartSamples = [.. chartHistory.Samples];
+        UpdateChartSamples();
+        chartObservations.OnNext(observation);
         if (!isSessionPaused)
         {
             sessionAnalytics?.Add(observation);
@@ -149,7 +162,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
         latestObservation = null;
         chartHistory = new(ChartWindow);
         sessionAnalytics?.Reset();
-        ChartSamples = [];
+        UpdateChartSamples();
+        ResetChartRegionPipeline();
         CurrentHeartRateText = "-- bpm";
         HealthText = "No external heart-rate sensor connected";
         IsStale = false;
@@ -161,7 +175,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     {
         chartHistory = new(ChartWindow);
         sessionAnalytics?.Reset();
-        ChartSamples = [];
+        UpdateChartSamples();
+        ResetChartRegionPipeline();
         isSessionPaused = false;
         RefreshPresentation();
     }
@@ -194,7 +209,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
     {
         chartHistory = new(ChartWindow);
         sessionAnalytics?.Reset();
-        ChartSamples = [];
+        UpdateChartSamples();
+        ResetChartRegionPipeline();
         if (latestObservation is { } observation && !isSessionPaused)
         {
             Present(observation);
@@ -231,6 +247,8 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
         }
 
         ZoneTransitionValues = [.. profile.Zones.Skip(1).Select(static zone => (double)zone.MinimumBeatsPerMinute)];
+        UpdateChartSamples();
+        ResetChartRegionPipeline();
 
         if (persist)
         {
@@ -282,6 +300,55 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject
             ZoneDurations[index].Update(durations[index], currentZone?.Code == durations[index].Zone.Code);
         }
     }
+
+    private void UpdateChartSamples()
+    {
+        ChartSamples = [.. chartHistory.Samples];
+    }
+
+    private void ResetChartRegionPipeline()
+    {
+        var profile = zoneProfile;
+        if (profile is null)
+        {
+            chartRegionSubscription.Disposable = null;
+            ChartBackgroundRegions = [];
+            return;
+        }
+
+        var retainedObservations = ChartSamples
+            .Select(static sample => new HeartRateObservation(sample.CapturedAt, checked((ushort)sample.Value)))
+            .ToObservable();
+        chartRegionSubscription.Disposable = retainedObservations
+            .Concat(chartObservations)
+            .ToTransitionRegions(
+                static observation => observation.CapturedAt,
+                observation => profile.GetZone(observation.BeatsPerMinute).Code,
+                ChartWindow)
+            .Select(static regions => (IReadOnlyList<TransitionRegion<Color>>)[.. regions.Select(region =>
+                new TransitionRegion<Color>(region.Start, region.End, GetZoneColor(region.State)))])
+            .Subscribe(
+                regions => ChartBackgroundRegions = regions,
+                _ => ChartBackgroundRegions = []);
+    }
+
+    public void Dispose()
+    {
+        chartRegionSubscription.Dispose();
+        chartObservations.OnCompleted();
+    }
+
+    private static Color GetZoneColor(string code) => code switch
+    {
+        "Z1" => Color.FromArgb("CC86A5C4"),
+        "Z2" => Color.FromArgb("CC4A90E2"),
+        "Z3" => Color.FromArgb("CC3C9D67"),
+        "Z4" => Color.FromArgb("CCE0B332"),
+        "Z5a" => Color.FromArgb("CCE67E22"),
+        "Z5b" => Color.FromArgb("CCD94A4A"),
+        "Z5c" => Color.FromArgb("CCA6469B"),
+        _ => Colors.Transparent,
+    };
 
     private static bool TryCreateCyclingLactateThresholdProfile(string text, out HeartRateZoneProfile profile)
     {

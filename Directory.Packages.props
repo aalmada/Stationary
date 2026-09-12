@@ -10,6 +10,7 @@
     <PackageVersion Include="Plugin.BLE" Version="3.2.1" />
     <PackageVersion Include="ReactiveUI" Version="19.6.12" />
     <PackageVersion Include="ReactiveUI.Maui" Version="19.6.12" />
+    <PackageVersion Include="System.Reactive" Version="6.0.0" />
     <PackageVersion Include="TUnit" Version="1.66.16" />
   </ItemGroup>
 </Project>

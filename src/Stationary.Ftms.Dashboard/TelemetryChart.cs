@@ -54,6 +54,42 @@ public sealed class TelemetryChart : GraphicsView
             chart.Invalidate();
         });
 
+    public static readonly BindableProperty BackgroundRegionsProperty = BindableProperty.Create(
+        nameof(BackgroundRegions),
+        typeof(IReadOnlyList<TransitionRegion<Color>>),
+        typeof(TelemetryChart),
+        defaultValue: (IReadOnlyList<TransitionRegion<Color>>)[],
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.BackgroundRegions = value as IReadOnlyList<TransitionRegion<Color>> ?? [];
+            chart.Invalidate();
+        });
+
+    public static readonly BindableProperty TimeRangeStartProperty = BindableProperty.Create(
+        nameof(TimeRangeStart),
+        typeof(DateTimeOffset?),
+        typeof(TelemetryChart),
+        defaultValue: null,
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.TimeRangeStart = value as DateTimeOffset?;
+            chart.Invalidate();
+        });
+
+    public static readonly BindableProperty TimeRangeEndProperty = BindableProperty.Create(
+        nameof(TimeRangeEnd),
+        typeof(DateTimeOffset?),
+        typeof(TelemetryChart),
+        defaultValue: null,
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.TimeRangeEnd = value as DateTimeOffset?;
+            chart.Invalidate();
+        });
+
     public static readonly BindableProperty HighContrastProperty = BindableProperty.Create(
         nameof(HighContrast),
         typeof(bool),
@@ -63,6 +99,18 @@ public sealed class TelemetryChart : GraphicsView
         {
             var chart = (TelemetryChart)bindable;
             chart.drawable.HighContrast = value is true;
+            chart.Invalidate();
+        });
+
+    public static readonly BindableProperty ShowTimeAxisProperty = BindableProperty.Create(
+        nameof(ShowTimeAxis),
+        typeof(bool),
+        typeof(TelemetryChart),
+        defaultValue: true,
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.ShowTimeAxis = value is true;
             chart.Invalidate();
         });
 
@@ -97,10 +145,34 @@ public sealed class TelemetryChart : GraphicsView
         set => SetValue(ReferenceValuesProperty, value);
     }
 
+    public IReadOnlyList<TransitionRegion<Color>> BackgroundRegions
+    {
+        get => (IReadOnlyList<TransitionRegion<Color>>)GetValue(BackgroundRegionsProperty);
+        set => SetValue(BackgroundRegionsProperty, value);
+    }
+
+    public DateTimeOffset? TimeRangeStart
+    {
+        get => (DateTimeOffset?)GetValue(TimeRangeStartProperty);
+        set => SetValue(TimeRangeStartProperty, value);
+    }
+
+    public DateTimeOffset? TimeRangeEnd
+    {
+        get => (DateTimeOffset?)GetValue(TimeRangeEndProperty);
+        set => SetValue(TimeRangeEndProperty, value);
+    }
+
     public bool HighContrast
     {
         get => (bool)GetValue(HighContrastProperty);
         set => SetValue(HighContrastProperty, value);
+    }
+
+    public bool ShowTimeAxis
+    {
+        get => (bool)GetValue(ShowTimeAxisProperty);
+        set => SetValue(ShowTimeAxisProperty, value);
     }
 
     private sealed class TelemetryDrawable : IDrawable
@@ -108,6 +180,7 @@ public sealed class TelemetryChart : GraphicsView
         private const float Inset = 3;
         private const float VerticalLabelWidth = 32;
         private const float VerticalLabelHeight = 12;
+        private const float TimeLabelHeight = 12;
         private static readonly float[] AverageDashPattern = [4f, 3f];
         private static readonly float[] ReferenceDashPattern = [2f, 2f];
 
@@ -119,15 +192,24 @@ public sealed class TelemetryChart : GraphicsView
 
         public IReadOnlyList<double> ReferenceValues { get; set; } = [];
 
+        public IReadOnlyList<TransitionRegion<Color>> BackgroundRegions { get; set; } = [];
+
+        public DateTimeOffset? TimeRangeStart { get; set; }
+
+        public DateTimeOffset? TimeRangeEnd { get; set; }
+
         public bool HighContrast { get; set; }
+
+        public bool ShowTimeAxis { get; set; } = true;
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
+            var timeAxisHeight = ShowTimeAxis ? TimeLabelHeight : 0;
             var plot = new RectF(
                 Inset + VerticalLabelWidth,
                 Inset + (VerticalLabelHeight / 2),
                 dirtyRect.Width - (Inset * 2) - VerticalLabelWidth,
-                dirtyRect.Height - (Inset * 2) - VerticalLabelHeight);
+                dirtyRect.Height - (Inset * 2) - VerticalLabelHeight - timeAxisHeight);
             if (plot.Width <= 0 || plot.Height <= 0)
             {
                 return;
@@ -141,7 +223,12 @@ public sealed class TelemetryChart : GraphicsView
             var minimum = Points.Min(point => point.Value);
             var maximum = Points.Max(point => point.Value);
             var range = maximum - minimum;
+            DrawBackgroundBands(canvas, plot);
             DrawRangeGuides(canvas, plot, minimum, maximum);
+            if (ShowTimeAxis)
+            {
+                DrawTimeAxis(canvas, plot);
+            }
             canvas.StrokeColor = Color.FromArgb(HighContrast ? "33433D" : "66746D");
             canvas.StrokeDashPattern = ReferenceDashPattern;
             foreach (var referenceValue in ReferenceValues)
@@ -170,16 +257,44 @@ public sealed class TelemetryChart : GraphicsView
 
             canvas.StrokeColor = StrokeColor;
             canvas.StrokeSize = HighContrast ? 3f : 2f;
+            canvas.SaveState();
+            canvas.ClipRectangle(plot);
             for (var index = 1; index < Points.Count; index++)
             {
                 var previous = Points[index - 1];
                 var current = Points[index];
-                var previousX = plot.Left + (plot.Width * (index - 1) / (Points.Count - 1));
-                var currentX = plot.Left + (plot.Width * index / (Points.Count - 1));
+                var previousX = ToX(previous.CapturedAt, plot);
+                var currentX = ToX(current.CapturedAt, plot);
                 var previousY = ToY(previous.Value, minimum, range, plot);
                 var currentY = ToY(current.Value, minimum, range, plot);
                 canvas.DrawLine(previousX, previousY, currentX, currentY);
             }
+
+            canvas.RestoreState();
+        }
+
+        private void DrawBackgroundBands(ICanvas canvas, RectF plot)
+        {
+            canvas.SaveState();
+            canvas.ClipRectangle(plot);
+            for (var index = 0; index < BackgroundRegions.Count; index++)
+            {
+                var region = BackgroundRegions[index];
+                var left = Math.Max(plot.Left, ToX(region.Start, plot));
+                var rightTimestamp = index == BackgroundRegions.Count - 1
+                    ? TimeRangeEnd ?? region.End
+                    : region.End;
+                var right = Math.Min(plot.Right, ToX(rightTimestamp, plot));
+                if (right <= left)
+                {
+                    continue;
+                }
+
+                canvas.FillColor = region.State;
+                canvas.FillRectangle(left, plot.Top, right - left, plot.Height);
+            }
+
+            canvas.RestoreState();
         }
 
         private void DrawRangeGuides(ICanvas canvas, RectF plot, double minimum, double maximum)
@@ -204,7 +319,43 @@ public sealed class TelemetryChart : GraphicsView
                 VerticalAlignment.Center);
         }
 
+        private void DrawTimeAxis(ICanvas canvas, RectF plot)
+        {
+            var duration = GetTimeRange().Duration;
+            var labelTop = plot.Bottom + Inset;
+            var labelColor = Color.FromArgb(HighContrast ? "8A9A94" : "66746D");
+            canvas.FontColor = labelColor;
+            canvas.FontSize = 9;
+            canvas.DrawString("0:00", new RectF(plot.Left, labelTop, plot.Width / 2, TimeLabelHeight), HorizontalAlignment.Left, VerticalAlignment.Center);
+            if (duration > TimeSpan.Zero)
+            {
+                canvas.DrawString(FormatElapsedTime(duration), new RectF(plot.Left + (plot.Width / 2), labelTop, plot.Width / 2, TimeLabelHeight), HorizontalAlignment.Right, VerticalAlignment.Center);
+            }
+        }
+
         private static float ToY(double value, double minimum, double range, RectF plot) =>
             plot.Bottom - (float)(range > 0 ? (value - minimum) / range * plot.Height : plot.Height / 2);
+
+        private float ToX(DateTimeOffset timestamp, RectF plot)
+        {
+            var (start, duration) = GetTimeRange();
+            if (duration <= TimeSpan.Zero)
+            {
+                return plot.Left;
+            }
+
+            return plot.Left + (float)((timestamp - start).TotalMilliseconds / duration.TotalMilliseconds * plot.Width);
+        }
+
+        private (DateTimeOffset Start, TimeSpan Duration) GetTimeRange()
+        {
+            var start = TimeRangeStart ?? Points[0].CapturedAt;
+            var end = TimeRangeEnd ?? Points[^1].CapturedAt;
+            return (start, end - start);
+        }
+
+        private static string FormatElapsedTime(TimeSpan duration) => duration.TotalHours >= 1
+            ? duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : duration.ToString(@"m\:ss", CultureInfo.InvariantCulture);
     }
 }
