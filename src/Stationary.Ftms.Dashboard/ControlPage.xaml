@@ -56,16 +56,10 @@
 
           <Label Text="{Binding ControlStatus}" TextColor="{StaticResource Muted}" />
           <Label Text="{Binding PhysicalControlSynchronizationStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
-          <Border Style="{StaticResource ActionBorder}" IsVisible="{Binding IsControlPermissionRequired}" HorizontalOptions="Start">
-            <Button Text="Enable digital controls" Command="{Binding RequestControlCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Request control permission from the fitness machine" />
-          </Border>
+          <Button Style="{StaticResource ActionButton}" IsVisible="{Binding IsControlPermissionRequired}" HorizontalOptions="Start" Text="Enable digital controls" Command="{Binding RequestControlCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Request control permission from the fitness machine" />
           <HorizontalStackLayout Spacing="12" IsVisible="{Binding IsControllable}">
-            <Border Style="{StaticResource ActionBorder}">
-              <Button Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="128" SemanticProperties.Description="Start or resume the fitness machine session" />
-            </Border>
-            <Border Style="{StaticResource SecondaryActionBorder}">
-              <Button Text="Pause" TextColor="{StaticResource Accent}" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="80" SemanticProperties.Description="Pause the fitness machine session" />
-            </Border>
+            <Button Style="{StaticResource ActionButton}" Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="128" SemanticProperties.Description="Start or resume the fitness machine session" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Pause" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" WidthRequest="80" SemanticProperties.Description="Pause the fitness machine session" />
           </HorizontalStackLayout>
           <Label Text="Start, pause, and target changes enable digital controls automatically when needed." TextColor="{StaticResource Muted}" FontSize="12" IsVisible="{Binding IsControlPermissionRequired}" />
           </VerticalStackLayout>
@@ -106,9 +100,7 @@
                         </DataTemplate>
                       </BindableLayout.ItemTemplate>
                     </FlexLayout>
-                    <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ActionBorder}">
-                      <Button Text="Apply" Command="{Binding ApplyCommand}" WidthRequest="72" SemanticProperties.Description="Apply this target to the fitness machine" />
-                    </Border>
+                    <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyCommand}" WidthRequest="72" SemanticProperties.Description="Apply this target to the fitness machine" />
                   </Grid>
                 </DataTemplate>
               </CollectionView.ItemTemplate>

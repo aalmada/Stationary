@@ -7,6 +7,8 @@ using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Text;
+using System.Text.Json;
 
 using ReactiveUI;
 
@@ -20,7 +22,10 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 {
     private const byte StopControlInformation = 0x01;
     private const byte PauseControlInformation = 0x02;
+    private const int SessionArchiveFormatVersion = 1;
+    private const int MaximumRecordedSamples = 86_400;
     private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan RecordedValueFreshness = TimeSpan.FromSeconds(5);
 
     private readonly IFtmsDiscoveryService discoveryService;
     private readonly IHeartRateDiscoveryService heartRateDiscoveryService;
@@ -45,6 +50,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private readonly ISubject<Unit> heartRateSessionReset = Subject.Synchronize(new Subject<Unit>());
     private readonly ISubject<HeartRateSessionTermination> heartRateSessionTerminationIngress = Subject.Synchronize(new Subject<HeartRateSessionTermination>());
     private readonly CompositeDisposable subscriptions = [];
+    private readonly Queue<RecordedTelemetrySample> recordedSamples = [];
     private string connectionStatus = "No fitness machine connected";
     private string heartRateConnectionStatus = "No external heart-rate sensor connected";
     private string controlStatus = "Connect a fitness machine to inspect FTMS controls.";
@@ -83,6 +89,28 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private bool showUnavailableCapabilities;
     private DateTimeOffset? chartTimeRangeStart;
     private DateTimeOffset? chartTimeRangeEnd;
+    private DateTimeOffset? chartHoverTimestamp;
+    private DateTimeOffset? chartSelectionStart;
+    private DateTimeOffset? chartSelectionEnd;
+    private string selectedIntervalSummary = "Drag across a chart to inspect an interval.";
+    private bool isCustomChartRange;
+    private IReadOnlyList<SessionEventMarker> sessionEvents = [];
+    private IReadOnlyList<TelemetrySample> previousPowerChartSamples = [];
+    private IReadOnlyList<TelemetrySample> previousSpeedChartSamples = [];
+    private IReadOnlyList<TelemetrySample> previousCadenceChartSamples = [];
+    private IReadOnlyList<TelemetrySample> previousHeartRateChartSamples = [];
+    private int lapCount;
+    private TelemetrySnapshot? latestRecordedTelemetry;
+    private HeartRateObservation? latestRecordedHeartRate;
+    private DateTimeOffset? lastRecordedAt;
+    private RecordedSession? previousSession;
+    private string previousSessionComparisonText = "No previous session saved.";
+    private DateTimeOffset? lastWorkoutAnalysisAt;
+    private string efficiencyText = "Gathering paired data";
+    private string decouplingText = "Requires 10 minutes";
+    private string cadenceAnalysisText = "Gathering cadence";
+    private string torqueExposureText = "--";
+    private string recoveryText = "Waiting for recovery";
     private int isDisposed;
 
     private enum WorkoutSessionState
@@ -185,7 +213,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             {
                 if (observation is { } current)
                 {
-                    HeartRate.Present(current);
+                    PresentHeartRate(current);
                 }
                 else
                 {
@@ -217,6 +245,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         var canRequestControl = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.HasControlPermission, (controllable, hasPermission) => controllable && !hasPermission).ObserveOn(RxApp.MainThreadScheduler);
         var canStart = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && !active).ObserveOn(RxApp.MainThreadScheduler);
         var canStop = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && active).ObserveOn(RxApp.MainThreadScheduler);
+        var canAddLap = this.WhenAnyValue(viewModel => viewModel.IsWorkoutActive).ObserveOn(RxApp.MainThreadScheduler);
         var canApplyTarget = this.WhenAnyValue(viewModel => viewModel.IsControllable).ObserveOn(RxApp.MainThreadScheduler);
         ScanCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(_ => ScanAsync(), cancellationToken), canScan);
         ConnectCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(ConnectAsync, cancellationToken), canConnect);
@@ -227,6 +256,9 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         RequestControlCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(RequestControlAsync, cancellationToken), canRequestControl);
         StartCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(StartWorkoutAsync, cancellationToken), canStart);
         StopCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(PauseWorkoutAsync, cancellationToken), canStop);
+        AddLapCommand = ReactiveCommand.Create(AddLap, canAddLap);
+        ZoomToSelectionCommand = ReactiveCommand.Create(ZoomToSelection);
+        ResetChartZoomCommand = ReactiveCommand.Create(ResetChartZoom);
         SetTargetInclinationCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetInclinationAsync, cancellationToken), canApplyTarget);
         SetTargetPowerCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetPowerAsync, cancellationToken), canApplyTarget);
         SetTargetResistanceCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetResistanceAsync, cancellationToken), canApplyTarget);
@@ -389,6 +421,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 HeartRate.MarkStale();
                 HeartRateConnectionStatus = "Heart-rate updates have stopped. The sensor may be stale.";
             }, HandleHeartRatePipelineError));
+        LoadPreviousSession();
     }
 
     public string ConnectionStatus
@@ -437,6 +470,110 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         private set => this.RaiseAndSetIfChanged(ref chartTimeRangeEnd, value);
     }
 
+    public DateTimeOffset? ChartHoverTimestamp
+    {
+        get => chartHoverTimestamp;
+        set => this.RaiseAndSetIfChanged(ref chartHoverTimestamp, value);
+    }
+
+    public IReadOnlyList<SessionEventMarker> SessionEvents
+    {
+        get => sessionEvents;
+        private set => this.RaiseAndSetIfChanged(ref sessionEvents, value);
+    }
+
+    public IReadOnlyList<TelemetrySample> PreviousPowerChartSamples
+    {
+        get => previousPowerChartSamples;
+        private set => this.RaiseAndSetIfChanged(ref previousPowerChartSamples, value);
+    }
+
+    public IReadOnlyList<TelemetrySample> PreviousSpeedChartSamples
+    {
+        get => previousSpeedChartSamples;
+        private set => this.RaiseAndSetIfChanged(ref previousSpeedChartSamples, value);
+    }
+
+    public IReadOnlyList<TelemetrySample> PreviousCadenceChartSamples
+    {
+        get => previousCadenceChartSamples;
+        private set => this.RaiseAndSetIfChanged(ref previousCadenceChartSamples, value);
+    }
+
+    public IReadOnlyList<TelemetrySample> PreviousHeartRateChartSamples
+    {
+        get => previousHeartRateChartSamples;
+        private set => this.RaiseAndSetIfChanged(ref previousHeartRateChartSamples, value);
+    }
+
+    public DateTimeOffset? ChartSelectionStart
+    {
+        get => chartSelectionStart;
+        set
+        {
+            if (chartSelectionStart != value)
+            {
+                this.RaiseAndSetIfChanged(ref chartSelectionStart, value);
+                UpdateSelectedIntervalSummary();
+            }
+        }
+    }
+
+    public DateTimeOffset? ChartSelectionEnd
+    {
+        get => chartSelectionEnd;
+        set
+        {
+            if (chartSelectionEnd != value)
+            {
+                this.RaiseAndSetIfChanged(ref chartSelectionEnd, value);
+                UpdateSelectedIntervalSummary();
+            }
+        }
+    }
+
+    public string SelectedIntervalSummary
+    {
+        get => selectedIntervalSummary;
+        private set => this.RaiseAndSetIfChanged(ref selectedIntervalSummary, value);
+    }
+
+    public string PreviousSessionComparisonText
+    {
+        get => previousSessionComparisonText;
+        private set => this.RaiseAndSetIfChanged(ref previousSessionComparisonText, value);
+    }
+
+    public string EfficiencyText
+    {
+        get => efficiencyText;
+        private set => this.RaiseAndSetIfChanged(ref efficiencyText, value);
+    }
+
+    public string DecouplingText
+    {
+        get => decouplingText;
+        private set => this.RaiseAndSetIfChanged(ref decouplingText, value);
+    }
+
+    public string CadenceAnalysisText
+    {
+        get => cadenceAnalysisText;
+        private set => this.RaiseAndSetIfChanged(ref cadenceAnalysisText, value);
+    }
+
+    public string TorqueExposureText
+    {
+        get => torqueExposureText;
+        private set => this.RaiseAndSetIfChanged(ref torqueExposureText, value);
+    }
+
+    public string RecoveryText
+    {
+        get => recoveryText;
+        private set => this.RaiseAndSetIfChanged(ref recoveryText, value);
+    }
+
     public ObservableCollection<TargetControlViewModel> TargetControls { get; }
 
     public ObservableCollection<TargetControlViewModel> ManualTargetControls { get; }
@@ -483,12 +620,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         get => isConnected;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref isConnected, value))
+            if (isConnected == value)
             {
-                this.RaisePropertyChanged(nameof(IsDisconnected));
-                this.RaisePropertyChanged(nameof(IsSessionAvailable));
-                this.RaisePropertyChanged(nameof(IsSessionUnavailable));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isConnected, value);
+            this.RaisePropertyChanged(nameof(IsDisconnected));
+            this.RaisePropertyChanged(nameof(IsSessionAvailable));
+            this.RaisePropertyChanged(nameof(IsSessionUnavailable));
         }
     }
 
@@ -499,12 +639,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         get => isHeartRateConnected;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref isHeartRateConnected, value))
+            if (isHeartRateConnected == value)
             {
-                this.RaisePropertyChanged(nameof(IsHeartRateDisconnected));
-                this.RaisePropertyChanged(nameof(IsSessionAvailable));
-                this.RaisePropertyChanged(nameof(IsSessionUnavailable));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isHeartRateConnected, value);
+            this.RaisePropertyChanged(nameof(IsHeartRateDisconnected));
+            this.RaisePropertyChanged(nameof(IsSessionAvailable));
+            this.RaisePropertyChanged(nameof(IsSessionUnavailable));
         }
     }
 
@@ -519,12 +662,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         get => isControllable;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref isControllable, value))
+            if (isControllable == value)
             {
-                this.RaisePropertyChanged(nameof(ControlAccessText));
-                this.RaisePropertyChanged(nameof(IsControlPermissionRequired));
-                this.RaisePropertyChanged(nameof(AreTargetControlsAvailable));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isControllable, value);
+            this.RaisePropertyChanged(nameof(ControlAccessText));
+            this.RaisePropertyChanged(nameof(IsControlPermissionRequired));
+            this.RaisePropertyChanged(nameof(AreTargetControlsAvailable));
         }
     }
 
@@ -533,14 +679,17 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         get => hasControlPermission;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref hasControlPermission, value))
+            if (hasControlPermission == value)
             {
-                this.RaisePropertyChanged(nameof(ControlAccessText));
-                this.RaisePropertyChanged(nameof(AreTargetControlsAvailable));
-                this.RaisePropertyChanged(nameof(MachineStateText));
-                this.RaisePropertyChanged(nameof(StartActionText));
-                this.RaisePropertyChanged(nameof(IsControlPermissionRequired));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref hasControlPermission, value);
+            this.RaisePropertyChanged(nameof(ControlAccessText));
+            this.RaisePropertyChanged(nameof(AreTargetControlsAvailable));
+            this.RaisePropertyChanged(nameof(MachineStateText));
+            this.RaisePropertyChanged(nameof(StartActionText));
+            this.RaisePropertyChanged(nameof(IsControlPermissionRequired));
         }
     }
 
@@ -549,11 +698,14 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         get => isWorkoutActive;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref isWorkoutActive, value))
+            if (isWorkoutActive == value)
             {
-                this.RaisePropertyChanged(nameof(MachineStateText));
-                this.RaisePropertyChanged(nameof(StartActionText));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isWorkoutActive, value);
+            this.RaisePropertyChanged(nameof(MachineStateText));
+            this.RaisePropertyChanged(nameof(StartActionText));
         }
     }
 
@@ -681,6 +833,12 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     public ReactiveCommand<Unit, Unit> StopCommand { get; }
 
+    public ReactiveCommand<Unit, Unit> AddLapCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> ZoomToSelectionCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> ResetChartZoomCommand { get; }
+
     public ReactiveCommand<Unit, Unit> SetTargetPowerCommand { get; }
 
     public ReactiveCommand<Unit, Unit> SetTargetInclinationCommand { get; }
@@ -748,6 +906,9 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         RequestControlCommand.Dispose();
         StartCommand.Dispose();
         StopCommand.Dispose();
+        AddLapCommand.Dispose();
+        ZoomToSelectionCommand.Dispose();
+        ResetChartZoomCommand.Dispose();
         SetTargetInclinationCommand.Dispose();
         SetTargetPowerCommand.Dispose();
         SetTargetResistanceCommand.Dispose();
@@ -989,15 +1150,54 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     {
         var fileName = $"stationary-session-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.csv";
         var path = Path.Combine(FileSystem.CacheDirectory, fileName);
-        var csv = string.Join(Environment.NewLine, Telemetry.CreateSessionCsv(), HeartRate.CreateSessionCsvRows());
+        var archive = CreateRecordedSession();
+        var csv = CreateSessionCsv(archive);
         await File.WriteAllTextAsync(path, csv, cancellationToken);
-        ConnectionStatus = $"Session summary exported to {path}.";
+        UpdatePreviousSessionComparison(archive.Summary);
+        var archiveJson = JsonSerializer.Serialize(archive);
+        await File.WriteAllTextAsync(GetPreviousSessionPath(), archiveJson, cancellationToken);
+        previousSession = archive;
+        ConnectionStatus = $"Session telemetry exported to {path}.";
     }
+
+    private static string CreateSessionCsv(RecordedSession archive)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("TimestampUtc,RecordType,PowerWatts,SpeedKilometersPerHour,CadenceRpm,HeartRateBeatsPerMinute,Event");
+        foreach (var sample in archive.Samples)
+        {
+            builder.Append(sample.CapturedAt.ToString("O", CultureInfo.InvariantCulture)).Append(",telemetry,")
+                .Append(FormatCsvNumber(sample.PowerWatts)).Append(',')
+                .Append(FormatCsvNumber(sample.SpeedKilometersPerHour)).Append(',')
+                .Append(FormatCsvNumber(sample.CadenceRpm)).Append(',')
+                .Append(FormatCsvNumber(sample.HeartRateBeatsPerMinute)).AppendLine(",");
+        }
+
+        foreach (var marker in archive.Events)
+        {
+            builder.Append(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture)).Append(",event,,,,,")
+                .Append(marker.Type).Append(':').AppendLine(marker.Label.Replace(',', ';'));
+        }
+
+        builder.AppendLine().AppendLine("Metric,Value")
+            .AppendLine($"Distance metres,{archive.Summary.DistanceMeters.ToString("F1", CultureInfo.InvariantCulture)}")
+            .AppendLine($"Elapsed seconds,{archive.Summary.Elapsed.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}")
+            .AppendLine($"Average power watts,{archive.Summary.AveragePowerWatts.ToString("F1", CultureInfo.InvariantCulture)}")
+            .AppendLine($"Maximum power watts,{archive.Summary.MaximumPowerWatts.ToString("F1", CultureInfo.InvariantCulture)}")
+            .AppendLine($"Work kilojoules,{archive.Summary.CyclingMetrics.TotalWorkKilojoules.ToString("F1", CultureInfo.InvariantCulture)}");
+        return builder.ToString();
+    }
+
+    private static string FormatCsvNumber(double? value) => value?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
 
     private void ResetSession()
     {
         Telemetry.ResetSession();
         HeartRate.ResetSession();
+        lapCount = 0;
+        SessionEvents = [];
+        ClearRecordedSession();
+        ResetChartZoom();
     }
 
     private void ApplyHeartRateZones()
@@ -1343,11 +1543,18 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             case WorkoutSessionState.Stopped:
                 Telemetry.StartSession(timestamp);
                 HeartRate.StartSession();
+                lapCount = 0;
+                SessionEvents = [];
+                ClearRecordedSession();
+                AddSessionEvent(timestamp, SessionEventType.Start, "Start");
                 break;
             case WorkoutSessionState.Paused:
                 Telemetry.ResumeSession(timestamp);
                 HeartRate.ResumeSession();
+                AddSessionEvent(timestamp, SessionEventType.Resume, "Resume");
                 break;
+            case WorkoutSessionState.Running:
+                return;
         }
 
         SetWorkoutSessionState(WorkoutSessionState.Running);
@@ -1356,21 +1563,102 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private void PauseWorkoutSession()
     {
+        if (workoutSessionState != WorkoutSessionState.Running)
+        {
+            return;
+        }
+
         var timestamp = DateTimeOffset.UtcNow;
         Telemetry.PauseSession(timestamp);
         HeartRate.PauseSession(timestamp);
+        AddSessionEvent(timestamp, SessionEventType.Pause, "Pause");
         SetWorkoutSessionState(WorkoutSessionState.Paused);
         IsWorkoutActive = false;
     }
 
     private void StopWorkoutSession()
     {
+        if (workoutSessionState is WorkoutSessionState.NotStarted or WorkoutSessionState.Stopped)
+        {
+            return;
+        }
+
         var timestamp = DateTimeOffset.UtcNow;
         Telemetry.PauseSession(timestamp);
         HeartRate.PauseSession(timestamp);
+        AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
         SetWorkoutSessionState(WorkoutSessionState.Stopped);
         IsWorkoutActive = false;
     }
+
+    private void AddLap()
+    {
+        lapCount++;
+        AddSessionEvent(DateTimeOffset.UtcNow, SessionEventType.Lap, $"Lap {lapCount}");
+    }
+
+    private void AddSessionEvent(DateTimeOffset timestamp, SessionEventType type, string label) =>
+        SessionEvents = [.. SessionEvents, new(timestamp, type, label)];
+
+    private void ZoomToSelection()
+    {
+        if (!TryGetSelectedRange(out var start, out var end) || end - start < TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        isCustomChartRange = true;
+        ChartTimeRangeStart = start;
+        ChartTimeRangeEnd = end;
+        UpdatePreviousComparisonSamples(start, end);
+    }
+
+    private void ResetChartZoom()
+    {
+        isCustomChartRange = false;
+        ChartSelectionStart = null;
+        ChartSelectionEnd = null;
+        UpdateChartTimeRange();
+    }
+
+    private void UpdateSelectedIntervalSummary()
+    {
+        if (!TryGetSelectedRange(out var start, out var end))
+        {
+            SelectedIntervalSummary = "Drag across a chart to inspect an interval.";
+            return;
+        }
+
+        var power = GetIntervalAverage(Telemetry.PowerChartSamples, start, end);
+        var speed = GetIntervalAverage(Telemetry.SpeedChartSamples, start, end);
+        var cadence = GetIntervalAverage(Telemetry.CadenceChartSamples, start, end);
+        var heartRate = GetIntervalAverage(HeartRate.ChartSamples, start, end);
+        SelectedIntervalSummary = $"{(end - start).ToString(@"mm\:ss", CultureInfo.InvariantCulture)} selected · {FormatIntervalValue(power, "W")} · {FormatIntervalValue(speed, "km/h")} · {FormatIntervalValue(cadence, "rpm")} · {FormatIntervalValue(heartRate, "bpm")}";
+    }
+
+    private bool TryGetSelectedRange(out DateTimeOffset start, out DateTimeOffset end)
+    {
+        start = default;
+        end = default;
+        if (ChartSelectionStart is not { } first || ChartSelectionEnd is not { } second || first == second)
+        {
+            return false;
+        }
+
+        start = first < second ? first : second;
+        end = first < second ? second : first;
+        return true;
+    }
+
+    private static double? GetIntervalAverage(IReadOnlyList<TelemetrySample> samples, DateTimeOffset start, DateTimeOffset end)
+    {
+        var values = samples.Where(sample => sample.CapturedAt >= start && sample.CapturedAt <= end).Select(sample => sample.Value).ToArray();
+        return values.Length > 0 ? values.Average() : null;
+    }
+
+    private static string FormatIntervalValue(double? value, string unit) => value is double measurement
+        ? $"{measurement:F0} {unit}"
+        : $"-- {unit}";
 
     private void SetWorkoutSessionState(WorkoutSessionState value)
     {
@@ -1599,7 +1887,139 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private void HandleHeartRateScanPipelineError(Exception exception) => HeartRateConnectionStatus = $"Heart-rate sensor discovery processing failed: {exception.Message}";
 
-    private void Present(TelemetrySnapshot snapshot) => Telemetry.Present(snapshot);
+    private void Present(TelemetrySnapshot snapshot)
+    {
+        latestRecordedTelemetry = snapshot;
+        Telemetry.Present(snapshot);
+        RecordSessionSample(snapshot.CapturedAt);
+    }
+
+    private void PresentHeartRate(HeartRateObservation observation)
+    {
+        latestRecordedHeartRate = observation;
+        HeartRate.Present(observation);
+        RecordSessionSample(observation.CapturedAt);
+    }
+
+    private void RecordSessionSample(DateTimeOffset timestamp)
+    {
+        if (workoutSessionState is WorkoutSessionState.Paused or WorkoutSessionState.Stopped
+            || lastRecordedAt is { } previous && timestamp - previous < TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        TelemetrySnapshot? machine = latestRecordedTelemetry is { } telemetry
+            && (timestamp - telemetry.CapturedAt).Duration() <= RecordedValueFreshness
+                ? telemetry
+                : null;
+        HeartRateObservation? heartRate = latestRecordedHeartRate is { } observation
+            && (timestamp - observation.CapturedAt).Duration() <= RecordedValueFreshness
+                ? observation
+                : null;
+        if (machine is null && heartRate is null)
+        {
+            return;
+        }
+
+        recordedSamples.Enqueue(new(
+            timestamp,
+            machine?.PowerWatts,
+            machine?.SpeedKilometersPerHour,
+            machine?.CadenceRpm,
+            heartRate?.BeatsPerMinute));
+        while (recordedSamples.Count > MaximumRecordedSamples)
+        {
+            recordedSamples.Dequeue();
+        }
+
+        lastRecordedAt = timestamp;
+        UpdateWorkoutAnalysis(timestamp);
+        if (previousSession is not null)
+        {
+            UpdatePreviousSessionComparison(Telemetry.GetSessionSummary());
+        }
+    }
+
+    private void ClearRecordedSession()
+    {
+        recordedSamples.Clear();
+        lastRecordedAt = null;
+        lastWorkoutAnalysisAt = null;
+        EfficiencyText = "Gathering paired data";
+        DecouplingText = "Requires 10 minutes";
+        CadenceAnalysisText = "Gathering cadence";
+        TorqueExposureText = "--";
+        RecoveryText = "Waiting for recovery";
+    }
+
+    private void UpdateWorkoutAnalysis(DateTimeOffset timestamp)
+    {
+        if (lastWorkoutAnalysisAt is { } previous && timestamp - previous < TimeSpan.FromSeconds(5))
+        {
+            return;
+        }
+
+        lastWorkoutAnalysisAt = timestamp;
+        var cutoff = timestamp - TimeSpan.FromMinutes(20);
+        var metrics = WorkoutAnalysis.Calculate([.. recordedSamples.Where(sample => sample.CapturedAt >= cutoff)]);
+        EfficiencyText = metrics.PowerHeartRateEfficiency is double efficiency ? $"{efficiency:F2} W/bpm" : "Gathering paired data";
+        DecouplingText = metrics.AerobicDecouplingPercentage is double decoupling ? $"{decoupling:+0.0;-0.0;0.0}%" : "Requires 10 minutes";
+        CadenceAnalysisText = metrics.AverageCadenceRpm is double average
+            ? $"{average:F0} rpm · {metrics.CadenceVariationPercentage:F1}% variation · preferred {metrics.PreferredCadenceMinimumRpm:F0}-{metrics.PreferredCadenceMaximumRpm:F0}"
+            : "Gathering cadence";
+        TorqueExposureText = metrics.LowCadenceHighTorqueExposure.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
+        RecoveryText = metrics.HeartRateRecoveryBeatsPerMinute is double recovery ? $"{recovery:F0} bpm/min" : "Waiting for recovery";
+    }
+
+    private RecordedSession CreateRecordedSession() => new(
+        SessionArchiveFormatVersion,
+        DateTimeOffset.UtcNow,
+        [.. recordedSamples],
+        [.. SessionEvents],
+        Telemetry.GetSessionSummary());
+
+    private void LoadPreviousSession()
+    {
+        try
+        {
+            var path = GetPreviousSessionPath();
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            previousSession = JsonSerializer.Deserialize<RecordedSession>(File.ReadAllText(path));
+            if (previousSession is not null)
+            {
+                var elapsed = previousSession.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+                PreviousSessionComparisonText = $"Previous: {previousSession.Summary.AveragePowerWatts:F0} W average · {previousSession.Summary.CyclingMetrics.TotalWorkKilojoules:F1} kJ · {elapsed}";
+            }
+        }
+        catch (JsonException)
+        {
+            PreviousSessionComparisonText = "Previous session data could not be read.";
+        }
+        catch (IOException)
+        {
+            PreviousSessionComparisonText = "Previous session data is unavailable.";
+        }
+    }
+
+    private void UpdatePreviousSessionComparison(SessionSummary current)
+    {
+        if (previousSession is not { } previous)
+        {
+            PreviousSessionComparisonText = "No previous session saved.";
+            return;
+        }
+
+        var powerDelta = current.AveragePowerWatts - previous.Summary.AveragePowerWatts;
+        var workDelta = current.CyclingMetrics.TotalWorkKilojoules - previous.Summary.CyclingMetrics.TotalWorkKilojoules;
+        PreviousSessionComparisonText = $"Vs previous: power {powerDelta:+0;-0;0} W · work {workDelta:+0.0;-0.0;0.0} kJ";
+    }
+
+    private static string GetPreviousSessionPath() => Path.Combine(FileSystem.AppDataDirectory, "previous-session.json");
 
     private void ClearTelemetryPresentation() => Telemetry.Clear();
 
@@ -1631,9 +2051,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         var cancellation = telemetryCancellation;
         var consumer = telemetryConsumer;
         var activeSession = session;
+        if (activeSession is not null && workoutSessionState is not WorkoutSessionState.NotStarted)
+        {
+            AddSessionEvent(DateTimeOffset.UtcNow, SessionEventType.Disconnect, "Fitness machine disconnected");
+        }
+
         telemetryCancellation = null;
         telemetryConsumer = null;
         session = null;
+        latestRecordedTelemetry = null;
         IsConnected = false;
         sessionSubscriptions.Disposable = Disposable.Empty;
         cancellation?.Cancel();
@@ -1677,6 +2103,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private async ValueTask StopHeartRateSessionAsync()
     {
+        latestRecordedHeartRate = null;
         var cancellation = heartRateTelemetryCancellation;
         var consumer = heartRateTelemetryConsumer;
         var activeSession = heartRateSession;
@@ -2074,6 +2501,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private void UpdateChartTimeRange()
     {
+        if (isCustomChartRange)
+        {
+            return;
+        }
+
         DateTimeOffset? latest = null;
         UpdateLatest(Telemetry.PowerChartSamples, ref latest);
         UpdateLatest(Telemetry.SpeedChartSamples, ref latest);
@@ -2081,6 +2513,54 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         UpdateLatest(HeartRate.ChartSamples, ref latest);
         ChartTimeRangeEnd = latest;
         ChartTimeRangeStart = latest - ChartWindow;
+        if (ChartTimeRangeStart is { } start && ChartTimeRangeEnd is { } end)
+        {
+            UpdatePreviousComparisonSamples(start, end);
+        }
+    }
+
+    private void UpdatePreviousComparisonSamples(DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
+    {
+        if (previousSession is not { Samples.Length: > 0 } previous || !recordedSamples.TryPeek(out var currentStart))
+        {
+            PreviousPowerChartSamples = [];
+            PreviousSpeedChartSamples = [];
+            PreviousCadenceChartSamples = [];
+            PreviousHeartRateChartSamples = [];
+            return;
+        }
+
+        var previousStart = previous.Samples[0].CapturedAt;
+        PreviousPowerChartSamples = MapPreviousSamples(previous.Samples, previousStart, currentStart.CapturedAt, rangeStart, rangeEnd, static sample => sample.PowerWatts);
+        PreviousSpeedChartSamples = MapPreviousSamples(previous.Samples, previousStart, currentStart.CapturedAt, rangeStart, rangeEnd, static sample => sample.SpeedKilometersPerHour);
+        PreviousCadenceChartSamples = MapPreviousSamples(previous.Samples, previousStart, currentStart.CapturedAt, rangeStart, rangeEnd, static sample => sample.CadenceRpm);
+        PreviousHeartRateChartSamples = MapPreviousSamples(previous.Samples, previousStart, currentStart.CapturedAt, rangeStart, rangeEnd, static sample => sample.HeartRateBeatsPerMinute);
+    }
+
+    private static IReadOnlyList<TelemetrySample> MapPreviousSamples(
+        IReadOnlyList<RecordedTelemetrySample> samples,
+        DateTimeOffset previousStart,
+        DateTimeOffset currentStart,
+        DateTimeOffset rangeStart,
+        DateTimeOffset rangeEnd,
+        Func<RecordedTelemetrySample, double?> valueSelector)
+    {
+        var mapped = new List<TelemetrySample>();
+        foreach (var sample in samples)
+        {
+            var timestamp = currentStart + (sample.CapturedAt - previousStart);
+            if (timestamp > rangeEnd)
+            {
+                break;
+            }
+
+            if (timestamp >= rangeStart && valueSelector(sample) is double value)
+            {
+                mapped.Add(new(timestamp, value));
+            }
+        }
+
+        return mapped;
     }
 
     private static void UpdateLatest(IReadOnlyList<TelemetrySample> samples, ref DateTimeOffset? latest)

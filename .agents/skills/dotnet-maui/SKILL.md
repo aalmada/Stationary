@@ -23,6 +23,7 @@ Build one native app project for Android, iOS, Mac Catalyst, and Windows. Start 
 | Concern | Use | Avoid |
 | --- | --- | --- |
 | UI | XAML bindings, compiled bindings where applicable, resource dictionaries | Business logic in code-behind |
+| Styling | App-level XAML styles, resources, triggers, and visual states | CSS for stateful or complete app styling |
 | Presentation logic | MVVM and commands | Control event handlers as application logic |
 | Dependencies | `Microsoft.Extensions.DependencyInjection` constructor injection | Service locator calls in views/view models |
 | Navigation | Shell routes and `GoToAsync` | Generated routes or duplicate route names |

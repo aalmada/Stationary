@@ -17,11 +17,14 @@ public sealed class DeviceCapability(string name, bool isTelemetry) : ReactiveOb
         get => isObserved;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref isObserved, value))
+            if (isObserved == value)
             {
-                this.RaisePropertyChanged(nameof(Status));
-                this.RaisePropertyChanged(nameof(IsNotProvided));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isObserved, value);
+            this.RaisePropertyChanged(nameof(Status));
+            this.RaisePropertyChanged(nameof(IsNotProvided));
         }
     }
 
@@ -30,11 +33,14 @@ public sealed class DeviceCapability(string name, bool isTelemetry) : ReactiveOb
         get => isStale;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref isStale, value))
+            if (isStale == value)
             {
-                this.RaisePropertyChanged(nameof(Status));
-                this.RaisePropertyChanged(nameof(IsNotProvided));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isStale, value);
+            this.RaisePropertyChanged(nameof(Status));
+            this.RaisePropertyChanged(nameof(IsNotProvided));
         }
     }
 
@@ -43,11 +49,14 @@ public sealed class DeviceCapability(string name, bool isTelemetry) : ReactiveOb
         get => isUnavailable;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref isUnavailable, value))
+            if (isUnavailable == value)
             {
-                this.RaisePropertyChanged(nameof(Status));
-                this.RaisePropertyChanged(nameof(IsNotProvided));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref isUnavailable, value);
+            this.RaisePropertyChanged(nameof(Status));
+            this.RaisePropertyChanged(nameof(IsNotProvided));
         }
     }
 

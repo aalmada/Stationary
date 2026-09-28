@@ -295,9 +295,10 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject, IDisposable
         SessionMaximumText = analytics.MaximumBeatsPerMinute is ushort maximum ? $"{maximum} bpm" : "-- bpm";
         ChartSummary = GetChartSummary(ChartSamples);
         var durations = analytics.GetTimeInZones();
+        var totalDuration = TimeSpan.FromTicks(durations.Sum(static duration => duration.Duration.Ticks));
         for (var index = 0; index < durations.Count; index++)
         {
-            ZoneDurations[index].Update(durations[index], currentZone?.Code == durations[index].Zone.Code);
+            ZoneDurations[index].Update(durations[index], totalDuration, currentZone?.Code == durations[index].Zone.Code);
         }
     }
 

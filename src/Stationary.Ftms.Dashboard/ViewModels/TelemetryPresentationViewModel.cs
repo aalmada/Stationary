@@ -16,8 +16,12 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private const string MetricUnitsPreferenceKey = "MetricUnits";
     private const string LargeTelemetryTextPreferenceKey = "LargeTelemetryText";
     private const string HighContrastTelemetryPreferenceKey = "HighContrastTelemetry";
+    private const string CompactChartsPreferenceKey = "CompactCharts";
+    private const string FunctionalThresholdPowerPreferenceKey = "FunctionalThresholdPower";
+    private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
     private string speedText = "-- km/h";
     private string powerText = "-- W";
+    private string currentPowerZoneText = "Set FTP for zones";
     private string cadenceText = "-- rpm";
     private string healthText = "Waiting for telemetry";
     private string powerChartSummary = "No samples";
@@ -29,16 +33,24 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private string sessionEnergyText = "--";
     private string sessionAveragePowerText = "--";
     private string sessionMaximumPowerText = "--";
+    private string functionalThresholdPowerText = Preferences.Default.Get(FunctionalThresholdPowerPreferenceKey, string.Empty);
+    private string sessionWorkText = "--";
+    private string normalizedPowerText = "--";
+    private string intensityFactorText = "--";
+    private string trainingStressScoreText = "--";
+    private string peakPowerText = "--";
     private bool isStale;
     private bool useMetricUnits = Preferences.Default.Get(MetricUnitsPreferenceKey, true);
     private bool useLargeTelemetryText = Preferences.Default.Get(LargeTelemetryTextPreferenceKey, false);
     private bool useHighContrastTelemetry = Preferences.Default.Get(HighContrastTelemetryPreferenceKey, false);
+    private bool useCompactCharts = Preferences.Default.Get(CompactChartsPreferenceKey, false);
     private IReadOnlyList<TelemetrySample> powerChartSamples = [];
     private IReadOnlyList<TelemetrySample> speedChartSamples = [];
     private IReadOnlyList<TelemetrySample> cadenceChartSamples = [];
     private IReadOnlyList<PowerCadenceSample> powerCadenceSamples = [];
     private TelemetrySnapshot? latestSnapshot;
     private readonly WorkoutSessionClock sessionClock = new();
+    private readonly CyclingMetricsAccumulator cyclingMetrics = new(MaximumTelemetryGap);
     private uint? previousDistanceCounter;
     private ushort? previousEnergyCounter;
     private double sessionDistanceMeters;
@@ -56,6 +68,8 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         SetMetricUnitsCommand = ReactiveCommand.Create<bool>(value => UseMetricUnits = value);
         SetLargeTelemetryTextCommand = ReactiveCommand.Create<bool>(value => UseLargeTelemetryText = value);
         SetHighContrastTelemetryCommand = ReactiveCommand.Create<bool>(value => UseHighContrastTelemetry = value);
+        SetCompactChartsCommand = ReactiveCommand.Create<bool>(value => UseCompactCharts = value);
+        ApplyFunctionalThresholdPowerCommand = ReactiveCommand.Create(ApplyFunctionalThresholdPower);
     }
 
     public TelemetryInsight TorqueResponseInsight
@@ -88,6 +102,46 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
 
     public ReactiveCommand<bool, Unit> SetHighContrastTelemetryCommand { get; }
 
+    public ReactiveCommand<bool, Unit> SetCompactChartsCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> ApplyFunctionalThresholdPowerCommand { get; }
+
+    public string FunctionalThresholdPowerText
+    {
+        get => functionalThresholdPowerText;
+        set => this.RaiseAndSetIfChanged(ref functionalThresholdPowerText, value);
+    }
+
+    public string SessionWorkText
+    {
+        get => sessionWorkText;
+        private set => this.RaiseAndSetIfChanged(ref sessionWorkText, value);
+    }
+
+    public string NormalizedPowerText
+    {
+        get => normalizedPowerText;
+        private set => this.RaiseAndSetIfChanged(ref normalizedPowerText, value);
+    }
+
+    public string IntensityFactorText
+    {
+        get => intensityFactorText;
+        private set => this.RaiseAndSetIfChanged(ref intensityFactorText, value);
+    }
+
+    public string TrainingStressScoreText
+    {
+        get => trainingStressScoreText;
+        private set => this.RaiseAndSetIfChanged(ref trainingStressScoreText, value);
+    }
+
+    public string PeakPowerText
+    {
+        get => peakPowerText;
+        private set => this.RaiseAndSetIfChanged(ref peakPowerText, value);
+    }
+
     public string SpeedText
     {
         get => speedText;
@@ -98,6 +152,12 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     {
         get => powerText;
         private set => this.RaiseAndSetIfChanged(ref powerText, value);
+    }
+
+    public string CurrentPowerZoneText
+    {
+        get => currentPowerZoneText;
+        private set => this.RaiseAndSetIfChanged(ref currentPowerZoneText, value);
     }
 
     public string CadenceText
@@ -123,11 +183,14 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         get => useMetricUnits;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref useMetricUnits, value))
+            if (useMetricUnits == value)
             {
-                Preferences.Default.Set(MetricUnitsPreferenceKey, value);
-                RefreshPresentation();
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref useMetricUnits, value);
+            Preferences.Default.Set(MetricUnitsPreferenceKey, value);
+            RefreshPresentation();
         }
     }
 
@@ -136,14 +199,17 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         get => useLargeTelemetryText;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref useLargeTelemetryText, value))
+            if (useLargeTelemetryText == value)
             {
-                Preferences.Default.Set(LargeTelemetryTextPreferenceKey, value);
-                this.RaisePropertyChanged(nameof(TelemetryValueFontSize));
-                this.RaisePropertyChanged(nameof(RideMetricCardHeight));
-                this.RaisePropertyChanged(nameof(SessionMetricValueFontSize));
-                this.RaisePropertyChanged(nameof(HeartRateValueFontSize));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref useLargeTelemetryText, value);
+            Preferences.Default.Set(LargeTelemetryTextPreferenceKey, value);
+            this.RaisePropertyChanged(nameof(TelemetryValueFontSize));
+            this.RaisePropertyChanged(nameof(RideMetricCardHeight));
+            this.RaisePropertyChanged(nameof(SessionMetricValueFontSize));
+            this.RaisePropertyChanged(nameof(HeartRateValueFontSize));
         }
     }
 
@@ -152,15 +218,36 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         get => useHighContrastTelemetry;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref useHighContrastTelemetry, value))
+            if (useHighContrastTelemetry == value)
             {
-                Preferences.Default.Set(HighContrastTelemetryPreferenceKey, value);
-                this.RaisePropertyChanged(nameof(PowerChartColor));
-                this.RaisePropertyChanged(nameof(SpeedChartColor));
-                this.RaisePropertyChanged(nameof(CadenceChartColor));
+                return;
             }
+
+            this.RaiseAndSetIfChanged(ref useHighContrastTelemetry, value);
+            Preferences.Default.Set(HighContrastTelemetryPreferenceKey, value);
+            this.RaisePropertyChanged(nameof(PowerChartColor));
+            this.RaisePropertyChanged(nameof(SpeedChartColor));
+            this.RaisePropertyChanged(nameof(CadenceChartColor));
         }
     }
+
+    public bool UseCompactCharts
+    {
+        get => useCompactCharts;
+        set
+        {
+            if (useCompactCharts == value)
+            {
+                return;
+            }
+
+            this.RaiseAndSetIfChanged(ref useCompactCharts, value);
+            Preferences.Default.Set(CompactChartsPreferenceKey, value);
+            this.RaisePropertyChanged(nameof(ShowChartSummaries));
+        }
+    }
+
+    public bool ShowChartSummaries => !UseCompactCharts;
 
     public double TelemetryValueFontSize => UseLargeTelemetryText ? 46 : 32;
 
@@ -175,6 +262,10 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     public Color SpeedChartColor => Color.FromArgb(UseHighContrastTelemetry ? "005A9C" : "3679A8");
 
     public Color CadenceChartColor => Color.FromArgb(UseHighContrastTelemetry ? "8A4B00" : "C48630");
+
+    public IReadOnlyList<double> PowerZoneTransitionValues => TryGetFunctionalThresholdPower(out var ftp)
+        ? [ftp * 0.56d, ftp * 0.76d, ftp * 0.91d, ftp * 1.06d, ftp * 1.21d, ftp * 1.51d]
+        : [];
 
     public string PowerChartSummary
     {
@@ -309,8 +400,24 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         $"Distance,{SessionDistanceText}",
         $"Elapsed time,{SessionElapsedTimeText}",
         $"Energy,{SessionEnergyText}",
+        $"Work,{SessionWorkText}",
         $"Average power,{SessionAveragePowerText}",
-        $"Maximum power,{SessionMaximumPowerText}");
+        $"Maximum power,{SessionMaximumPowerText}",
+        $"Normalized power,{NormalizedPowerText}",
+        $"Intensity factor,{IntensityFactorText}",
+        $"Training stress score,{TrainingStressScoreText}",
+        $"Peak power,{PeakPowerText}");
+
+    public SessionSummary GetSessionSummary()
+    {
+        var metrics = cyclingMetrics.GetMetrics(TryGetFunctionalThresholdPower(out var ftp) ? ftp : null);
+        return new(
+            sessionDistanceMeters,
+            latestSnapshot is { } snapshot ? sessionClock.GetElapsed(snapshot.CapturedAt) ?? TimeSpan.Zero : TimeSpan.Zero,
+            sessionPowerSampleCount > 0 ? sessionPowerTotal / sessionPowerSampleCount : 0d,
+            sessionMaximumPower ?? 0d,
+            metrics);
+    }
 
     private void RefreshPresentation()
     {
@@ -325,6 +432,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             SpeedText = $"{speed * 0.621_371d:F1} mph";
         }
         PowerText = PresentField(snapshot, TelemetryField.Power, snapshot.PowerWatts, power => $"{power:F0} W", PowerText, "-- W");
+        CurrentPowerZoneText = GetCurrentPowerZoneText(snapshot.PowerWatts);
         CadenceText = PresentField(snapshot, TelemetryField.Cadence, snapshot.CadenceRpm, cadence => $"{cadence:F0} rpm", CadenceText, "-- rpm");
         HealthText = $"Live - last packet {snapshot.CapturedAt.ToLocalTime():T}";
         IsStale = false;
@@ -359,6 +467,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     {
         SpeedText = "-- km/h";
         PowerText = "-- W";
+        CurrentPowerZoneText = "Set FTP for zones";
         CadenceText = "-- rpm";
         HealthText = "Waiting for telemetry";
         IsStale = false;
@@ -391,6 +500,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         SessionEnergyText = UpdateSessionEnergy(snapshot.TotalEnergyKilocalories) is int energy ? $"{energy} kcal" : "--";
         SessionAveragePowerText = sessionPowerSampleCount > 0 ? $"{sessionPowerTotal / sessionPowerSampleCount:F0} W" : "--";
         SessionMaximumPowerText = sessionMaximumPower is double maximumPower ? $"{maximumPower:F0} W" : "--";
+        UpdateCyclingMetrics();
     }
 
     private void TrackSessionStatistics(TelemetrySnapshot snapshot)
@@ -405,6 +515,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         sessionMaximumPower = sessionMaximumPower is double currentMaximum
             ? double.Max(currentMaximum, power)
             : power;
+        cyclingMetrics.Add(new(snapshot.CapturedAt, power));
     }
 
     private double? UpdateSessionDistance(uint? totalDistance)
@@ -448,6 +559,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         sessionPowerTotal = 0d;
         sessionPowerSampleCount = 0;
         sessionMaximumPower = null;
+        cyclingMetrics.Reset();
     }
 
     private void ClearSessionSummary()
@@ -457,6 +569,67 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         SessionEnergyText = "--";
         SessionAveragePowerText = "--";
         SessionMaximumPowerText = "--";
+        SessionWorkText = "--";
+        NormalizedPowerText = "--";
+        IntensityFactorText = "--";
+        TrainingStressScoreText = "--";
+        PeakPowerText = "--";
+    }
+
+    private void ApplyFunctionalThresholdPower()
+    {
+        if (ushort.TryParse(FunctionalThresholdPowerText, out var watts) && watts > 0)
+        {
+            Preferences.Default.Set(FunctionalThresholdPowerPreferenceKey, FunctionalThresholdPowerText);
+        }
+        else
+        {
+            Preferences.Default.Remove(FunctionalThresholdPowerPreferenceKey);
+        }
+
+        this.RaisePropertyChanged(nameof(PowerZoneTransitionValues));
+        CurrentPowerZoneText = GetCurrentPowerZoneText(latestSnapshot?.PowerWatts);
+        UpdateCyclingMetrics();
+    }
+
+    private void UpdateCyclingMetrics()
+    {
+        var ftp = TryGetFunctionalThresholdPower(out var watts)
+            ? watts
+            : (ushort?)null;
+        var metrics = cyclingMetrics.GetMetrics(ftp);
+        SessionWorkText = $"{metrics.TotalWorkKilojoules:F1} kJ";
+        NormalizedPowerText = metrics.NormalizedPower is double normalizedPower ? $"{normalizedPower:F0} W" : "Gathering 30 s";
+        IntensityFactorText = metrics.IntensityFactor is double intensityFactor ? $"{intensityFactor:F2}" : "Set FTP";
+        TrainingStressScoreText = metrics.TrainingStressScore is double score ? $"{score:F1}" : "Set FTP";
+        PeakPowerText = string.Join(" · ",
+            FormatPeak("5s", metrics.PeakPower5Seconds),
+            FormatPeak("30s", metrics.PeakPower30Seconds),
+            FormatPeak("1m", metrics.PeakPower1Minute),
+            FormatPeak("5m", metrics.PeakPower5Minutes));
+    }
+
+    private static string FormatPeak(string duration, double? watts) => watts is double value
+        ? $"{duration} {value:F0} W"
+        : $"{duration} --";
+
+    private bool TryGetFunctionalThresholdPower(out ushort watts) =>
+        ushort.TryParse(FunctionalThresholdPowerText, out watts) && watts > 0;
+
+    private string GetCurrentPowerZoneText(double? powerWatts)
+    {
+        if (!TryGetFunctionalThresholdPower(out var ftp))
+        {
+            return "Set FTP for zones";
+        }
+
+        if (powerWatts is not double power)
+        {
+            return "Waiting for power";
+        }
+
+        var zone = PowerZoneProfile.Create(ftp).GetZone(power);
+        return $"{zone.Code} {zone.Name}";
     }
 
     private static string GetChartSummary(IReadOnlyList<TelemetrySample> samples, string unit)

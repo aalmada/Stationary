@@ -1,6 +1,13 @@
 using Stationary.Ftms.Dashboard.Services;
 using Stationary.Ftms.Dashboard.ViewModels;
 
+#if MACCATALYST
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform;
+
+using UIKit;
+#endif
+
 namespace Stationary.Ftms.Dashboard;
 
 public static class MauiProgram
@@ -10,6 +17,11 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>();
+
+#if MACCATALYST
+        ButtonHandler.Mapper.AppendToMapping(nameof(IView.Background), ApplyMacCatalystButtonBackground);
+        ButtonHandler.Mapper.AppendToMapping(nameof(IView.IsEnabled), ApplyMacCatalystButtonBackground);
+#endif
 
         builder.Services.AddSingleton<IFtmsDiscoveryService, PluginBleFtmsDiscoveryService>();
         builder.Services.AddSingleton<IHeartRateDiscoveryService, PluginBleHeartRateDiscoveryService>();
@@ -22,4 +34,18 @@ public static class MauiProgram
 
         return builder.Build();
     }
+
+#if MACCATALYST
+    private static void ApplyMacCatalystButtonBackground(IButtonHandler handler, IButton button)
+    {
+        var configuration = UIButtonConfiguration.FilledButtonConfiguration;
+
+        if (button.Background is SolidPaint { Color: not null } background)
+        {
+            configuration.BaseBackgroundColor = background.Color.ToPlatform();
+        }
+
+        handler.PlatformView.Configuration = configuration;
+    }
+#endif
 }

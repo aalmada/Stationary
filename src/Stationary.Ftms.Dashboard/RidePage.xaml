@@ -25,12 +25,8 @@
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
         <HorizontalStackLayout Grid.Column="1" Spacing="8" IsVisible="{Binding IsControllable}">
-          <Border Style="{StaticResource ActionBorder}">
-            <Button Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Start or resume the fitness machine session" />
-          </Border>
-          <Border Style="{StaticResource SecondaryActionBorder}">
-            <Button Text="Pause" TextColor="{StaticResource Accent}" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Pause the fitness machine session" />
-          </Border>
+          <Button Style="{StaticResource ActionButton}" Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Start or resume the fitness machine session" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Pause" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Pause the fitness machine session" />
         </HorizontalStackLayout>
       </Grid>
     </Border>

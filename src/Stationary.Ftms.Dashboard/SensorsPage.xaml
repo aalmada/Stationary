@@ -49,12 +49,8 @@
               <Label Text="Fitness machine" FontAttributes="Bold" />
               <Label Text="{Binding MachineStateText}" TextColor="{StaticResource Muted}" FontSize="12" />
             </VerticalStackLayout>
-            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsDisconnected}">
-              <Button Text="Find machine" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for nearby FTMS fitness machines" />
-            </Border>
-            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsConnected}">
-              <Button Text="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect from the active fitness machine" />
-            </Border>
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsDisconnected}" Text="Find machine" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for nearby FTMS fitness machines" />
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsConnected}" Text="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect from the active fitness machine" />
           </Grid>
 
           <VerticalStackLayout Spacing="12" IsVisible="{Binding IsDevicePickerVisible}">
@@ -70,12 +66,8 @@
               </CollectionView.ItemTemplate>
             </CollectionView>
             <HorizontalStackLayout Spacing="12">
-              <Border Style="{StaticResource ActionBorder}">
-                <Button Text="Scan again" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for nearby FTMS fitness machines" />
-              </Border>
-              <Border Style="{StaticResource ActionBorder}">
-                <Button Text="Connect selected" Command="{Binding ConnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect to the selected fitness machine" />
-              </Border>
+              <Button Style="{StaticResource ActionButton}" Text="Scan again" Command="{Binding ScanCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for nearby FTMS fitness machines" />
+              <Button Style="{StaticResource ActionButton}" Text="Connect selected" Command="{Binding ConnectCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect to the selected fitness machine" />
             </HorizontalStackLayout>
           </VerticalStackLayout>
         </VerticalStackLayout>
@@ -88,12 +80,8 @@
               <Label Text="Heart-rate sensor" FontAttributes="Bold" />
               <Label Text="{Binding HeartRateConnectionStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
             </VerticalStackLayout>
-            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsHeartRateConnected}">
-              <Button Text="Disconnect" Command="{Binding DisconnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect the heart-rate sensor" />
-            </Border>
-            <Border Grid.Column="1" Style="{StaticResource ActionBorder}" IsVisible="{Binding IsHeartRateDisconnected}">
-              <Button Text="Add sensor" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for Bluetooth heart-rate sensors" />
-            </Border>
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsHeartRateConnected}" Text="Disconnect" Command="{Binding DisconnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect the heart-rate sensor" />
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsHeartRateDisconnected}" Text="Add sensor" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for Bluetooth heart-rate sensors" />
           </Grid>
 
           <VerticalStackLayout Spacing="8" IsVisible="{Binding IsHeartRateDevicePickerVisible}">
@@ -106,12 +94,8 @@
               </CollectionView.ItemTemplate>
             </CollectionView>
             <HorizontalStackLayout Spacing="12">
-              <Border Style="{StaticResource ActionBorder}">
-                <Button Text="Scan again" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for Bluetooth heart-rate sensors" />
-              </Border>
-              <Border Style="{StaticResource ActionBorder}">
-                <Button Text="Connect selected" Command="{Binding ConnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect the selected heart-rate sensor" />
-              </Border>
+              <Button Style="{StaticResource ActionButton}" Text="Scan again" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for Bluetooth heart-rate sensors" />
+              <Button Style="{StaticResource ActionButton}" Text="Connect selected" Command="{Binding ConnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect the selected heart-rate sensor" />
             </HorizontalStackLayout>
           </VerticalStackLayout>
 
@@ -120,9 +104,7 @@
             <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
             </Border>
-            <Border Grid.Column="2" Style="{StaticResource ActionBorder}">
-              <Button Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />
-            </Border>
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />
           </Grid>
         </VerticalStackLayout>
       </Border>

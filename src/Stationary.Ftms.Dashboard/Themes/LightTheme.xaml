@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+  <Color x:Key="Canvas">#F4F6F3</Color>
+  <Color x:Key="Surface">#FFFFFF</Color>
+  <Color x:Key="SurfaceSubtle">#EAF2EE</Color>
+  <Color x:Key="Ink">#163238</Color>
+  <Color x:Key="Accent">#147D70</Color>
+  <Color x:Key="Line">#D6E1DB</Color>
+  <Color x:Key="Muted">#5A6B6C</Color>
+  <Color x:Key="DisabledSurface">#E1E5E3</Color>
+  <Color x:Key="DisabledInk">#7A8584</Color>
+
+  <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
+  <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="{StaticResource SurfaceSubtle}" />
+
+  <Style TargetType="Label">
+    <Setter Property="TextColor" Value="{StaticResource Ink}" />
+    <Setter Property="FontFamily" Value="Avenir Next" />
+  </Style>
+
+  <Style x:Key="BaseButtonStyle" TargetType="Button">
+    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=Transparent, Dark=Transparent}" />
+    <Setter Property="TextColor" Value="{AppThemeBinding Light=White, Dark=White}" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="FontFamily" Value="Avenir Next" />
+    <Setter Property="FontAttributes" Value="Bold" />
+    <Setter Property="Padding" Value="12,8" />
+    <Style.Triggers>
+      <Trigger TargetType="Button" Property="IsEnabled" Value="False">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource DisabledSurface}, Dark={StaticResource DisabledSurface}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource DisabledSurface}, Dark={StaticResource DisabledSurface}}" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource DisabledInk}, Dark={StaticResource DisabledInk}}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}" />
+
+  <Style x:Key="ActionButton" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Accent}, Dark={StaticResource Accent}}" />
+  </Style>
+
+  <Style x:Key="SecondaryActionButton" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceSubtle}, Dark={StaticResource SurfaceSubtle}}" />
+    <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource Line}, Dark={StaticResource Line}}" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Accent}, Dark={StaticResource Accent}}" />
+  </Style>
+
+  <Style x:Key="PanelBorder" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+    <Setter Property="Stroke" Value="{StaticResource Line}" />
+    <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+    <Setter Property="Padding" Value="16" />
+  </Style>
+</ResourceDictionary>
