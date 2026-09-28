@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Stationary.Ftms.Dashboard.TrainingPage"
+             Title="Training"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <VerticalStackLayout Spacing="4">
+        <Label Text="TRAINING" FontAttributes="Bold" FontSize="30" />
+        <Label Text="FTP-relative structured rides with precision scoring" TextColor="{StaticResource Muted}" FontSize="14" />
+      </VerticalStackLayout>
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="Choose a workout" FontAttributes="Bold" />
+          <Label Text="{Binding SelectedWorkout.Name}" FontAttributes="Bold" />
+          <Label Text="{Binding SelectedWorkout.Description}" TextColor="{StaticResource Muted}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+              <Button Style="{StaticResource ActionButton}" Text="Start" Command="{Binding StartCommand}" />
+              <Button Style="{StaticResource ActionButton}" Text="Pause" Command="{Binding PauseCommand}" />
+              <Button Style="{StaticResource ActionButton}" Text="Resume" Command="{Binding ResumeCommand}" />
+              <Button Style="{StaticResource ActionButton}" Text="Retry" Command="{Binding RetryCommand}" />
+              <Button Style="{StaticResource ActionButton}" Text="End" Command="{Binding EndCommand}" />
+            </HorizontalStackLayout>
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+      <Label Text="{Binding AdherenceText}" TextColor="{StaticResource Muted}" FontSize="12" />
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="FTP RAMP TEST" FontAttributes="Bold" />
+          <Label Text="Five minutes easy, then one-minute steps. End the test when you can no longer sustain the step." TextColor="{StaticResource Muted}" FontSize="12" />
+          <HorizontalStackLayout Spacing="8">
+            <Button Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding StartRampTestCommand}" />
+            <Button Style="{StaticResource ActionButton}" Text="Finish test" Command="{Binding FinishRampTestCommand}" />
+            <Button Style="{StaticResource ActionButton}" Text="Accept FTP" Command="{Binding AcceptRampEstimateCommand}" />
+          </HorizontalStackLayout>
+          <Label Text="{Binding RampEstimateText}" TextColor="{StaticResource Muted}" />
+        </VerticalStackLayout>
+      </Border>
+      <Border Style="{StaticResource PanelBorder}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <VerticalStackLayout Spacing="3">
+            <Label Text="CURRENT INTERVAL" FontSize="12" TextColor="{StaticResource Muted}" />
+            <Label Text="{Binding CurrentSegmentText}" FontAttributes="Bold" FontSize="22" />
+          </VerticalStackLayout>
+          <VerticalStackLayout Grid.Column="1" Spacing="3" HorizontalOptions="End">
+            <Label Text="TARGET" FontSize="12" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
+            <Label Text="{Binding CurrentTargetWatts, StringFormat='{}{0} W'}" FontAttributes="Bold" FontSize="22" HorizontalTextAlignment="End" />
+          </VerticalStackLayout>
+        </Grid>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

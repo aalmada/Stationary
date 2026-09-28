@@ -16,14 +16,16 @@ public sealed class AppShell : Shell
     public const string RideRoute = "ride";
     public const string SensorsRoute = "sensors";
     public const string SessionRoute = "session";
+    public const string TrainingRoute = "training";
 
-    public AppShell(RidePage ridePage, ControlPage controlPage, SensorsPage sensorsPage, SessionPage sessionPage, DashboardViewModel viewModel)
+    public AppShell(RidePage ridePage, ControlPage controlPage, SensorsPage sensorsPage, SessionPage sessionPage, IServiceProvider services, DashboardViewModel viewModel)
     {
         FlyoutBehavior = FlyoutBehavior.Locked;
         FlyoutWidth = 180;
 
         Items.Add(CreateItem("Sensors", SensorsRoute, sensorsPage));
         Items.Add(CreateItem("Ride", RideRoute, ridePage));
+        Items.Add(CreateLazyItem("Training", TrainingRoute, () => services.GetRequiredService<TrainingPage>()));
         Items.Add(CreateItem("Control", ControlRoute, controlPage));
         Items.Add(CreateItem("Session", SessionRoute, sessionPage));
 
@@ -51,6 +53,22 @@ public sealed class AppShell : Shell
             Title = title,
             Route = GetContentRoute(route),
             Content = page,
+        });
+        return item;
+    }
+
+    private static FlyoutItem CreateLazyItem(string title, string route, Func<ContentPage> pageFactory)
+    {
+        var item = new FlyoutItem
+        {
+            Title = title,
+            Route = route,
+        };
+        item.Items.Add(new ShellContent
+        {
+            Title = title,
+            Route = GetContentRoute(route),
+            ContentTemplate = new DataTemplate(pageFactory),
         });
         return item;
     }
@@ -105,6 +123,7 @@ public sealed class AppShell : Shell
     {
         var menu = new MenuBarItem { Text = "View" };
         menu.Add(CreateNavigationItem("Ride", RideRoute));
+        menu.Add(CreateNavigationItem("Training", TrainingRoute));
         menu.Add(CreateNavigationItem("Control", ControlRoute));
         menu.Add(CreateNavigationItem("Sensors", SensorsRoute));
         menu.Add(CreateNavigationItem("Session", SessionRoute));

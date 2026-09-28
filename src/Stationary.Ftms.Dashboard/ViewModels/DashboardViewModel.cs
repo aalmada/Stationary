@@ -152,6 +152,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         UnavailableCapabilities = [];
         Telemetry = new();
         HeartRate = new();
+        Training = new(this);
         TargetControls = [];
         ManualTargetControls = [];
         var sampledTelemetry = telemetrySessionReset
@@ -841,6 +842,35 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     public ReactiveCommand<Unit, Unit> SetTargetPowerCommand { get; }
 
+    public TrainingViewModel Training { get; }
+
+    public bool TryGetTrainingPowerCapabilities(out TrainingPowerCapabilities capabilities)
+    {
+        if (PowerTargetControl is { } power)
+        {
+            capabilities = new(
+                checked((int)power.Minimum),
+                checked((int)power.Maximum),
+                checked((int)power.Increment));
+            return capabilities.IsValid;
+        }
+
+        capabilities = default;
+        return false;
+    }
+
+    public Task<bool> ApplyTrainingTargetAsync(int watts, CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(token => SetTargetPowerFromSliderAsync(watts, token), cancellationToken);
+
+    public Task<bool> StartTrainingSessionAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(StartWorkoutSessionAsync, cancellationToken);
+
+    public Task<bool> PauseTrainingSessionAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(PauseWorkoutSessionAsync, cancellationToken);
+
+    public IReadOnlyList<RecordedTelemetrySample> GetRecordedSamplesSince(DateTimeOffset timestamp) =>
+        [.. recordedSamples.Where(sample => sample.CapturedAt >= timestamp)];
+
     public ReactiveCommand<Unit, Unit> SetTargetInclinationCommand { get; }
 
     public ReactiveCommand<Unit, Unit> SetTargetResistanceCommand { get; }
@@ -879,6 +909,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         heartRateSessionSubscriptions.Dispose();
         heartRateScanSubscriptions.Dispose();
         subscriptions.Dispose();
+        Training.Dispose();
         HeartRate.Dispose();
         isBusy.Dispose();
         operationStatus.Dispose();
@@ -1250,30 +1281,46 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private async Task StartWorkoutAsync(CancellationToken cancellationToken)
     {
+        await StartWorkoutSessionAsync(cancellationToken);
+    }
+
+    private async Task<bool> StartWorkoutSessionAsync(CancellationToken cancellationToken)
+    {
         if (!await EnsureControlPermissionAsync(cancellationToken))
         {
-            return;
+            return false;
         }
 
         if (await ExecuteControlAsync(FtmsControlPointOpcode.StartOrResume, Array.Empty<byte>(), "Session started", cancellationToken))
         {
             StartOrResumeWorkoutSession();
             ControlStatus = "Session running. Adjust targets as needed.";
+            return true;
         }
+
+        return false;
     }
 
     private async Task PauseWorkoutAsync(CancellationToken cancellationToken)
     {
+        await PauseWorkoutSessionAsync(cancellationToken);
+    }
+
+    private async Task<bool> PauseWorkoutSessionAsync(CancellationToken cancellationToken)
+    {
         if (!await EnsureControlPermissionAsync(cancellationToken))
         {
-            return;
+            return false;
         }
 
         if (await ExecuteControlAsync(FtmsControlPointOpcode.StopOrPause, new byte[] { PauseControlInformation }, "Session paused", cancellationToken))
         {
             PauseWorkoutSession();
             ControlStatus = "Session paused. Target adjustments remain available.";
+            return true;
         }
+
+        return false;
     }
 
     private async Task<bool> EnsureControlPermissionAsync(CancellationToken cancellationToken)

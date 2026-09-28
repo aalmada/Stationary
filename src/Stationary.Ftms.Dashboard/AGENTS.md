@@ -5,7 +5,13 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 ## Commands
 
 - Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore`
-- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore`
+- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
+
+## Mac Catalyst Training Page
+
+- Keep the Training `ShellContent` lazy. Eager XAML materialization previously crashed the application during startup.
+- Do not reintroduce the `Picker` removed from `TrainingPage.xaml`; it previously crashed navigation to Training. Replace it only with a separately tested selector.
+- Apply the shared `ActionButton` style to every Training action, including ramp-test and currently unavailable actions. It is the established Sensors-page pattern and provides the correct enabled and disabled presentation.
 
 ## Reactive UI
 

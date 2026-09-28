@@ -2,5 +2,6 @@
   <ItemGroup>
     <ProjectReference Include="../Stationary.Ftms/Stationary.Ftms.csproj" />
     <PackageReference Include="System.Reactive" />
+    <EmbeddedResource Include="TrainingCatalog.json" />
   </ItemGroup>
 </Project>
