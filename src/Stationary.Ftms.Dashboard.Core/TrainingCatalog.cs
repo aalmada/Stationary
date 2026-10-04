@@ -6,6 +6,9 @@ public sealed record TrainingCatalogDocument(
 
 public static class TrainingCatalog
 {
+    public static Task<TrainingCatalogDocument> LoadAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(Load, cancellationToken);
+
     public static TrainingCatalogDocument Load()
     {
         var workouts = TrainingWorkoutLibrary.Create();

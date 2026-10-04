@@ -7,7 +7,7 @@ public sealed class TrainingCatalogTests
     [Test]
     public async Task Load_ReturnsEveryObjectiveAndExperienceLevel()
     {
-        var catalog = TrainingCatalog.Load();
+        var catalog = await TrainingCatalog.LoadAsync();
 
         using (Assert.Multiple())
         {
@@ -19,9 +19,21 @@ public sealed class TrainingCatalogTests
     }
 
     [Test]
+    public async Task LoadAsync_ReturnsEveryObjectiveAndExperienceLevel()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(catalog.Workouts.Count).IsEqualTo(35);
+            await Assert.That(catalog.Plans.Count).IsEqualTo(35);
+        }
+    }
+
+    [Test]
     public async Task Load_ReturnsAuthoredStructuredWorkouts()
     {
-        var catalog = TrainingCatalog.Load();
+        var catalog = await TrainingCatalog.LoadAsync();
 
         using (Assert.Multiple())
         {
@@ -36,7 +48,7 @@ public sealed class TrainingCatalogTests
     [Test]
     public async Task Load_CalculatesTotalWorkoutDurationFromSegments()
     {
-        var catalog = TrainingCatalog.Load();
+        var catalog = await TrainingCatalog.LoadAsync();
 
         await Assert.That(catalog.Workouts.All(static workout =>
             workout.TotalDuration == TimeSpan.FromTicks(workout.Segments.Sum(static segment => segment.Duration.Ticks)))).IsTrue();
@@ -45,7 +57,7 @@ public sealed class TrainingCatalogTests
     [Test]
     public async Task Load_ReturnsProgressivePlansWithResolvableWorkoutReferences()
     {
-        var catalog = TrainingCatalog.Load();
+        var catalog = await TrainingCatalog.LoadAsync();
         var workoutIds = catalog.Workouts.Select(static workout => workout.Id).ToHashSet(StringComparer.Ordinal);
 
         using (Assert.Multiple())

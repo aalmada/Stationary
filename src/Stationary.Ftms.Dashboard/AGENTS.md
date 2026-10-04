@@ -13,6 +13,13 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Do not reintroduce the `Picker` removed from `TrainingPage.xaml`; it previously crashed navigation to Training. Replace it only with a separately tested selector.
 - Apply the shared `ActionButton` style to every Training action, including ramp-test and currently unavailable actions. It is the established Sensors-page pattern and provides the correct enabled and disabled presentation.
 
+## Mac Catalyst Button Rendering
+
+- Apply `ActionButton` or `SecondaryActionButton` to every dashboard button. Both styles use opaque command fills (`Accent` and `SecondaryAccent`); do not create page-local button fills or low-contrast surface buttons.
+- Preserve both `ButtonHandler` mappings in `MauiProgram` for `IView.Background` and `IView.IsEnabled`.
+- In the shared handler, set `UIButtonConfiguration.BaseBackgroundColor`, copy the value-style `Background` configuration, set its `BackgroundColor`, and assign it back. Mutating `configuration.Background.BackgroundColor` without reassignment does not reliably update native fills.
+- Verify new button work in the running Mac Catalyst app. Check at least one `ActionButton`, one `SecondaryActionButton`, and a disabled button; all must render a full opaque fill.
+
 ## Reactive UI
 
 - Use the installed System.Reactive and ReactiveUI packages for every dashboard state change: route user input and settings through `ReactiveCommand`, service events through observable pipelines, and derived state through bindings and `ToProperty`. Do not mutate bound state from code-behind, direct two-way controls, or imperative event handlers.

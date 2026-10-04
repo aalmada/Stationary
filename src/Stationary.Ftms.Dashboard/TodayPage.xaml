@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.TodayPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Today"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="TODAY" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Prepare, ride, and review from one place." TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+          <Label Text="MACHINE" TextColor="{StaticResource Muted}" FontSize="11" HorizontalTextAlignment="End" />
+          <Label Text="{Binding MachineStateText}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+        </VerticalStackLayout>
+      </Grid>
+
+      <Border Style="{StaticResource PanelBorder}" Background="{StaticResource HeroBrush}" Stroke="{StaticResource HeroSurface}">
+        <VerticalStackLayout Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="3">
+              <Label Text="NEXT RIDE" TextColor="{StaticResource HeroMuted}" FontSize="11" />
+              <Label Text="{Binding RideTitle}" TextColor="{StaticResource HeroInk}" FontAttributes="Bold" FontSize="22" />
+              <Label Text="{Binding RideSubtitle}" TextColor="{StaticResource HeroMuted}" />
+            </VerticalStackLayout>
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" Text="Open ride" Command="{Binding ShowRideCommand}" VerticalOptions="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTrainingActive}">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="{Binding Training.CurrentWorkoutName}" TextColor="{StaticResource HeroInk}" FontAttributes="Bold" />
+              <Label Text="{Binding Training.IntervalProgressText}" TextColor="{StaticResource HeroMuted}" FontSize="12" />
+            </VerticalStackLayout>
+            <Label Grid.Column="1" Text="{Binding Training.CurrentIntervalRemainingText}" TextColor="{StaticResource HeroInk}" FontAttributes="Bold" FontSize="20" VerticalOptions="Center" />
+          </Grid>
+          <Label Text="{Binding StatusText}" TextColor="{StaticResource HeroMuted}" FontSize="12" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+        <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="TRAIN" FontAttributes="Bold" />
+            <Label Text="Choose a workout, plan week, or FTP assessment." TextColor="{StaticResource Muted}" FontSize="12" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Training" Command="{Binding ShowTrainingCommand}" />
+          </VerticalStackLayout>
+        </Border>
+        <Border Grid.Column="1" Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="REVIEW" FontAttributes="Bold" />
+            <Label Text="Inspect session totals, insights, and export data." TextColor="{StaticResource Muted}" FontSize="12" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Results" Command="{Binding ShowResultsCommand}" />
+          </VerticalStackLayout>
+        </Border>
+        <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="DEVICES" FontAttributes="Bold" />
+            <Label Text="Connect the machine and external heart-rate sensor." TextColor="{StaticResource Muted}" FontSize="12" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Sensors" Command="{Binding ShowSensorsCommand}" />
+          </VerticalStackLayout>
+        </Border>
+      </Grid>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <VerticalStackLayout Spacing="3">
+            <Label Text="RIDER SETUP" FontAttributes="Bold" />
+            <Label Text="Set FTP and choose display preferences before your next workout." TextColor="{StaticResource Muted}" FontSize="12" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="Settings" Command="{Binding ShowSettingsCommand}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

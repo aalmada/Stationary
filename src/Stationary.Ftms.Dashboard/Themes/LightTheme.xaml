@@ -1,18 +1,23 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
-  <Color x:Key="Canvas">#F4F6F3</Color>
+  <Color x:Key="Canvas">#F3F7F7</Color>
   <Color x:Key="Surface">#FFFFFF</Color>
-  <Color x:Key="SurfaceSubtle">#EAF2EE</Color>
-  <Color x:Key="Ink">#163238</Color>
-  <Color x:Key="Accent">#147D70</Color>
-  <Color x:Key="Line">#D6E1DB</Color>
-  <Color x:Key="Muted">#5A6B6C</Color>
-  <Color x:Key="DisabledSurface">#E1E5E3</Color>
-  <Color x:Key="DisabledInk">#7A8584</Color>
+  <Color x:Key="SurfaceSubtle">#E4F0F0</Color>
+  <Color x:Key="Ink">#112D35</Color>
+  <Color x:Key="Accent">#0C8F80</Color>
+  <Color x:Key="SecondaryAccent">#285A78</Color>
+  <Color x:Key="HeroSurface">#153D4B</Color>
+  <Color x:Key="HeroInk">#F7FFFE</Color>
+  <Color x:Key="HeroMuted">#BBD6D5</Color>
+  <Color x:Key="Line">#CADDDD</Color>
+  <Color x:Key="Muted">#567078</Color>
+  <Color x:Key="DisabledSurface">#DAE3E3</Color>
+  <Color x:Key="DisabledInk">#718489</Color>
 
   <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
   <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="{StaticResource SurfaceSubtle}" />
+  <SolidColorBrush x:Key="HeroBrush" Color="{StaticResource HeroSurface}" />
 
   <Style TargetType="Label">
     <Setter Property="TextColor" Value="{StaticResource Ink}" />
@@ -25,7 +30,8 @@
     <Setter Property="CornerRadius" Value="5" />
     <Setter Property="FontFamily" Value="Avenir Next" />
     <Setter Property="FontAttributes" Value="Bold" />
-    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="MinimumHeightRequest" Value="38" />
+    <Setter Property="Padding" Value="14,8" />
     <Style.Triggers>
       <Trigger TargetType="Button" Property="IsEnabled" Value="False">
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource DisabledSurface}, Dark={StaticResource DisabledSurface}}" />
@@ -42,16 +48,15 @@
   </Style>
 
   <Style x:Key="SecondaryActionButton" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceSubtle}, Dark={StaticResource SurfaceSubtle}}" />
-    <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource Line}, Dark={StaticResource Line}}" />
-    <Setter Property="BorderWidth" Value="1" />
-    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Accent}, Dark={StaticResource Accent}}" />
+    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SecondaryAccent}, Dark={StaticResource SecondaryAccent}}" />
+    <Setter Property="TextColor" Value="{AppThemeBinding Light=White, Dark=White}" />
   </Style>
 
   <Style x:Key="PanelBorder" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
     <Setter Property="Stroke" Value="{StaticResource Line}" />
     <Setter Property="StrokeShape" Value="RoundRectangle 8" />
-    <Setter Property="Padding" Value="16" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="Padding" Value="18" />
   </Style>
 </ResourceDictionary>

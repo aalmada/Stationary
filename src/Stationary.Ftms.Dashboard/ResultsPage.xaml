@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.ResultsPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Results"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="RESULTS" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Review the session, compare the previous effort, and export your data." TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Open ride" Command="{Binding ShowRideCommand}" />
+          <Button Style="{StaticResource ActionButton}" Text="Export CSV" Command="{Binding ExportSessionCommand}" IsEnabled="{Binding IsSessionAvailable}" />
+        </HorizontalStackLayout>
+      </Grid>
+
+      <Border Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8" IsVisible="{Binding IsSessionUnavailable}">
+        <Label Text="Connect a fitness machine or heart-rate sensor to collect a session." TextColor="{StaticResource Muted}" />
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
+        <VerticalStackLayout Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="SESSION OVERVIEW" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding MachineStateText}" FontAttributes="Bold" FontSize="20" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+              <Label Text="CURRENT POWER" TextColor="{StaticResource Muted}" FontSize="11" HorizontalTextAlignment="End" />
+              <Label Text="{Binding Telemetry.PowerText}" FontAttributes="Bold" FontSize="22" HorizontalTextAlignment="End" />
+            </VerticalStackLayout>
+          </Grid>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="DISTANCE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.SessionDistanceText}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="ELAPSED" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.SessionElapsedTimeText}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="WORK" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.SessionWorkText}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="2">
+              <Label Text="ENERGY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.SessionEnergyText}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+          </Grid>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="AVERAGE POWER" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.SessionAveragePowerText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="NORMALIZED" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.NormalizedPowerText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="INTENSITY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.IntensityFactorText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="2">
+              <Label Text="TSS" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.TrainingStressScoreText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+          </Grid>
+          <Label Text="{Binding Telemetry.PeakPowerText}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Label Text="{Binding PreviousSessionComparisonText}" TextColor="{StaticResource Muted}" FontSize="12" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="SESSION INSIGHTS" FontAttributes="Bold" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="20" RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Name}" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.TorqueResponseInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Name}" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Value}" FontAttributes="Bold" />
+              <Label Text="{Binding Telemetry.PowerPacingInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="1" Spacing="2">
+              <Label Text="POWER / HR EFFICIENCY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding EfficiencyText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="2">
+              <Label Text="AEROBIC DECOUPLING" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding DecouplingText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="2" Spacing="2">
+              <Label Text="CADENCE RANGE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding CadenceAnalysisText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="2" Grid.Column="1" Spacing="2">
+              <Label Text="LOW-CADENCE HIGH-TORQUE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding TorqueExposureText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

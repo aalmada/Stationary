@@ -27,9 +27,23 @@ public sealed class TrainingWorkoutRunner
 
     public int SegmentIndex => segmentIndex;
 
+    public int SegmentCount => workout.Segments.Count;
+
     public CompiledTrainingSegment? CurrentSegment => state is TrainingWorkoutState.Completed or TrainingWorkoutState.Aborted
         ? null
         : workout.Segments[segmentIndex];
+
+    public TimeSpan? GetCurrentSegmentRemaining(DateTimeOffset timestamp)
+    {
+        if (CurrentSegment is not { } segment)
+        {
+            return null;
+        }
+
+        var elapsed = segmentClock.GetElapsed(timestamp) ?? TimeSpan.Zero;
+        var remaining = segment.Definition.Duration - elapsed;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
 
     public void Start()
     {

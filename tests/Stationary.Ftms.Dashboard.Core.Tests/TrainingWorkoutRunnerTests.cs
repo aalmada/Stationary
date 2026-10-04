@@ -61,6 +61,27 @@ public sealed class TrainingWorkoutRunnerTests
         }
     }
 
+    [Test]
+    public async Task Runner_ReportsRemainingIntervalTimeAcrossPause()
+    {
+        var start = DateTimeOffset.UnixEpoch;
+        var runner = new TrainingWorkoutRunner(CreateWorkout());
+
+        runner.Start();
+        runner.ConfirmTargetApplied(start);
+        runner.Pause(start.AddSeconds(30));
+        var remainingWhilePaused = runner.GetCurrentSegmentRemaining(start.AddMinutes(2));
+        runner.Resume(start.AddMinutes(2));
+        var remainingAfterResuming = runner.GetCurrentSegmentRemaining(start.AddMinutes(2).AddSeconds(15));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(runner.SegmentCount).IsEqualTo(1);
+            await Assert.That(remainingWhilePaused).IsEqualTo(TimeSpan.FromSeconds(30));
+            await Assert.That(remainingAfterResuming).IsEqualTo(TimeSpan.FromSeconds(15));
+        }
+    }
+
     private static CompiledTrainingWorkout CreateWorkout()
     {
         var definition = new TrainingWorkout(

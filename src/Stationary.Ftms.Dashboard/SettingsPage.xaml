@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.SettingsPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Settings"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <VerticalStackLayout Spacing="4">
+        <Label Text="SETTINGS" FontAttributes="Bold" FontSize="30" />
+        <Label Text="Rider profile and display preferences used across every ride." TextColor="{StaticResource Muted}" FontSize="14" />
+      </VerticalStackLayout>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="RIDER PROFILE" FontAttributes="Bold" />
+          <Grid ColumnDefinitions="Auto,112,Auto,*" ColumnSpacing="10">
+            <Label Text="Cycling FTP" FontAttributes="Bold" VerticalOptions="Center" />
+            <Entry Grid.Column="1" Text="{Binding Telemetry.FunctionalThresholdPowerText}" Keyboard="Numeric" Placeholder="watts" />
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding Telemetry.ApplyFunctionalThresholdPowerCommand}" />
+            <Label Grid.Column="3" Text="Enables power zones, intensity factor, and FTP-relative training targets." TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center" />
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="DISPLAY" FontAttributes="Bold" />
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="20">
+            <VerticalStackLayout Spacing="4">
+              <Label Text="Metric units" FontAttributes="Bold" />
+              <Label Text="Speed and distance" TextColor="{StaticResource Muted}" FontSize="12" />
+              <local:ReactiveSwitch IsToggled="{Binding Telemetry.UseMetricUnits, Mode=OneWay}" ToggledCommand="{Binding Telemetry.SetMetricUnitsCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="4">
+              <Label Text="Large values" FontAttributes="Bold" />
+              <Label Text="Ride and results metrics" TextColor="{StaticResource Muted}" FontSize="12" />
+              <local:ReactiveSwitch IsToggled="{Binding Telemetry.UseLargeTelemetryText, Mode=OneWay}" ToggledCommand="{Binding Telemetry.SetLargeTelemetryTextCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="4">
+              <Label Text="High contrast" FontAttributes="Bold" />
+              <Label Text="Charts and guides" TextColor="{StaticResource Muted}" FontSize="12" />
+              <local:ReactiveSwitch IsToggled="{Binding Telemetry.UseHighContrastTelemetry, Mode=OneWay}" ToggledCommand="{Binding Telemetry.SetHighContrastTelemetryCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="4">
+              <Label Text="Compact charts" FontAttributes="Bold" />
+              <Label Text="Hide side summaries" TextColor="{StaticResource Muted}" FontSize="12" />
+              <local:ReactiveSwitch IsToggled="{Binding Telemetry.UseCompactCharts, Mode=OneWay}" ToggledCommand="{Binding Telemetry.SetCompactChartsCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <VerticalStackLayout Spacing="3">
+            <Label Text="CONNECTED DEVICES" FontAttributes="Bold" />
+            <Label Text="Manage the fitness machine, heart-rate sensor, and their capabilities." TextColor="{StaticResource Muted}" FontSize="12" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="Sensors" Command="{Binding ShowSensorsCommand}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

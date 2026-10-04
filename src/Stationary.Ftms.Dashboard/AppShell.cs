@@ -12,26 +12,27 @@ public sealed class AppShell : Shell
 {
     private readonly CompositeDisposable navigationSubscriptions = [];
 
-    public const string ControlRoute = "control";
+    public const string TodayRoute = "today";
     public const string RideRoute = "ride";
+    public const string ResultsRoute = "results";
     public const string SensorsRoute = "sensors";
-    public const string SessionRoute = "session";
+    public const string SettingsRoute = "settings";
     public const string TrainingRoute = "training";
 
-    public AppShell(RidePage ridePage, ControlPage controlPage, SensorsPage sensorsPage, SessionPage sessionPage, IServiceProvider services, DashboardViewModel viewModel)
+    public AppShell(TodayPage todayPage, RidePage ridePage, ResultsPage resultsPage, SensorsPage sensorsPage, SettingsPage settingsPage, IServiceProvider services, DashboardViewModel viewModel)
     {
         FlyoutBehavior = FlyoutBehavior.Locked;
         FlyoutWidth = 180;
 
+        Items.Add(CreateItem("Today", TodayRoute, todayPage));
         Items.Add(CreateItem("Sensors", SensorsRoute, sensorsPage));
         Items.Add(CreateItem("Ride", RideRoute, ridePage));
         Items.Add(CreateLazyItem("Training", TrainingRoute, () => services.GetRequiredService<TrainingPage>()));
-        Items.Add(CreateItem("Control", ControlRoute, controlPage));
-        Items.Add(CreateItem("Session", SessionRoute, sessionPage));
+        Items.Add(CreateItem("Results", ResultsRoute, resultsPage));
+        Items.Add(CreateItem("Settings", SettingsRoute, settingsPage));
 
         MenuBarItems.Add(CreateDeviceMenu(viewModel));
-        MenuBarItems.Add(CreateSessionMenu(viewModel));
-        MenuBarItems.Add(CreateViewMenu());
+        MenuBarItems.Add(CreateViewMenu(viewModel));
         MenuBarItems.Add(CreateDisplayMenu(viewModel));
 
         navigationSubscriptions.Add(viewModel.WhenAnyValue(viewModel => viewModel.IsConnected)
@@ -39,6 +40,14 @@ public sealed class AppShell : Shell
             .Where(static connected => connected)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(connected => { _ = NavigateToRideAfterConnectingAsync(); }));
+        navigationSubscriptions.Add(viewModel.Training.WhenAnyValue(training => training.HasStartedRide)
+            .Skip(1)
+            .Where(static started => started)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(started => { _ = NavigateToRideAfterTrainingStartsAsync(); }));
+        navigationSubscriptions.Add(viewModel.NavigationRequests
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(destination => { _ = NavigateToDestinationAsync(destination); }));
     }
 
     private static FlyoutItem CreateItem(string title, string route, ContentPage page)
@@ -92,41 +101,15 @@ public sealed class AppShell : Shell
         return menu;
     }
 
-    private static MenuBarItem CreateSessionMenu(DashboardViewModel viewModel)
-    {
-        var menu = new MenuBarItem { Text = "Session" };
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Start or Resume",
-            Command = viewModel.StartCommand,
-        });
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Pause",
-            Command = viewModel.StopCommand,
-        });
-        menu.Add(new MenuFlyoutSeparator());
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Reset Local Totals",
-            Command = viewModel.ResetSessionCommand,
-        });
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Export CSV",
-            Command = viewModel.ExportSessionCommand,
-        });
-        return menu;
-    }
-
-    private MenuBarItem CreateViewMenu()
+    private static MenuBarItem CreateViewMenu(DashboardViewModel viewModel)
     {
         var menu = new MenuBarItem { Text = "View" };
-        menu.Add(CreateNavigationItem("Ride", RideRoute));
-        menu.Add(CreateNavigationItem("Training", TrainingRoute));
-        menu.Add(CreateNavigationItem("Control", ControlRoute));
-        menu.Add(CreateNavigationItem("Sensors", SensorsRoute));
-        menu.Add(CreateNavigationItem("Session", SessionRoute));
+        menu.Add(CreateNavigationItem("Today", viewModel.ShowTodayCommand));
+        menu.Add(CreateNavigationItem("Ride", viewModel.ShowRideCommand));
+        menu.Add(CreateNavigationItem("Training", viewModel.ShowTrainingCommand));
+        menu.Add(CreateNavigationItem("Results", viewModel.ShowResultsCommand));
+        menu.Add(CreateNavigationItem("Sensors", viewModel.ShowSensorsCommand));
+        menu.Add(CreateNavigationItem("Settings", viewModel.ShowSettingsCommand));
         return menu;
     }
 
@@ -154,10 +137,10 @@ public sealed class AppShell : Shell
     private static ICommand CreateToggleCommand(ICommand setValueCommand, Func<bool> getCurrentValue) =>
         new Command(() => setValueCommand.Execute(!getCurrentValue()));
 
-    private MenuFlyoutItem CreateNavigationItem(string text, string route) => new()
+    private static MenuFlyoutItem CreateNavigationItem(string text, ICommand command) => new()
     {
         Text = text,
-        Command = new Command(async () => await GoToAsync(GetAbsoluteRoute(route))),
+        Command = command,
     };
 
     private MenuFlyoutItem CreateSensorScanItem(string text, string route, ICommand command) => new()
@@ -194,6 +177,50 @@ public sealed class AppShell : Shell
         }
         catch (Exception)
         {
+        }
+    }
+
+    private async Task NavigateToRideAfterTrainingStartsAsync()
+    {
+        if (CurrentItem?.Route == RideRoute)
+        {
+            return;
+        }
+
+        try
+        {
+            await GoToAsync(GetAbsoluteRoute(RideRoute));
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async Task NavigateToDestinationAsync(DashboardDestination destination)
+    {
+        var route = destination switch
+        {
+            DashboardDestination.Today => TodayRoute,
+            DashboardDestination.Ride => RideRoute,
+            DashboardDestination.Training => TrainingRoute,
+            DashboardDestination.Results => ResultsRoute,
+            DashboardDestination.Settings => SettingsRoute,
+            DashboardDestination.Sensors => SensorsRoute,
+            _ => TodayRoute,
+        };
+
+        if (CurrentItem?.Route == route)
+        {
+            return;
+        }
+
+        try
+        {
+            await GoToAsync(GetAbsoluteRoute(route));
+        }
+        catch (Exception)
+        {
+            // A newer route request can supersede this fire-and-forget navigation.
         }
     }
 
