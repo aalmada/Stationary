@@ -13,7 +13,10 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 {
     private readonly DashboardViewModel dashboard;
     private readonly CompositeDisposable disposables = [];
+    private readonly IReadOnlyDictionary<string, TrainingWorkout> workoutsById;
     private TrainingWorkout? selectedWorkout;
+    private TrainingPlan? selectedPlan;
+    private TrainingPlanWeek? selectedPlanWeek;
     private TrainingWorkoutRunner? runner;
     private TrainingPowerCapabilities rampCapabilities;
     private DateTimeOffset? rampStartedAt;
@@ -27,8 +30,16 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     public TrainingViewModel(DashboardViewModel dashboard)
     {
         this.dashboard = dashboard;
-        Workouts = TrainingCatalog.Load().Workouts;
+        var catalog = TrainingCatalog.Load();
+        Workouts = catalog.Workouts;
+        Plans = catalog.Plans;
+        workoutsById = Workouts.ToDictionary(static workout => workout.Id, StringComparer.Ordinal);
         selectedWorkout = Workouts.FirstOrDefault();
+        selectedPlan = Plans.FirstOrDefault();
+        selectedPlanWeek = selectedPlan?.Weeks.FirstOrDefault();
+        SelectWorkoutCommand = ReactiveCommand.Create<TrainingWorkout>(SelectWorkout, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
+        SelectPlanCommand = ReactiveCommand.Create<TrainingPlan>(SelectPlan, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
+        SelectPlanWeekCommand = ReactiveCommand.Create<TrainingPlanWeek>(SelectPlanWeek, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
         StartCommand = ReactiveCommand.CreateFromTask(StartAsync, this.WhenAnyValue(viewModel => viewModel.SelectedWorkout).Select(static workout => workout is not null));
         StartRampTestCommand = ReactiveCommand.CreateFromTask(StartRampTestAsync);
         PauseCommand = ReactiveCommand.CreateFromTask(PauseAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.Running));
@@ -44,11 +55,38 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public IReadOnlyList<TrainingWorkout> Workouts { get; }
 
+    public IReadOnlyList<TrainingPlan> Plans { get; }
+
     public TrainingWorkout? SelectedWorkout
     {
         get => selectedWorkout;
         set => this.RaiseAndSetIfChanged(ref selectedWorkout, value);
     }
+
+    public TrainingPlan? SelectedPlan
+    {
+        get => selectedPlan;
+        private set => this.RaiseAndSetIfChanged(ref selectedPlan, value);
+    }
+
+    public TrainingPlanWeek? SelectedPlanWeek
+    {
+        get => selectedPlanWeek;
+        private set
+        {
+            if (EqualityComparer<TrainingPlanWeek?>.Default.Equals(selectedPlanWeek, value))
+            {
+                return;
+            }
+
+            this.RaiseAndSetIfChanged(ref selectedPlanWeek, value);
+            this.RaisePropertyChanged(nameof(SelectedPlanWorkouts));
+        }
+    }
+
+    public IReadOnlyList<TrainingWorkout> SelectedPlanWorkouts => SelectedPlanWeek is null
+        ? []
+        : [.. SelectedPlanWeek.WorkoutIds.Select(workoutId => workoutsById[workoutId])];
 
     public TrainingWorkoutState RunnerState => runner?.State ?? TrainingWorkoutState.Selected;
 
@@ -92,6 +130,12 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         private set => this.RaiseAndSetIfChanged(ref currentTargetWatts, value);
     }
 
+    public ReactiveCommand<TrainingWorkout, Unit> SelectWorkoutCommand { get; }
+
+    public ReactiveCommand<TrainingPlan, Unit> SelectPlanCommand { get; }
+
+    public ReactiveCommand<TrainingPlanWeek, Unit> SelectPlanWeekCommand { get; }
+
     public ReactiveCommand<Unit, Unit> StartCommand { get; }
 
     public ReactiveCommand<Unit, Unit> StartRampTestCommand { get; }
@@ -111,6 +155,9 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     public void Dispose()
     {
         disposables.Dispose();
+        SelectWorkoutCommand.Dispose();
+        SelectPlanCommand.Dispose();
+        SelectPlanWeekCommand.Dispose();
         StartCommand.Dispose();
         StartRampTestCommand.Dispose();
         PauseCommand.Dispose();
@@ -152,6 +199,30 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
             StatusText = exception.Message;
             NotifyRunnerChanged();
         }
+    }
+
+    private void SelectWorkout(TrainingWorkout workout)
+    {
+        SelectedWorkout = workout;
+        StatusText = $"{workout.Name} selected. Set FTP in Session before starting training.";
+    }
+
+    private void SelectPlan(TrainingPlan plan)
+    {
+        SelectedPlan = plan;
+        SelectedPlanWeek = plan.Weeks[0];
+        StatusText = $"{plan.Name} selected. Choose a week, then one of its workouts.";
+    }
+
+    private void SelectPlanWeek(TrainingPlanWeek week)
+    {
+        if (SelectedPlan is null || !SelectedPlan.Weeks.Contains(week))
+        {
+            return;
+        }
+
+        SelectedPlanWeek = week;
+        StatusText = $"Week {week.Number}: {week.Focus}";
     }
 
     private async Task StartRampTestAsync(CancellationToken cancellationToken)

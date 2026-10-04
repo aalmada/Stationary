@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
              x:Class="Stationary.Ftms.Dashboard.TrainingPage"
              Title="Training"
              BackgroundColor="{StaticResource Canvas}">
+  <ContentPage.Resources>
+    <local:TrainingTargetHeightConverter x:Key="TrainingTargetHeightConverter" />
+    <local:TrainingDurationWeightConverter x:Key="TrainingDurationWeightConverter" />
+    <local:TrainingDurationTextConverter x:Key="TrainingDurationTextConverter" />
+    <local:TrainingTargetColorConverter x:Key="TrainingTargetColorConverter" />
+  </ContentPage.Resources>
   <ScrollView>
-    <VerticalStackLayout Padding="24" Spacing="16">
+    <VerticalStackLayout x:Name="TrainingContent" Padding="24" Spacing="16">
       <VerticalStackLayout Spacing="4">
         <Label Text="TRAINING" FontAttributes="Bold" FontSize="30" />
         <Label Text="FTP-relative structured rides with precision scoring" TextColor="{StaticResource Muted}" FontSize="14" />
@@ -27,6 +34,100 @@
           </Grid>
         </VerticalStackLayout>
       </Border>
+      <VerticalStackLayout Spacing="8">
+        <Label Text="TRAINING PLANS" FontAttributes="Bold" />
+        <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks." TextColor="{StaticResource Muted}" FontSize="12" />
+        <FlexLayout BindableLayout.ItemsSource="{Binding Plans}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate>
+              <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                <VerticalStackLayout Spacing="6">
+                  <Button Style="{StaticResource ActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectPlanCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                  <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="TailTruncation" />
+                </VerticalStackLayout>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </FlexLayout>
+      </VerticalStackLayout>
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="{Binding SelectedPlan.Name}" FontAttributes="Bold" />
+          <Label Text="{Binding SelectedPlan.Description}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlan.Weeks}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate>
+                <Button Style="{StaticResource ActionButton}" Margin="0,0,8,8" Text="{Binding Number, StringFormat='Week {0}'}" Command="{Binding BindingContext.SelectPlanWeekCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+          <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="PHASE" FontSize="11" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="EASY VOLUME" FontSize="11" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding SelectedPlanWeek.LowIntensityMinutes, StringFormat='{}{0} min'}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="STRENGTH / REST" FontSize="11" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding SelectedPlanWeek.StrengthSessions, StringFormat='{}{0} sessions'}" FontAttributes="Bold" />
+              <Label Text="{Binding SelectedPlanWeek.RecoveryDays, StringFormat='{}{0} recovery days'}" TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+          </Grid>
+          <Label Text="{Binding SelectedPlanWeek.Focus}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Label Text="WEEKLY WORKOUTS" FontAttributes="Bold" FontSize="12" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlanWorkouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                  <VerticalStackLayout Spacing="6">
+                    <Button Style="{StaticResource ActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                    <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                    <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+                    <FlexLayout BindableLayout.ItemsSource="{Binding Segments}" Direction="Row" Wrap="NoWrap" AlignItems="End" HeightRequest="42">
+                      <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                          <VerticalStackLayout FlexLayout.Basis="0" FlexLayout.Grow="{Binding Duration, Converter={StaticResource TrainingDurationWeightConverter}}" FlexLayout.Shrink="0" Spacing="1" VerticalOptions="End">
+                            <BoxView BackgroundColor="{Binding FunctionalThresholdPowerPercentage, Converter={StaticResource TrainingTargetColorConverter}}" HeightRequest="{Binding FunctionalThresholdPowerPercentage, Converter={StaticResource TrainingTargetHeightConverter}}" />
+                          </VerticalStackLayout>
+                        </DataTemplate>
+                      </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                  </VerticalStackLayout>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+        </VerticalStackLayout>
+      </Border>
+      <VerticalStackLayout Spacing="8">
+        <Label Text="WORKOUT LIBRARY" FontAttributes="Bold" />
+        <Label Text="Choose a structured ride before starting." TextColor="{StaticResource Muted}" FontSize="12" />
+        <FlexLayout BindableLayout.ItemsSource="{Binding Workouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                  <VerticalStackLayout Spacing="6">
+                    <Button Style="{StaticResource ActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                    <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                    <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+                    <FlexLayout BindableLayout.ItemsSource="{Binding Segments}" Direction="Row" Wrap="NoWrap" AlignItems="End" HeightRequest="42">
+                      <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                          <VerticalStackLayout FlexLayout.Basis="0" FlexLayout.Grow="{Binding Duration, Converter={StaticResource TrainingDurationWeightConverter}}" FlexLayout.Shrink="0" Spacing="1" VerticalOptions="End">
+                            <BoxView BackgroundColor="{Binding FunctionalThresholdPowerPercentage, Converter={StaticResource TrainingTargetColorConverter}}" HeightRequest="{Binding FunctionalThresholdPowerPercentage, Converter={StaticResource TrainingTargetHeightConverter}}" />
+                          </VerticalStackLayout>
+                        </DataTemplate>
+                      </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                  </VerticalStackLayout>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </FlexLayout>
+      </VerticalStackLayout>
       <Label Text="{Binding AdherenceText}" TextColor="{StaticResource Muted}" FontSize="12" />
       <Border Style="{StaticResource PanelBorder}">
         <VerticalStackLayout Spacing="8">

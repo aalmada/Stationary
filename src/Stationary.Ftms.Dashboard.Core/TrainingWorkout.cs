@@ -35,7 +35,22 @@ public sealed record TrainingWorkout(
     string Description,
     TrainingObjective Objective,
     TrainingExperienceLevel ExperienceLevel,
-    IReadOnlyList<TrainingSegment> Segments);
+    IReadOnlyList<TrainingSegment> Segments)
+{
+    public TimeSpan TotalDuration
+    {
+        get
+        {
+            var totalDuration = TimeSpan.Zero;
+            foreach (var segment in Segments)
+            {
+                totalDuration += segment.Duration;
+            }
+
+            return totalDuration;
+        }
+    }
+}
 
 public readonly record struct TrainingPowerCapabilities(int MinimumWatts, int MaximumWatts, int IncrementWatts)
 {
