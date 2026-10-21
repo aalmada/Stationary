@@ -59,4 +59,31 @@
     <Setter Property="StrokeThickness" Value="1" />
     <Setter Property="Padding" Value="18" />
   </Style>
+
+  <Style x:Key="ChipBorder" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+    <Setter Property="Stroke" Value="{StaticResource Line}" />
+    <Setter Property="StrokeShape" Value="RoundRectangle 18" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="Padding" Value="12,5" />
+    <Setter Property="MinimumHeightRequest" Value="38" />
+  </Style>
+
+  <Style x:Key="TileBorder" TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+    <Setter Property="Padding" Value="14,10" />
+  </Style>
+
+  <Style x:Key="TileCaption" TargetType="Label">
+    <Setter Property="FontFamily" Value="Avenir Next" />
+    <Setter Property="TextColor" Value="{StaticResource Muted}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontAttributes" Value="Bold" />
+  </Style>
+
+  <Style x:Key="TileDetail" TargetType="Label">
+    <Setter Property="FontFamily" Value="Avenir Next" />
+    <Setter Property="TextColor" Value="{StaticResource Muted}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="LineBreakMode" Value="TailTruncation" />
+  </Style>
 </ResourceDictionary>

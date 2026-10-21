@@ -13,6 +13,13 @@ public sealed class TrainingProfileView : GraphicsView
         Array.Empty<TrainingSegment>(),
         propertyChanged: static (bindable, _, _) => ((TrainingProfileView)bindable).Invalidate());
 
+    public static readonly BindableProperty ProgressProperty = BindableProperty.Create(
+        nameof(Progress),
+        typeof(double?),
+        typeof(TrainingProfileView),
+        null,
+        propertyChanged: static (bindable, _, _) => ((TrainingProfileView)bindable).Invalidate());
+
     public TrainingProfileView()
     {
         Drawable = new TrainingProfileDrawable(this);
@@ -22,6 +29,12 @@ public sealed class TrainingProfileView : GraphicsView
     {
         get => (IReadOnlyList<TrainingSegment>)GetValue(SegmentsProperty);
         set => SetValue(SegmentsProperty, value);
+    }
+
+    public double? Progress
+    {
+        get => (double?)GetValue(ProgressProperty);
+        set => SetValue(ProgressProperty, value);
     }
 
     private sealed class TrainingProfileDrawable(TrainingProfileView profile) : IDrawable
@@ -54,6 +67,16 @@ public sealed class TrainingProfileView : GraphicsView
                 canvas.FillColor = GetTargetColor(segment.FunctionalThresholdPowerPercentage);
                 canvas.FillRectangle(horizontalOffset, dirtyRect.Bottom - barHeight, segmentWidth, barHeight);
                 horizontalOffset += segmentWidth;
+            }
+
+            if (profile.Progress is double progress)
+            {
+                var cursorX = dirtyRect.X + (float)(double.Clamp(progress, 0d, 1d) * dirtyRect.Width);
+                canvas.FillColor = Colors.White.WithAlpha(0.55f);
+                canvas.FillRectangle(dirtyRect.X, dirtyRect.Y, cursorX - dirtyRect.X, dirtyRect.Height);
+                canvas.StrokeColor = Color.FromArgb("#112D35");
+                canvas.StrokeSize = 3f;
+                canvas.DrawLine(cursorX, dirtyRect.Y, cursorX, dirtyRect.Bottom);
             }
         }
 

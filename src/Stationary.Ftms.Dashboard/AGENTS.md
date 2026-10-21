@@ -4,8 +4,17 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 
 ## Commands
 
-- Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore`
-- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
+- Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore -p:ValidateXcodeVersion=false`
+- Build the Apple silicon bundle: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
+- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`. `-t:Run` can launch a stale bundle; build the bundle first after source changes.
+
+## Navigation And Ride Flow
+
+- The Shell has no flyout. Pages own their headers: Home (ride choice and readiness), Ride (live dashboard), Workouts (lazy library), Results. Pairing and Settings are form-sheet modals opened through `DashboardDestination.Sensors` (FTMS machine), `HeartRateSensor` (Heart Rate Service), and `Settings`, and closed with `CloseSheetCommand`, so they never replace the ride dashboard.
+- Keep FTMS and heart-rate pairing in separate sheets; they are different Bluetooth profiles with independent connections.
+- Starting any ride (free ride, workout, ramp test, or a machine-reported start) navigates to Ride immediately, before awaiting BLE acknowledgements. Show pending, rejected, and timed-out starts on the Ride page with Retry and End.
+- Keep the Ride page charts visible in every mode without scrolling; put secondary panels in the side column.
+- Shell `MenuBarItems` do not currently appear on Mac Catalyst; keep every action reachable from page UI.
 
 ## Mac Catalyst Training Page
 
@@ -19,6 +28,7 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Preserve both `ButtonHandler` mappings in `MauiProgram` for `IView.Background` and `IView.IsEnabled`.
 - In the shared handler, set `UIButtonConfiguration.BaseBackgroundColor`, copy the value-style `Background` configuration, set its `BackgroundColor`, and assign it back. Mutating `configuration.Background.BackgroundColor` without reassignment does not reliably update native fills.
 - Verify new button work in the running Mac Catalyst app. Check at least one `ActionButton`, one `SecondaryActionButton`, and a disabled button; all must render a full opaque fill.
+- Known issue: disabled button titles currently render almost invisible. Pair every command whose `CanExecute` can be false with visible text explaining why.
 
 ## Reactive UI
 

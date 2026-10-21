@@ -9,10 +9,13 @@
              BackgroundColor="{StaticResource Canvas}">
   <ScrollView>
     <VerticalStackLayout Padding="24" Spacing="16">
-      <VerticalStackLayout Spacing="4">
-        <Label Text="SETTINGS" FontAttributes="Bold" FontSize="30" />
-        <Label Text="Rider profile and display preferences used across every ride." TextColor="{StaticResource Muted}" FontSize="14" />
-      </VerticalStackLayout>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="Settings" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Rider profile and display preferences used across every ride." TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <Button Grid.Column="1" Style="{StaticResource ActionButton}" Text="Done" Command="{Binding CloseSheetCommand}" VerticalOptions="Center" SemanticProperties.Description="Close settings" />
+      </Grid>
 
       <Border Style="{StaticResource PanelBorder}">
         <VerticalStackLayout Spacing="10">
@@ -58,9 +61,12 @@
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
           <VerticalStackLayout Spacing="3">
             <Label Text="CONNECTED DEVICES" FontAttributes="Bold" />
-            <Label Text="Manage the fitness machine, heart-rate sensor, and their capabilities." TextColor="{StaticResource Muted}" FontSize="12" />
+            <Label Text="Pair the fitness machine and the heart-rate sensor separately." TextColor="{StaticResource Muted}" FontSize="12" />
           </VerticalStackLayout>
-          <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="Sensors" Command="{Binding ShowSensorsCommand}" VerticalOptions="Center" />
+          <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Fitness machine" Command="{Binding ShowSensorsCommand}" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Heart-rate sensor" Command="{Binding ShowHeartRateSensorCommand}" />
+          </HorizontalStackLayout>
         </Grid>
       </Border>
     </VerticalStackLayout>

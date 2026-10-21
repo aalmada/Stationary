@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:services="clr-namespace:Stationary.Ftms.Dashboard.Services"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.HeartRateSensorPage"
+             x:DataType="viewModels:DashboardViewModel"
+             Title="Heart-rate sensor"
+             BackgroundColor="{StaticResource Canvas}">
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <Grid ColumnDefinitions="*,Auto">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="Heart-rate sensor" FontAttributes="Bold" FontSize="30" />
+          <Label Text="Bluetooth Heart Rate Service straps and watches. Optional, independent of the fitness machine." TextColor="{StaticResource Muted}" FontSize="14" />
+        </VerticalStackLayout>
+        <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="Center">
+          <ActivityIndicator IsRunning="{Binding IsHeartRateScanning}" IsVisible="{Binding IsHeartRateScanning}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
+          <Button Style="{StaticResource ActionButton}" Text="Done" Command="{Binding CloseSheetCommand}" SemanticProperties.Description="Close heart-rate sensor pairing" />
+        </HorizontalStackLayout>
+      </Grid>
+
+      <Border Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8">
+        <Label Text="{Binding HeartRateConnectionStatus}" TextColor="{StaticResource Muted}" />
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="{Binding HeartRateChipText}" FontAttributes="Bold" />
+              <Label Text="{Binding HeartRateChipDetail}" TextColor="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsHeartRateConnected}" Text="Disconnect" Command="{Binding DisconnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Disconnect the heart-rate sensor" />
+            <Button Grid.Column="1" Style="{StaticResource ActionButton}" IsVisible="{Binding IsHeartRateDisconnected}" Text="Find sensor" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search for Bluetooth heart-rate sensors" />
+          </Grid>
+
+          <VerticalStackLayout Spacing="8" IsVisible="{Binding IsHeartRateDevicePickerVisible}">
+            <Label Text="Nearby heart-rate sensors" FontAttributes="Bold" />
+            <CollectionView ItemsSource="{Binding HeartRateDiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedHeartRateDevice}" HeightRequest="160">
+              <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:HeartRateDiscoveredDevice">
+                  <Label Text="{Binding Name}" Padding="8" FontAttributes="Bold" />
+                </DataTemplate>
+              </CollectionView.ItemTemplate>
+            </CollectionView>
+            <HorizontalStackLayout Spacing="12">
+              <Button Style="{StaticResource ActionButton}" Text="Scan again" Command="{Binding ScanHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Search again for Bluetooth heart-rate sensors" />
+              <Button Style="{StaticResource ActionButton}" Text="Connect selected" Command="{Binding ConnectHeartRateCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Connect the selected heart-rate sensor" />
+            </HorizontalStackLayout>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="HEART-RATE ZONES" FontAttributes="Bold" />
+          <Label Text="Zones use your cycling lactate threshold heart rate." TextColor="{StaticResource Muted}" FontSize="12" />
+          <Grid ColumnDefinitions="Auto,96,Auto" ColumnSpacing="10">
+            <Label Text="CYCLING LTHR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
+              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
+            </Border>
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

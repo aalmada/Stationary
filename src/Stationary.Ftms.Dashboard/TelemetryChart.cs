@@ -30,6 +30,18 @@ public sealed class TelemetryChart : GraphicsView
             chart.Invalidate();
         });
 
+    public static readonly BindableProperty TargetPointsProperty = BindableProperty.Create(
+        nameof(TargetPoints),
+        typeof(IReadOnlyList<TelemetrySample>),
+        typeof(TelemetryChart),
+        defaultValue: (IReadOnlyList<TelemetrySample>)[],
+        propertyChanged: static (bindable, _, value) =>
+        {
+            var chart = (TelemetryChart)bindable;
+            chart.drawable.TargetPoints = value as IReadOnlyList<TelemetrySample> ?? [];
+            chart.Invalidate();
+        });
+
     public static readonly BindableProperty StrokeColorProperty = BindableProperty.Create(
         nameof(StrokeColor),
         typeof(Color),
@@ -238,6 +250,12 @@ public sealed class TelemetryChart : GraphicsView
         set => SetValue(ComparisonPointsProperty, value);
     }
 
+    public IReadOnlyList<TelemetrySample> TargetPoints
+    {
+        get => (IReadOnlyList<TelemetrySample>)GetValue(TargetPointsProperty);
+        set => SetValue(TargetPointsProperty, value);
+    }
+
     public Color StrokeColor
     {
         get => (Color)GetValue(StrokeColorProperty);
@@ -381,6 +399,8 @@ public sealed class TelemetryChart : GraphicsView
 
         public IReadOnlyList<TelemetrySample> ComparisonPoints { get; set; } = [];
 
+        public IReadOnlyList<TelemetrySample> TargetPoints { get; set; } = [];
+
         public Color StrokeColor { get; set; } = Colors.Teal;
 
         public string ValueLabelFormat { get; set; } = "F0";
@@ -431,6 +451,11 @@ public sealed class TelemetryChart : GraphicsView
 
             var minimum = MinimumValue ?? Points.Min(point => point.Value);
             var maximum = MaximumValue ?? Points.Max(point => point.Value);
+            if (MaximumValue is null && TargetPoints.Count > 0)
+            {
+                maximum = double.Max(maximum, TargetPoints.Max(point => point.Value) * 1.1d);
+            }
+
             if (maximum <= minimum)
             {
                 maximum = minimum + 1d;
@@ -438,6 +463,7 @@ public sealed class TelemetryChart : GraphicsView
 
             var range = maximum - minimum;
             DrawBackgroundBands(canvas, plot);
+            DrawTargets(canvas, plot, minimum, range);
             DrawSelection(canvas, plot);
             DrawEventMarkers(canvas, plot);
             DrawRangeGuides(canvas, plot, minimum, maximum);
@@ -566,6 +592,40 @@ public sealed class TelemetryChart : GraphicsView
                     _ => Color.FromArgb("3679A8"),
                 };
                 canvas.DrawLine(x, plot.Top, x, plot.Bottom);
+            }
+
+            canvas.RestoreState();
+        }
+
+        private void DrawTargets(ICanvas canvas, RectF plot, double minimum, double range)
+        {
+            if (TargetPoints.Count == 0)
+            {
+                return;
+            }
+
+            var (start, duration) = GetTimeRange();
+            var end = start + duration;
+            canvas.SaveState();
+            canvas.ClipRectangle(plot);
+            canvas.FillColor = StrokeColor.WithAlpha(HighContrast ? 0.24f : 0.14f);
+            canvas.StrokeColor = StrokeColor.WithAlpha(0.75f);
+            canvas.StrokeSize = HighContrast ? 2f : 1.5f;
+            canvas.StrokeDashPattern = [];
+            for (var index = 0; index < TargetPoints.Count; index++)
+            {
+                var target = TargetPoints[index];
+                var targetEnd = index + 1 < TargetPoints.Count ? TargetPoints[index + 1].CapturedAt : end;
+                var left = float.Max(plot.Left, ToX(target.CapturedAt, plot));
+                var right = float.Min(plot.Right, ToX(targetEnd, plot));
+                if (right <= left)
+                {
+                    continue;
+                }
+
+                var y = ToY(target.Value, minimum, range, plot);
+                canvas.FillRectangle(left, y, right - left, plot.Bottom - y);
+                canvas.DrawLine(left, y, right, y);
             }
 
             canvas.RestoreState();

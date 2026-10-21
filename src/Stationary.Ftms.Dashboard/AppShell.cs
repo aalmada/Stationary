@@ -6,6 +6,10 @@ using ReactiveUI;
 
 using Stationary.Ftms.Dashboard.ViewModels;
 
+using IosPage = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.Page;
+using IosPlatform = Microsoft.Maui.Controls.PlatformConfiguration.iOS;
+using IosPresentationStyle = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.UIModalPresentationStyle;
+
 namespace Stationary.Ftms.Dashboard;
 
 public sealed class AppShell : Shell
@@ -15,39 +19,54 @@ public sealed class AppShell : Shell
     public const string TodayRoute = "today";
     public const string RideRoute = "ride";
     public const string ResultsRoute = "results";
-    public const string SensorsRoute = "sensors";
-    public const string SettingsRoute = "settings";
     public const string TrainingRoute = "training";
 
-    public AppShell(TodayPage todayPage, RidePage ridePage, ResultsPage resultsPage, SensorsPage sensorsPage, SettingsPage settingsPage, IServiceProvider services, DashboardViewModel viewModel)
-    {
-        FlyoutBehavior = FlyoutBehavior.Locked;
-        FlyoutWidth = 180;
+    private readonly SensorsPage sensorsPage;
+    private readonly HeartRateSensorPage heartRateSensorPage;
+    private readonly SettingsPage settingsPage;
 
-        Items.Add(CreateItem("Today", TodayRoute, todayPage));
-        Items.Add(CreateItem("Sensors", SensorsRoute, sensorsPage));
+    public AppShell(TodayPage todayPage, RidePage ridePage, ResultsPage resultsPage, SensorsPage sensorsPage, HeartRateSensorPage heartRateSensorPage, SettingsPage settingsPage, IServiceProvider services, DashboardViewModel viewModel)
+    {
+        this.sensorsPage = sensorsPage;
+        this.heartRateSensorPage = heartRateSensorPage;
+        this.settingsPage = settingsPage;
+        PrepareSheet(sensorsPage);
+        PrepareSheet(heartRateSensorPage);
+        PrepareSheet(settingsPage);
+
+        // Pages carry their own headers and in-context navigation; the ride cockpit gets the whole window.
+        FlyoutBehavior = FlyoutBehavior.Disabled;
+
+        Items.Add(CreateItem("Home", TodayRoute, todayPage));
         Items.Add(CreateItem("Ride", RideRoute, ridePage));
-        Items.Add(CreateLazyItem("Training", TrainingRoute, () => services.GetRequiredService<TrainingPage>()));
+        Items.Add(CreateLazyItem("Workouts", TrainingRoute, () => HideNavigationBar(services.GetRequiredService<TrainingPage>())));
         Items.Add(CreateItem("Results", ResultsRoute, resultsPage));
-        Items.Add(CreateItem("Settings", SettingsRoute, settingsPage));
 
         MenuBarItems.Add(CreateDeviceMenu(viewModel));
         MenuBarItems.Add(CreateViewMenu(viewModel));
         MenuBarItems.Add(CreateDisplayMenu(viewModel));
 
-        navigationSubscriptions.Add(viewModel.WhenAnyValue(viewModel => viewModel.IsConnected)
-            .Skip(1)
-            .Where(static connected => connected)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(connected => { _ = NavigateToRideAfterConnectingAsync(); }));
-        navigationSubscriptions.Add(viewModel.Training.WhenAnyValue(training => training.HasStartedRide)
-            .Skip(1)
+        navigationSubscriptions.Add(Observable.Merge(
+                viewModel.WhenAnyValue(viewModel => viewModel.IsWorkoutActive).Skip(1),
+                viewModel.Training.WhenAnyValue(training => training.IsActive).Skip(1))
             .Where(static started => started)
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(started => { _ = NavigateToRideAfterTrainingStartsAsync(); }));
+            .Subscribe(started => { _ = NavigateToDestinationAsync(DashboardDestination.Ride); }));
         navigationSubscriptions.Add(viewModel.NavigationRequests
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(destination => { _ = NavigateToDestinationAsync(destination); }));
+        navigationSubscriptions.Add(viewModel.SheetDismissRequests
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(dismiss => { _ = CloseSheetAsync(); }));
+    }
+
+    private static void PrepareSheet(ContentPage page) =>
+        IosPage.SetModalPresentationStyle(page.On<IosPlatform>(), IosPresentationStyle.FormSheet);
+
+    private static ContentPage HideNavigationBar(ContentPage page)
+    {
+        SetNavBarIsVisible(page, false);
+        return page;
     }
 
     private static FlyoutItem CreateItem(string title, string route, ContentPage page)
@@ -61,7 +80,7 @@ public sealed class AppShell : Shell
         {
             Title = title,
             Route = GetContentRoute(route),
-            Content = page,
+            Content = HideNavigationBar(page),
         });
         return item;
     }
@@ -85,8 +104,10 @@ public sealed class AppShell : Shell
     private MenuBarItem CreateDeviceMenu(DashboardViewModel viewModel)
     {
         var menu = new MenuBarItem { Text = "Device" };
-        menu.Add(CreateSensorScanItem("Find Fitness Machine", SensorsRoute, viewModel.ScanCommand));
-        menu.Add(CreateSensorScanItem("Add Heart-Rate Sensor", SensorsRoute, viewModel.ScanHeartRateCommand));
+        menu.Add(CreateSensorScanItem("Find Fitness Machine", sensorsPage, viewModel.ScanCommand));
+        menu.Add(CreateSensorScanItem("Find Heart-Rate Sensor", heartRateSensorPage, viewModel.ScanHeartRateCommand));
+        menu.Add(CreateNavigationItem("Fitness Machine", viewModel.ShowSensorsCommand, "D"));
+        menu.Add(CreateNavigationItem("Heart-Rate Sensor", viewModel.ShowHeartRateSensorCommand, "H"));
         menu.Add(new MenuFlyoutSeparator());
         menu.Add(new MenuFlyoutItem
         {
@@ -103,13 +124,13 @@ public sealed class AppShell : Shell
 
     private static MenuBarItem CreateViewMenu(DashboardViewModel viewModel)
     {
-        var menu = new MenuBarItem { Text = "View" };
-        menu.Add(CreateNavigationItem("Today", viewModel.ShowTodayCommand));
-        menu.Add(CreateNavigationItem("Ride", viewModel.ShowRideCommand));
-        menu.Add(CreateNavigationItem("Training", viewModel.ShowTrainingCommand));
-        menu.Add(CreateNavigationItem("Results", viewModel.ShowResultsCommand));
-        menu.Add(CreateNavigationItem("Sensors", viewModel.ShowSensorsCommand));
-        menu.Add(CreateNavigationItem("Settings", viewModel.ShowSettingsCommand));
+        var menu = new MenuBarItem { Text = "Go" };
+        menu.Add(CreateNavigationItem("Home", viewModel.ShowTodayCommand, "1"));
+        menu.Add(CreateNavigationItem("Ride Dashboard", viewModel.ShowRideCommand, "2"));
+        menu.Add(CreateNavigationItem("Workouts", viewModel.ShowTrainingCommand, "3"));
+        menu.Add(CreateNavigationItem("Results", viewModel.ShowResultsCommand, "4"));
+        menu.Add(new MenuFlyoutSeparator());
+        menu.Add(CreateNavigationItem("Settings", viewModel.ShowSettingsCommand, ","));
         return menu;
     }
 
@@ -137,78 +158,56 @@ public sealed class AppShell : Shell
     private static ICommand CreateToggleCommand(ICommand setValueCommand, Func<bool> getCurrentValue) =>
         new Command(() => setValueCommand.Execute(!getCurrentValue()));
 
-    private static MenuFlyoutItem CreateNavigationItem(string text, ICommand command) => new()
+    private static MenuFlyoutItem CreateNavigationItem(string text, ICommand command, string key)
     {
-        Text = text,
-        Command = command,
-    };
-
-    private MenuFlyoutItem CreateSensorScanItem(string text, string route, ICommand command) => new()
-    {
-        Text = text,
-        Command = new Command(async () => await NavigateAndExecuteAsync(route, command)),
-    };
-
-    private async Task NavigateAndExecuteAsync(string route, ICommand command)
-    {
-        try
+        var item = new MenuFlyoutItem
         {
-            await GoToAsync(GetAbsoluteRoute(route));
-            if (command.CanExecute(null))
-            {
-                command.Execute(null);
-            }
-        }
-        catch (Exception)
-        {
-        }
+            Text = text,
+            Command = command,
+        };
+        item.KeyboardAccelerators.Add(new KeyboardAccelerator { Modifiers = KeyboardAcceleratorModifiers.Cmd, Key = key });
+        return item;
     }
 
-    private async Task NavigateToRideAfterConnectingAsync()
+    private MenuFlyoutItem CreateSensorScanItem(string text, ContentPage sheet, ICommand command) => new()
     {
-        if (CurrentItem?.Route != SensorsRoute)
-        {
-            return;
-        }
+        Text = text,
+        Command = new Command(async () => await ShowSheetAndExecuteAsync(sheet, command)),
+    };
 
-        try
-        {
-            await GoToAsync(GetAbsoluteRoute(RideRoute));
-        }
-        catch (Exception)
-        {
-        }
-    }
-
-    private async Task NavigateToRideAfterTrainingStartsAsync()
+    private async Task ShowSheetAndExecuteAsync(ContentPage sheet, ICommand command)
     {
-        if (CurrentItem?.Route == RideRoute)
+        await ShowSheetAsync(sheet);
+        if (command.CanExecute(null))
         {
-            return;
-        }
-
-        try
-        {
-            await GoToAsync(GetAbsoluteRoute(RideRoute));
-        }
-        catch (Exception)
-        {
+            command.Execute(null);
         }
     }
 
     private async Task NavigateToDestinationAsync(DashboardDestination destination)
     {
+        var sheet = destination switch
+        {
+            DashboardDestination.Sensors => sensorsPage,
+            DashboardDestination.HeartRateSensor => heartRateSensorPage,
+            DashboardDestination.Settings => settingsPage,
+            _ => (ContentPage?)null,
+        };
+        if (sheet is not null)
+        {
+            await ShowSheetAsync(sheet);
+            return;
+        }
+
         var route = destination switch
         {
-            DashboardDestination.Today => TodayRoute,
             DashboardDestination.Ride => RideRoute,
             DashboardDestination.Training => TrainingRoute,
             DashboardDestination.Results => ResultsRoute,
-            DashboardDestination.Settings => SettingsRoute,
-            DashboardDestination.Sensors => SensorsRoute,
             _ => TodayRoute,
         };
 
+        await CloseSheetAsync();
         if (CurrentItem?.Route == route)
         {
             return;
@@ -221,6 +220,42 @@ public sealed class AppShell : Shell
         catch (Exception)
         {
             // A newer route request can supersede this fire-and-forget navigation.
+        }
+    }
+
+    private async Task ShowSheetAsync(ContentPage sheet)
+    {
+        var modalStack = Navigation.ModalStack;
+        if (modalStack.Count > 0 && ReferenceEquals(modalStack[^1], sheet))
+        {
+            return;
+        }
+
+        try
+        {
+            await CloseSheetAsync();
+            await Navigation.PushModalAsync(sheet);
+        }
+        catch (Exception)
+        {
+            // A newer sheet request can supersede this fire-and-forget presentation.
+        }
+    }
+
+    private async Task CloseSheetAsync()
+    {
+        if (Navigation.ModalStack.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch (Exception)
+        {
+            // The sheet may already be dismissing.
         }
     }
 

@@ -30,6 +30,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<RidePage>();
         builder.Services.AddSingleton<ResultsPage>();
         builder.Services.AddSingleton<SensorsPage>();
+        builder.Services.AddSingleton<HeartRateSensorPage>();
         builder.Services.AddSingleton<SettingsPage>();
         builder.Services.AddSingleton<TrainingPage>();
         builder.Services.AddSingleton<AppShell>();
