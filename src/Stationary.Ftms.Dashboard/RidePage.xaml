@@ -7,77 +7,248 @@
              x:DataType="viewModels:DashboardViewModel"
              Title="Ride"
              BackgroundColor="{StaticResource Canvas}">
-  <ScrollView>
-    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
-      <VerticalStackLayout Spacing="4">
-        <Label Text="STATIONARY" FontAttributes="Bold" FontSize="30" />
-        <Label Text="Live ride monitor" TextColor="{StaticResource Muted}" FontSize="14" />
-      </VerticalStackLayout>
-      <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
-        <Label Text="HEART RATE" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
-        <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="{Binding Telemetry.HeartRateValueFontSize}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-        <Label Text="{Binding HeartRate.CurrentZoneText}" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
-      </VerticalStackLayout>
-    </Grid>
+  <Grid Padding="16,12,16,16" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
 
-    <Border Grid.Row="1" Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-        <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
-        <HorizontalStackLayout Grid.Column="1" Spacing="8" IsVisible="{Binding IsControllable}">
-          <Button Style="{StaticResource ActionButton}" Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Start or resume the fitness machine session" />
-          <Button Style="{StaticResource SecondaryActionButton}" Text="Pause" Command="{Binding StopCommand}" IsEnabled="{Binding CanInitiateOperation}" SemanticProperties.Description="Pause the fitness machine session" />
+    <!-- Command bar: identity, live status, devices, and session actions stay in one row. -->
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
+      <Button Style="{StaticResource SecondaryActionButton}" Text="Home" Command="{Binding ShowTodayCommand}" VerticalOptions="Center" SemanticProperties.Description="Return to the home screen; the ride keeps recording" />
+      <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+        <Label Text="{Binding RideTitle}" FontAttributes="Bold" FontSize="22" LineBreakMode="TailTruncation" />
+        <Label Text="{Binding StatusText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsOpenRide}" />
+        <Label Text="{Binding Training.StatusText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsTrainingActive}" />
+      </VerticalStackLayout>
+      <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+        <Border Style="{StaticResource ChipBorder}">
+          <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ShowSensorsCommand}" />
+          </Border.GestureRecognizers>
+          <VerticalStackLayout Spacing="0">
+            <Label Text="{Binding MachineChipText}" FontAttributes="Bold" FontSize="12" />
+            <Label Text="{Binding MachineChipDetail}" Style="{StaticResource TileDetail}" FontSize="10" />
+          </VerticalStackLayout>
+        </Border>
+        <Border Style="{StaticResource ChipBorder}">
+          <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ShowHeartRateSensorCommand}" />
+          </Border.GestureRecognizers>
+          <VerticalStackLayout Spacing="0">
+            <Label Text="{Binding HeartRateChipText}" FontAttributes="Bold" FontSize="12" />
+            <Label Text="{Binding HeartRateChipDetail}" Style="{StaticResource TileDetail}" FontSize="10" />
+          </VerticalStackLayout>
+        </Border>
+      </HorizontalStackLayout>
+      <Grid Grid.Column="3" VerticalOptions="Center">
+        <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsOpenRide}">
+          <ActivityIndicator IsRunning="{Binding IsControlOperationExecuting}" IsVisible="{Binding IsControlOperationExecuting}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" />
+          <Button Style="{StaticResource ActionButton}" Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsVisible="{Binding IsControllable}" SemanticProperties.Description="Start or resume the fitness machine session" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Pause" Command="{Binding StopCommand}" IsVisible="{Binding IsControllable}" SemanticProperties.Description="Pause the fitness machine session" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Lap" Command="{Binding AddLapCommand}" IsVisible="{Binding IsWorkoutActive}" SemanticProperties.Description="Mark a lap on the charts" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="End ride" Command="{Binding EndFreeRideCommand}" SemanticProperties.Description="End the ride and review results" />
+        </HorizontalStackLayout>
+        <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsTrainingActive}">
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Pause" Command="{Binding Training.PauseCommand}" IsVisible="{Binding Training.CanPause}" />
+          <Button Style="{StaticResource ActionButton}" Text="Resume" Command="{Binding Training.ResumeCommand}" IsVisible="{Binding Training.CanResume}" />
+          <Button Style="{StaticResource ActionButton}" Text="Retry" Command="{Binding Training.RetryCommand}" IsVisible="{Binding Training.CanRetry}" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="Finish test" Command="{Binding Training.FinishRampTestCommand}" IsVisible="{Binding Training.IsRampTest}" />
+          <Button Style="{StaticResource SecondaryActionButton}" Text="End workout" Command="{Binding Training.EndCommand}" IsVisible="{Binding Training.CanEnd}" />
         </HorizontalStackLayout>
       </Grid>
-    </Border>
+    </Grid>
 
-    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="12">
-      <Border Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
-        <VerticalStackLayout Spacing="4">
-          <Label Text="SPEED" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding Telemetry.SpeedText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
-        </VerticalStackLayout>
-      </Border>
-      <Border Grid.Column="1" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
-        <VerticalStackLayout Spacing="4">
-          <Label Text="POWER" TextColor="{StaticResource Muted}" />
+    <!-- Glanceable numbers, readable from the saddle. -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" ColumnSpacing="10">
+      <Border Style="{StaticResource TileBorder}">
+        <VerticalStackLayout Spacing="0">
+          <Label Text="POWER" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.PowerChartColor}" />
           <Label Text="{Binding Telemetry.PowerText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+          <Label Text="{Binding Training.CurrentTargetText}" Style="{StaticResource TileDetail}" FontAttributes="Bold" IsVisible="{Binding IsTrainingActive}" />
+          <Label Text="{Binding Telemetry.CurrentPowerZoneText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsOpenRide}" />
         </VerticalStackLayout>
       </Border>
-      <Border Grid.Column="2" Style="{StaticResource PanelBorder}" Padding="18" HeightRequest="{Binding Telemetry.RideMetricCardHeight}">
-        <VerticalStackLayout Spacing="4">
-          <Label Text="CADENCE" TextColor="{StaticResource Muted}" />
+      <Border Grid.Column="1" Style="{StaticResource TileBorder}">
+        <VerticalStackLayout Spacing="0">
+          <Label Text="HEART RATE" Style="{StaticResource TileCaption}" TextColor="{Binding HeartRate.ChartColor}" />
+          <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+          <Label Text="{Binding HeartRate.CurrentZoneText}" Style="{StaticResource TileDetail}" />
+        </VerticalStackLayout>
+      </Border>
+      <Border Grid.Column="2" Style="{StaticResource TileBorder}">
+        <VerticalStackLayout Spacing="0">
+          <Label Text="CADENCE" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.CadenceChartColor}" />
           <Label Text="{Binding Telemetry.CadenceText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+          <Label Text="{Binding Training.CadenceTargetText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsTrainingActive}" />
         </VerticalStackLayout>
+      </Border>
+      <Border Grid.Column="3" Style="{StaticResource TileBorder}">
+        <VerticalStackLayout Spacing="0">
+          <Label Text="SPEED" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.SpeedChartColor}" />
+          <Label Text="{Binding Telemetry.SpeedText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+          <Label Text="{Binding Telemetry.SessionDistanceText}" Style="{StaticResource TileDetail}" />
+        </VerticalStackLayout>
+      </Border>
+      <Border Grid.Column="4" Style="{StaticResource TileBorder}">
+        <Grid>
+          <VerticalStackLayout Spacing="0" IsVisible="{Binding IsTrainingActive}">
+            <Label Text="INTERVAL LEFT" Style="{StaticResource TileCaption}" />
+            <Label Text="{Binding Training.CurrentIntervalRemainingText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+            <Label Text="{Binding Training.WorkoutRemainingText, StringFormat='{0} workout left'}" Style="{StaticResource TileDetail}" />
+          </VerticalStackLayout>
+          <VerticalStackLayout Spacing="0" IsVisible="{Binding IsOpenRide}">
+            <Label Text="ELAPSED" Style="{StaticResource TileCaption}" />
+            <Label Text="{Binding Telemetry.SessionElapsedTimeText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
+            <Label Text="{Binding MachineStateText}" Style="{StaticResource TileDetail}" />
+          </VerticalStackLayout>
+        </Grid>
       </Border>
     </Grid>
 
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsControlPermissionRequired}">
-      <Label Text="Starting the session will request machine control." TextColor="{StaticResource Muted}" FontSize="12" />
-      <Label Grid.Column="1" Text="{Binding ControlStatus}" TextColor="{StaticResource Muted}" FontSize="12" />
-    </Grid>
-
-    <Border Grid.Row="4" Style="{StaticResource PanelBorder}">
-      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="20">
-        <VerticalStackLayout Spacing="3">
-          <Label Text="EXTERNAL HEART RATE" FontSize="12" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding HeartRate.CurrentHeartRateText}" FontSize="{Binding Telemetry.HeartRateValueFontSize}" FontAttributes="Bold" />
-        </VerticalStackLayout>
-        <VerticalStackLayout Grid.Column="1" Spacing="3">
-          <Label Text="CURRENT ZONE" FontSize="12" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding HeartRate.CurrentZoneText}" FontAttributes="Bold" />
-          <Label Text="{Binding HeartRate.CurrentZoneRangeText}" FontSize="11" TextColor="{StaticResource Muted}" />
-        </VerticalStackLayout>
-        <VerticalStackLayout Grid.Column="2" Spacing="3">
-          <Label Text="MACHINE STATE" FontSize="12" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding MachineStateText}" FontAttributes="Bold" />
-        </VerticalStackLayout>
-        <VerticalStackLayout Grid.Column="3" Spacing="3">
-          <Label Text="TELEMETRY" FontSize="12" TextColor="{StaticResource Muted}" />
-          <Label Text="{Binding Telemetry.HealthText}" FontSize="11" TextColor="{StaticResource Muted}" />
-        </VerticalStackLayout>
+    <!-- Workout map: where you are, what is next, and how precisely you are riding. -->
+    <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Padding="14,10" IsVisible="{Binding IsTrainingActive}">
+      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+          <Label Text="{Binding Training.CurrentSegmentText}" FontAttributes="Bold" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+          <Label Grid.Column="1" Text="{Binding Training.IntervalProgressText}" Style="{StaticResource TileDetail}" VerticalOptions="Center" />
+          <Label Grid.Column="2" Text="{Binding Training.NextSegmentText}" Style="{StaticResource TileDetail}" VerticalOptions="Center" />
+        </Grid>
+        <local:TrainingProfileView Grid.Row="1" Segments="{Binding Training.ActiveSegments}" Progress="{Binding Training.WorkoutProgress}" HeightRequest="60" />
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <Label Text="{Binding Training.AdherenceText}" Style="{StaticResource TileDetail}" />
+          <Label Grid.Column="1" Text="{Binding Training.WorkoutElapsedText, StringFormat='{0} elapsed'}" Style="{StaticResource TileDetail}" />
+        </Grid>
       </Grid>
     </Border>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,340" ColumnSpacing="12">
+      <!-- The charts are the centre of the ride and take every spare pixel. -->
+      <Border Style="{StaticResource PanelBorder}" Padding="12,10">
+        <Grid RowDefinitions="Auto,2*,*,*,*" RowSpacing="6">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <Label Text="LIVE · LAST 5 MINUTES" Style="{StaticResource TileCaption}" />
+            <Label Grid.Column="1" Text="{Binding Telemetry.HealthText}" Style="{StaticResource TileDetail}" FontSize="11" />
+          </Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="76,*" ColumnSpacing="6">
+            <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+              <Label Text="POWER" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.PowerChartColor}" />
+              <Label Text="target band" Style="{StaticResource TileDetail}" FontSize="10" IsVisible="{Binding IsTrainingActive}" />
+            </VerticalStackLayout>
+            <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.PowerChartSamples}" TargetPoints="{Binding Training.TargetPowerSamples}" EventMarkers="{Binding SessionEvents}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" ReferenceValues="{Binding Telemetry.PowerZoneTransitionValues}" MinimumValue="0" StrokeColor="{Binding Telemetry.PowerChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+          </Grid>
+          <Grid Grid.Row="2" ColumnDefinitions="76,*" ColumnSpacing="6">
+            <Label Text="HEART RATE" Style="{StaticResource TileCaption}" TextColor="{Binding HeartRate.ChartColor}" VerticalOptions="Center" />
+            <local:TelemetryChart Grid.Column="1" Points="{Binding HeartRate.ChartSamples}" BackgroundRegions="{Binding HeartRate.ChartBackgroundRegions}" EventMarkers="{Binding SessionEvents}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" ReferenceValues="{Binding HeartRate.ZoneTransitionValues}" MinimumValue="60" StrokeColor="{Binding HeartRate.ChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+          </Grid>
+          <Grid Grid.Row="3" ColumnDefinitions="76,*" ColumnSpacing="6">
+            <Label Text="CADENCE" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.CadenceChartColor}" VerticalOptions="Center" />
+            <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.CadenceChartSamples}" EventMarkers="{Binding SessionEvents}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" MinimumValue="0" StrokeColor="{Binding Telemetry.CadenceChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+          </Grid>
+          <Grid Grid.Row="4" ColumnDefinitions="76,*" ColumnSpacing="6">
+            <Label Text="SPEED" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.SpeedChartColor}" VerticalOptions="Center" />
+            <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.SpeedChartSamples}" EventMarkers="{Binding SessionEvents}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" MinimumValue="0" StrokeColor="{Binding Telemetry.SpeedChartColor}" ValueLabelFormat="F1" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <ScrollView Grid.Column="1">
+        <VerticalStackLayout Spacing="12">
+          <Border Style="{StaticResource PanelBorder}" Padding="14" IsVisible="{Binding HasOpenRideControls}">
+            <VerticalStackLayout Spacing="10">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <VerticalStackLayout Spacing="2">
+                  <Label Text="RIDE CONTROLS" Style="{StaticResource TileCaption}" />
+                  <Label Text="{Binding ControlStatus}" Style="{StaticResource TileDetail}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+                <Button Grid.Column="1" Style="{StaticResource ActionButton}" Text="Enable" Command="{Binding RequestControlCommand}" IsVisible="{Binding IsControlPermissionRequired}" VerticalOptions="Start" SemanticProperties.Description="Request control of the fitness machine" />
+              </Grid>
+              <ContentView IsVisible="{Binding HasPowerTargetControl}" BindingContext="{Binding PowerTargetControl}" x:DataType="viewModels:TargetControlViewModel">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Label Text="{Binding Name}" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Column="1" Spacing="6">
+                      <Label Text="{Binding ValueStateText}" Style="{StaticResource TileDetail}" />
+                      <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="14" WidthRequest="14" />
+                    </HorizontalStackLayout>
+                  </Grid>
+                  <Slider Grid.Row="1" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=TwoWay}" SemanticProperties.Description="Adjust and apply target power automatically" />
+                </Grid>
+              </ContentView>
+              <VerticalStackLayout Spacing="14" BindableLayout.ItemsSource="{Binding ManualTargetControls}" IsVisible="{Binding HasManualTargetControls}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="viewModels:TargetControlViewModel">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Text="{Binding Name}" FontAttributes="Bold" />
+                        <HorizontalStackLayout Grid.Column="1" Spacing="6">
+                          <Label Text="{Binding ValueStateText}" Style="{StaticResource TileDetail}" />
+                          <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="14" WidthRequest="14" />
+                        </HorizontalStackLayout>
+                      </Grid>
+                      <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" />
+                      <Grid Grid.Row="2" ColumnDefinitions="*,44,44,Auto" ColumnSpacing="6">
+                        <Entry Text="{Binding ValueText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="End" />
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="-" Padding="0" Command="{Binding DecreaseCommand}" SemanticProperties.Description="Decrease target by one device increment" />
+                        <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Text="+" Padding="0" Command="{Binding IncreaseCommand}" SemanticProperties.Description="Increase target by one device increment" />
+                        <Button Grid.Column="3" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyCommand}" SemanticProperties.Description="Apply this target to the fitness machine" />
+                      </Grid>
+                      <FlexLayout Grid.Row="3" BindableLayout.ItemsSource="{Binding Presets}" Direction="Row" Wrap="Wrap">
+                        <BindableLayout.ItemTemplate>
+                          <DataTemplate x:DataType="x:Double">
+                            <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding StringFormat='{}{0:F0}'}" FontSize="12" Padding="8,4" Margin="0,0,6,6" Command="{Binding BindingContext.ApplyPresetCommand, Source={RelativeSource AncestorType={x:Type Grid}}}" CommandParameter="{Binding}" SemanticProperties.Description="Set this target preset" />
+                          </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                      </FlexLayout>
+                    </Grid>
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </VerticalStackLayout>
+            </VerticalStackLayout>
+          </Border>
+
+          <Border Style="{StaticResource PanelBorder}" Padding="14">
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+              <Label Grid.ColumnSpan="2" Text="THIS RIDE" Style="{StaticResource TileCaption}" />
+              <VerticalStackLayout Grid.Row="1" Spacing="0">
+                <Label Text="Average power" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding Telemetry.SessionAveragePowerText}" FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="0">
+                <Label Text="Normalized" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding Telemetry.NormalizedPowerText}" FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Row="2" Spacing="0">
+                <Label Text="Work" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding Telemetry.SessionWorkText}" FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Row="2" Grid.Column="1" Spacing="0">
+                <Label Text="Intensity · TSS" Style="{StaticResource TileDetail}" />
+                <Label FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}">
+                  <Label.FormattedText>
+                    <FormattedString>
+                      <Span Text="{Binding Telemetry.IntensityFactorText}" />
+                      <Span Text=" · " />
+                      <Span Text="{Binding Telemetry.TrainingStressScoreText}" />
+                    </FormattedString>
+                  </Label.FormattedText>
+                </Label>
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Row="3" Spacing="0">
+                <Label Text="Elapsed" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding Telemetry.SessionElapsedTimeText}" FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Row="3" Grid.Column="1" Spacing="0">
+                <Label Text="Energy" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding Telemetry.SessionEnergyText}" FontAttributes="Bold" FontSize="{Binding Telemetry.SessionMetricValueFontSize}" />
+              </VerticalStackLayout>
+            </Grid>
+          </Border>
+
+          <Border Style="{StaticResource PanelBorder}" Padding="14">
+            <VerticalStackLayout Spacing="6">
+              <Label Text="EFFORT MAP · POWER VS CADENCE" Style="{StaticResource TileCaption}" />
+              <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" />
+            </VerticalStackLayout>
+          </Border>
+        </VerticalStackLayout>
+      </ScrollView>
     </Grid>
-  </ScrollView>
+  </Grid>
 </ContentPage>

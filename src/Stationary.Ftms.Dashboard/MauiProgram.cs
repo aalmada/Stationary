@@ -26,10 +26,13 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFtmsDiscoveryService, PluginBleFtmsDiscoveryService>();
         builder.Services.AddSingleton<IHeartRateDiscoveryService, PluginBleHeartRateDiscoveryService>();
         builder.Services.AddSingleton<DashboardViewModel>();
-        builder.Services.AddSingleton<ControlPage>();
+        builder.Services.AddSingleton<TodayPage>();
         builder.Services.AddSingleton<RidePage>();
+        builder.Services.AddSingleton<ResultsPage>();
         builder.Services.AddSingleton<SensorsPage>();
-        builder.Services.AddSingleton<SessionPage>();
+        builder.Services.AddSingleton<HeartRateSensorPage>();
+        builder.Services.AddSingleton<SettingsPage>();
+        builder.Services.AddSingleton<TrainingPage>();
         builder.Services.AddSingleton<AppShell>();
 
         return builder.Build();
@@ -42,7 +45,11 @@ public static class MauiProgram
 
         if (button.Background is SolidPaint { Color: not null } background)
         {
-            configuration.BaseBackgroundColor = background.Color.ToPlatform();
+            var backgroundColor = background.Color.ToPlatform();
+            configuration.BaseBackgroundColor = backgroundColor;
+            var backgroundConfiguration = configuration.Background;
+            backgroundConfiguration.BackgroundColor = backgroundColor;
+            configuration.Background = backgroundConfiguration;
         }
 
         handler.PlatformView.Configuration = configuration;

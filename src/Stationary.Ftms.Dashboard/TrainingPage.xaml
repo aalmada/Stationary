@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             x:Class="Stationary.Ftms.Dashboard.TrainingPage"
+             Title="Training"
+             BackgroundColor="{StaticResource Canvas}">
+  <ContentPage.Resources>
+    <local:TrainingTargetHeightConverter x:Key="TrainingTargetHeightConverter" />
+    <local:TrainingDurationWeightConverter x:Key="TrainingDurationWeightConverter" />
+    <local:TrainingDurationWidthConverter x:Key="TrainingDurationWidthConverter" />
+    <local:TrainingDurationColorConverter x:Key="TrainingDurationColorConverter" />
+    <local:TrainingDurationTextConverter x:Key="TrainingDurationTextConverter" />
+    <local:TrainingTargetColorConverter x:Key="TrainingTargetColorConverter" />
+    <SolidColorBrush x:Key="TrainingTabActiveBrush" Color="{StaticResource Accent}" />
+    <Style x:Key="TrainingTab" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource SurfaceSubtleBrush}" />
+      <Setter Property="StrokeThickness" Value="0" />
+      <Setter Property="StrokeShape" Value="RoundRectangle 0" />
+      <Setter Property="MinimumHeightRequest" Value="40" />
+      <Setter Property="Padding" Value="14,8" />
+    </Style>
+    <ControlTemplate x:Key="ReadyToRideTemplate">
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsCatalogLoaded}">
+        <VerticalStackLayout Spacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="READY TO RIDE" FontSize="11" TextColor="{StaticResource Muted}" />
+              <Label Text="{Binding SelectedWorkout.Name}" FontAttributes="Bold" FontSize="20" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+              <Label Text="DURATION" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
+              <Label Text="{Binding SelectedWorkout.TotalDuration, Converter={StaticResource TrainingDurationTextConverter}}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+            </VerticalStackLayout>
+          </Grid>
+          <Label Text="{Binding SelectedWorkout.Description}" TextColor="{StaticResource Muted}" />
+          <local:TrainingProfileView Segments="{Binding SelectedWorkout.Segments}" HeightRequest="52" />
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+              <Label Text="{Binding Dashboard.WorkoutReadinessText}" FontAttributes="Bold" FontSize="12" />
+              <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+            <ActivityIndicator Grid.Column="1" IsRunning="{Binding IsStarting}" IsVisible="{Binding IsStarting}" Color="{StaticResource Accent}" HeightRequest="20" WidthRequest="20" VerticalOptions="Center" />
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Start training" Command="{Binding StartCommand}" />
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+    </ControlTemplate>
+  </ContentPage.Resources>
+  <Grid x:Name="TrainingContent" Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+      <Button Style="{StaticResource SecondaryActionButton}" Text="Home" Command="{Binding ShowHomeCommand}" VerticalOptions="Center" />
+      <VerticalStackLayout Grid.Column="1" Spacing="4">
+        <Label Text="Workouts" FontAttributes="Bold" FontSize="30" />
+        <Label Text="Choose a structured ride, a plan week, or reassess your FTP. Starting opens the live dashboard." TextColor="{StaticResource Muted}" FontSize="14" />
+      </VerticalStackLayout>
+    </Grid>
+    <HorizontalStackLayout Grid.Row="1" Spacing="8" IsVisible="{Binding IsCatalogLoading}">
+      <ActivityIndicator IsRunning="{Binding IsCatalogLoading}" Color="{StaticResource Accent}" HeightRequest="20" WidthRequest="20" />
+      <Label Text="Loading training library..." TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+    </HorizontalStackLayout>
+    <Border Grid.Row="2" Background="{StaticResource SurfaceSubtleBrush}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 6" StrokeThickness="1" Padding="0">
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="0">
+        <Border Grid.Column="0" Style="{StaticResource TrainingTab}">
+          <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ShowWorkoutsCommand}" />
+          </Border.GestureRecognizers>
+          <Border.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsWorkoutsView}" Value="True">
+              <Setter Property="Background" Value="{StaticResource TrainingTabActiveBrush}" />
+            </DataTrigger>
+          </Border.Triggers>
+          <Label Text="Workouts" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{StaticResource Ink}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding IsWorkoutsView}" Value="True">
+                <Setter Property="TextColor" Value="White" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+        </Border>
+        <Border Grid.Column="1" Style="{StaticResource TrainingTab}">
+          <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ShowPlansCommand}" />
+          </Border.GestureRecognizers>
+          <Border.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsPlansView}" Value="True">
+              <Setter Property="Background" Value="{StaticResource TrainingTabActiveBrush}" />
+            </DataTrigger>
+          </Border.Triggers>
+          <Label Text="Plans" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{StaticResource Ink}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding IsPlansView}" Value="True">
+                <Setter Property="TextColor" Value="White" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+        </Border>
+        <Border Grid.Column="2" Style="{StaticResource TrainingTab}">
+          <Border.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ShowAssessmentCommand}" />
+          </Border.GestureRecognizers>
+          <Border.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsAssessmentView}" Value="True">
+              <Setter Property="Background" Value="{StaticResource TrainingTabActiveBrush}" />
+            </DataTrigger>
+          </Border.Triggers>
+          <Label Text="Assessment" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{StaticResource Ink}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding IsAssessmentView}" Value="True">
+                <Setter Property="TextColor" Value="White" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+        </Border>
+      </Grid>
+    </Border>
+    <ScrollView Grid.Row="3" IsVisible="{Binding IsPlansView}">
+      <VerticalStackLayout Spacing="16">
+        <ContentView ControlTemplate="{StaticResource ReadyToRideTemplate}" />
+        <VerticalStackLayout Spacing="8">
+          <Label Text="TRAINING PLANS" FontAttributes="Bold" />
+          <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks." TextColor="{StaticResource Muted}" FontSize="12" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding VisiblePlans}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                  <VerticalStackLayout Spacing="6">
+                    <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectPlanCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                    <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                  </VerticalStackLayout>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+        </VerticalStackLayout>
+        <Border Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="{Binding SelectedPlan.Name}" FontAttributes="Bold" />
+            <Label Text="{Binding SelectedPlan.Description}" TextColor="{StaticResource Muted}" FontSize="12" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlan.Weeks}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                  <Button Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,8" Text="{Binding Number, StringFormat='Week {0}'}" Command="{Binding BindingContext.SelectPlanWeekCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
+              <VerticalStackLayout Spacing="2">
+                <Label Text="PHASE" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="1" Spacing="2">
+                <Label Text="EASY VOLUME" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.LowIntensityMinutes, StringFormat='{}{0} min'}" FontAttributes="Bold" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="2" Spacing="2">
+                <Label Text="STRENGTH / REST" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.StrengthSessions, StringFormat='{}{0} sessions'}" FontAttributes="Bold" />
+                <Label Text="{Binding SelectedPlanWeek.RecoveryDays, StringFormat='{}{0} recovery days'}" TextColor="{StaticResource Muted}" FontSize="11" />
+              </VerticalStackLayout>
+            </Grid>
+            <Label Text="{Binding SelectedPlanWeek.Focus}" TextColor="{StaticResource Muted}" FontSize="12" />
+            <Label Text="WEEKLY WORKOUTS" FontAttributes="Bold" FontSize="12" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding VisiblePlanWorkouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                    <VerticalStackLayout Spacing="6">
+                      <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                      <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                      <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+                      <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
+                        <BoxView BackgroundColor="{Binding TotalDuration, Converter={StaticResource TrainingDurationColorConverter}}" WidthRequest="{Binding TotalDuration, Converter={StaticResource TrainingDurationWidthConverter}}" HorizontalOptions="Start" />
+                      </Border>
+                      <local:TrainingProfileView Segments="{Binding Segments}" HeightRequest="42" />
+                    </VerticalStackLayout>
+                  </Border>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </FlexLayout>
+          </VerticalStackLayout>
+        </Border>
+      </VerticalStackLayout>
+    </ScrollView>
+    <CollectionView Grid.Row="3" IsVisible="{Binding IsWorkoutsView}" ItemsSource="{Binding Workouts}" SelectionMode="None">
+      <CollectionView.ItemsLayout>
+        <GridItemsLayout Orientation="Vertical" Span="5" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+      </CollectionView.ItemsLayout>
+      <CollectionView.Header>
+        <VerticalStackLayout Spacing="8" Margin="0,0,0,16">
+          <ContentView ControlTemplate="{StaticResource ReadyToRideTemplate}" Margin="0,0,0,8" />
+          <Label Text="WORKOUT LIBRARY" FontAttributes="Bold" />
+          <Label Text="Choose a structured ride before starting." TextColor="{StaticResource Muted}" FontSize="12" />
+        </VerticalStackLayout>
+      </CollectionView.Header>
+      <CollectionView.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource PanelBorder}" Padding="10">
+            <VerticalStackLayout Spacing="6">
+              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+              <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+              <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+              <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
+                <BoxView BackgroundColor="{Binding TotalDuration, Converter={StaticResource TrainingDurationColorConverter}}" WidthRequest="{Binding TotalDuration, Converter={StaticResource TrainingDurationWidthConverter}}" HorizontalOptions="Start" />
+              </Border>
+              <local:TrainingProfileView Segments="{Binding Segments}" HeightRequest="42" />
+            </VerticalStackLayout>
+          </Border>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+    <ScrollView Grid.Row="3" IsVisible="{Binding IsAssessmentView}">
+      <VerticalStackLayout Spacing="16">
+        <ContentView ControlTemplate="{StaticResource ReadyToRideTemplate}" />
+        <Border Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="FTP RAMP TEST" FontAttributes="Bold" />
+            <Label Text="Five minutes easy, then one-minute steps. End the test when you can no longer sustain the step." TextColor="{StaticResource Muted}" FontSize="12" />
+            <HorizontalStackLayout Spacing="8">
+              <Button Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding StartRampTestCommand}" />
+              <Button Style="{StaticResource SecondaryActionButton}" Text="Finish test" Command="{Binding FinishRampTestCommand}" />
+              <Button Style="{StaticResource SecondaryActionButton}" Text="Accept FTP" Command="{Binding AcceptRampEstimateCommand}" />
+            </HorizontalStackLayout>
+            <Label Text="{Binding RampEstimateText}" TextColor="{StaticResource Muted}" />
+          </VerticalStackLayout>
+        </Border>
+      </VerticalStackLayout>
+    </ScrollView>
+  </Grid>
+</ContentPage>
