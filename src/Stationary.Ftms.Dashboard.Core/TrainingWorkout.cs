@@ -97,10 +97,11 @@ public static class TrainingWorkoutCompiler
                 throw new InvalidOperationException($"Segment '{segment.Name}' requires {target} W, outside the bike range.");
             }
 
-            if ((target - capabilities.MinimumWatts) % capabilities.IncrementWatts != 0)
-            {
-                throw new InvalidOperationException($"Segment '{segment.Name}' requires {target} W, which the bike cannot set exactly.");
-            }
+            var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
+            var nearestStep = (int)double.Round(
+                (double)(target - capabilities.MinimumWatts) / capabilities.IncrementWatts,
+                MidpointRounding.AwayFromZero);
+            target = capabilities.MinimumWatts + int.Min(nearestStep, maximumStep) * capabilities.IncrementWatts;
 
             segments[index] = new(segment, target);
         }

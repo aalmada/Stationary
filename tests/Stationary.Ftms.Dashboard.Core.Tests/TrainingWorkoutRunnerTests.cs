@@ -28,7 +28,7 @@ public sealed class TrainingWorkoutRunnerTests
     }
 
     [Test]
-    public async Task Compile_RejectsTargetsTheBikeCannotSetExactly()
+    public async Task Compile_RoundsTargetsTheBikeCannotSetExactly()
     {
         var definition = new TrainingWorkout(
             "test",
@@ -38,7 +38,25 @@ public sealed class TrainingWorkoutRunnerTests
             TrainingExperienceLevel.Beginner,
             [new("Work", TimeSpan.FromMinutes(1), 83d, null, null, "Ride", true)]);
 
-        await Assert.That(() => TrainingWorkoutCompiler.Compile(definition, 200, new(0, 400, 5)))
+        var compiled = TrainingWorkoutCompiler.Compile(definition, 200, new(0, 400, 5));
+
+        await Assert.That(compiled.Segments[0].TargetWatts).IsEqualTo(165);
+    }
+
+    [Test]
+    [Arguments(170, 400)]
+    [Arguments(0, 160)]
+    public async Task Compile_RejectsTargetsOutsideTheBikeRange(int minimum, int maximum)
+    {
+        var definition = new TrainingWorkout(
+            "test",
+            "Test",
+            "Test workout",
+            TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), 83d, null, null, "Ride", true)]);
+
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(definition, 200, new(minimum, maximum, 5)))
             .Throws<InvalidOperationException>();
     }
 
