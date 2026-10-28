@@ -5,8 +5,8 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 ## Commands
 
 - Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore -p:ValidateXcodeVersion=false`
-- Build the Apple silicon bundle: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
-- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net10.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`. `-t:Run` can launch a stale bundle; build the bundle first after source changes.
+- Build the Apple silicon bundle: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
+- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`. `-t:Run` can launch a stale bundle; build the bundle first after source changes.
 
 ## Navigation And Ride Flow
 

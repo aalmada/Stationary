@@ -5,8 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.101" />
-    <PackageVersion Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.101" />
+    <PackageVersion Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
+    <PackageVersion Include="Microsoft.Maui.Controls.Compatibility" Version="11.0.0-preview.5.26304.4" />
     <PackageVersion Include="Plugin.BLE" Version="3.2.1" />
     <PackageVersion Include="ReactiveUI" Version="19.6.12" />
     <PackageVersion Include="ReactiveUI.Maui" Version="19.6.12" />

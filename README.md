@@ -36,7 +36,7 @@ Restore packages once, then use the no-restore commands for normal iteration:
 
 ```bash
 dotnet restore Stationary.slnx
-dotnet build Stationary.slnx --no-restore
+dotnet build Stationary.slnx --no-restore -p:ValidateXcodeVersion=false
 dotnet test --solution Stationary.slnx --no-restore
 dotnet format Stationary.slnx --verify-no-changes --no-restore
 ```
@@ -48,9 +48,10 @@ On Apple silicon:
 ```bash
 dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
   -t:Run \
-  -f net10.0-maccatalyst \
+  -f net11.0-maccatalyst \
   -r maccatalyst-arm64 \
-  --no-restore
+  --no-restore \
+  -p:ValidateXcodeVersion=false
 ```
 
 Use `maccatalyst-x64` on an Intel Mac.

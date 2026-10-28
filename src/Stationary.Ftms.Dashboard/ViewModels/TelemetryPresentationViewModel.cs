@@ -659,7 +659,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
 
     private static IReadOnlyList<PowerCadenceSample> PairPowerAndCadence(IReadOnlyList<TelemetrySample> powerSamples, IReadOnlyList<TelemetrySample> cadenceSamples)
     {
-        var pairedSamples = new List<PowerCadenceSample>();
+        List<PowerCadenceSample> pairedSamples = [with(capacity: int.Min(powerSamples.Count, cadenceSamples.Count))];
         var powerIndex = 0;
         var cadenceIndex = 0;
         while (powerIndex < powerSamples.Count && cadenceIndex < cadenceSamples.Count)

@@ -1,11 +1,11 @@
 # Stationary
 
-`Stationary.Ftms` is a `net10.0` library of high-performance, transport-neutral codecs for Bluetooth Fitness Machine Service (FTMS) payloads. The solution also contains TUnit tests and BenchmarkDotNet measurements.
+`Stationary.Ftms` is a `net11.0` library of high-performance, transport-neutral codecs for Bluetooth Fitness Machine Service (FTMS) payloads. The solution also contains TUnit tests and BenchmarkDotNet measurements.
 
 ## Commands
 
 - Restore packages: `dotnet restore Stationary.slnx`
-- Build the solution: `dotnet build Stationary.slnx --no-restore`
+- Build the solution: `dotnet build Stationary.slnx --no-restore -p:ValidateXcodeVersion=false`
 - Apply formatting and analyzer fixes: `dotnet format Stationary.slnx --no-restore`
 - Verify formatting and analyzer fixes: `dotnet format Stationary.slnx --verify-no-changes --no-restore`
 - Run all tests: `dotnet test --solution Stationary.slnx --no-restore`
@@ -15,7 +15,7 @@
 
 ## Conventions
 
-- Target `net10.0`; nullable reference types, analyzers, code-style enforcement, deterministic builds, and warnings-as-errors are configured in `Directory.Build.props`.
+- Target `net11.0`; nullable reference types, analyzers, code-style enforcement, deterministic builds, and warnings-as-errors are configured in `Directory.Build.props`.
 - Keep codec hot paths allocation-free and transport-neutral. Prefer `ReadOnlySpan<byte>`, `Span<byte>`, and `BinaryPrimitives` for FTMS wire data.
 - Preserve little-endian encoding and the `FtmsValidationMode` strict/compatible contract.
 - Use central package management in `Directory.Packages.props`; do not hand-edit `apm.lock.yaml`.
