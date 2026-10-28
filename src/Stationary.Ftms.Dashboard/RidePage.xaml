@@ -102,14 +102,15 @@
 
     <!-- Workout map: where you are, what is next, and how precisely you are riding. -->
     <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Padding="14,10" IsVisible="{Binding IsTrainingActive}">
-      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
           <Label Text="{Binding Training.CurrentSegmentText}" FontAttributes="Bold" LineBreakMode="TailTruncation" VerticalOptions="Center" />
           <Label Grid.Column="1" Text="{Binding Training.IntervalProgressText}" Style="{StaticResource TileDetail}" VerticalOptions="Center" />
           <Label Grid.Column="2" Text="{Binding Training.NextSegmentText}" Style="{StaticResource TileDetail}" VerticalOptions="Center" />
         </Grid>
         <local:TrainingProfileView Grid.Row="1" Segments="{Binding Training.ActiveSegments}" Progress="{Binding Training.WorkoutProgress}" HeightRequest="60" />
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <Label Grid.Row="2" Text="{Binding Training.IntervalGuidanceText}" Style="{StaticResource TileDetail}" FontAttributes="Bold" />
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12">
           <Label Text="{Binding Training.AdherenceText}" Style="{StaticResource TileDetail}" />
           <Label Grid.Column="1" Text="{Binding Training.WorkoutElapsedText, StringFormat='{0} elapsed'}" Style="{StaticResource TileDetail}" />
         </Grid>

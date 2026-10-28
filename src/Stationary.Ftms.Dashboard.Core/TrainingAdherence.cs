@@ -6,13 +6,13 @@ public sealed record TrainingAdherenceScore(TimeSpan EligibleDuration, TimeSpan 
 
 public sealed record TrainingAdherenceNoCadenceTarget;
 
-public sealed record TrainingAdherenceNoMeasuredCadence;
+public sealed record TrainingAdherenceNoEligibleCadence;
 
-public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNoCadenceTarget, TrainingAdherenceNoMeasuredCadence);
+public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNoCadenceTarget, TrainingAdherenceNoEligibleCadence);
 
 public static class TrainingAdherence
 {
-    private static readonly TimeSpan SettlingDuration = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan TrainerSettlingDuration = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan MaximumMeasurementGap = TimeSpan.FromSeconds(5);
 
     public static TrainingAdherenceResult Calculate(
@@ -44,7 +44,7 @@ public static class TrainingAdherence
             throw new ArgumentException("The cadence range minimum cannot exceed its maximum.");
         }
 
-        var eligibleAfter = segmentStartedAt + SettlingDuration;
+        var eligibleAfter = segmentStartedAt + TrainerSettlingDuration;
         var eligibleTicks = 0L;
         var inTargetTicks = 0L;
         var orderedSamples = samples.OrderBy(static sample => sample.CapturedAt).ToArray();
@@ -83,7 +83,7 @@ public static class TrainingAdherence
 
         if (eligibleTicks == 0)
         {
-            return new TrainingAdherenceNoMeasuredCadence();
+            return new TrainingAdherenceNoEligibleCadence();
         }
 
         var percentage = inTargetTicks * 100d / eligibleTicks;

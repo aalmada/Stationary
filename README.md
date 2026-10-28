@@ -49,7 +49,7 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 ### Structured Training
 
 - Structured workouts send each segment's FTMS target-power command to the bike. In ERG mode, the bike controls resistance; the rider follows the segment's cadence target rather than trying to force measured power to match the target.
-- The Power vs Cadence map shades the active power/cadence target zone. Workout adherence measures time in the prescribed cadence range after the five-second settling period; samples are not counted across telemetry gaps longer than five seconds.
+- The Power vs Cadence map shades the active power/cadence target zone. For the first 10 seconds after each target change, the ride panel reminds the rider to hold cadence steady while the trainer adjusts resistance; the segment cue appears afterward. Workout adherence measures time in the prescribed cadence range after this settling period, excluding telemetry gaps longer than five seconds.
 - Settings can shift all workout cadence ranges by -15 to +15 rpm for the rider's preferred cadence. Zero keeps the authored ranges.
 - Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.
 - Workout targets are generic FTP-relative prescriptions. Set FTP accurately and adjust or stop an interval if the effort is unsuitable.

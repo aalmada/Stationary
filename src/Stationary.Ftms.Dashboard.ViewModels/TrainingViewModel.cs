@@ -284,6 +284,36 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         ? FormatRemainingTime(remaining)
         : "--:--";
 
+    public string IntervalGuidanceText
+    {
+        get
+        {
+            if (runner?.CurrentSegment is not { } segment)
+            {
+                return string.Empty;
+            }
+
+            if (runner.State == TrainingWorkoutState.ApplyingTarget)
+            {
+                return "Applying ERG target...";
+            }
+
+            if (runner.State == TrainingWorkoutState.Paused)
+            {
+                return "Training paused.";
+            }
+
+            if (runner.State == TrainingWorkoutState.Running
+                && runner.GetCurrentSegmentRemaining(DateTimeOffset.UtcNow) is { } remaining
+                && segment.Definition.Duration - remaining < TrainingAdherence.TrainerSettlingDuration)
+            {
+                return "Keep cadence steady while the trainer adjusts resistance.";
+            }
+
+            return segment.Definition.Cue;
+        }
+    }
+
     [Reactive]
     public partial int CurrentTargetWatts { get; private set; }
 
@@ -923,6 +953,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private void NotifyClockChanged()
     {
         this.RaisePropertyChanged(nameof(CurrentIntervalRemainingText));
+        this.RaisePropertyChanged(nameof(IntervalGuidanceText));
         this.RaisePropertyChanged(nameof(WorkoutProgress));
         this.RaisePropertyChanged(nameof(WorkoutElapsedText));
         this.RaisePropertyChanged(nameof(WorkoutRemainingText));
@@ -980,7 +1011,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         {
             TrainingAdherenceScore score => $"Cadence in range: {score.Percentage:F0}% · {score.Stars} star{(score.Stars == 1 ? string.Empty : "s")}",
             TrainingAdherenceNoCadenceTarget => "Cadence score unavailable: this interval has no cadence target.",
-            TrainingAdherenceNoMeasuredCadence => "Cadence score unavailable: no measured cadence was recorded.",
+            TrainingAdherenceNoEligibleCadence => "Cadence score unavailable: no cadence was measured after the trainer settling period.",
         };
     }
 }
