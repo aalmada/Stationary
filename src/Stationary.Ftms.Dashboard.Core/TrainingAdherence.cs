@@ -24,7 +24,7 @@ public static class TrainingAdherence
         bool completed)
     {
         ArgumentNullException.ThrowIfNull(samples);
-        if (targetWatts <= 0)
+        if (targetWatts < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(targetWatts));
         }

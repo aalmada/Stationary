@@ -42,29 +42,11 @@ public static class RampFtpEstimator
         double? bestAverage = null;
         for (var start = 0; start < powerSamples.Length; start++)
         {
-            var windowStart = powerSamples[start].CapturedAt;
-            var windowEnd = windowStart + RollingWindow;
-            var window = new List<RecordedTelemetrySample>();
-            var previous = powerSamples[start];
-            for (var index = start; index < powerSamples.Length && powerSamples[index].CapturedAt <= windowEnd; index++)
+            var average = GetRollingMinuteAverage(powerSamples, start);
+            if (average is double value)
             {
-                var current = powerSamples[index];
-                if (index > start && current.CapturedAt - previous.CapturedAt > MaximumTelemetryGap)
-                {
-                    break;
-                }
-
-                window.Add(current);
-                previous = current;
+                bestAverage = bestAverage is double existing ? double.Max(existing, value) : value;
             }
-
-            if (window.Count < 2 || window[^1].CapturedAt - windowStart < RollingWindow)
-            {
-                continue;
-            }
-
-            var average = window.Average(static sample => sample.PowerWatts!.Value);
-            bestAverage = bestAverage is double existing ? double.Max(existing, average) : average;
         }
 
         if (bestAverage is not double best)
@@ -75,5 +57,43 @@ public static class RampFtpEstimator
         var bestWatts = checked((int)double.Round(best, MidpointRounding.AwayFromZero));
         var estimate = checked((ushort)double.Round(best * 0.75d, MidpointRounding.AwayFromZero));
         return new(RampFtpEstimateStatus.Ready, bestWatts, estimate);
+    }
+
+    private static double? GetRollingMinuteAverage(IReadOnlyList<RecordedTelemetrySample> samples, int startIndex)
+    {
+        var windowStart = samples[startIndex].CapturedAt;
+        var windowEnd = windowStart + RollingWindow;
+        var previous = samples[startIndex];
+        var integratedWattsSeconds = 0d;
+
+        for (var index = startIndex + 1; index < samples.Count; index++)
+        {
+            var current = samples[index];
+            var gap = current.CapturedAt - previous.CapturedAt;
+            var segmentEnd = current.CapturedAt < windowEnd ? current.CapturedAt : windowEnd;
+            var segmentDuration = segmentEnd - previous.CapturedAt;
+            if (segmentDuration > MaximumTelemetryGap)
+            {
+                return null;
+            }
+
+            if (segmentEnd > previous.CapturedAt)
+            {
+                var previousPower = previous.PowerWatts!.Value;
+                var currentPower = current.PowerWatts!.Value;
+                var endRatio = segmentDuration.Ticks / (double)gap.Ticks;
+                var endPower = previousPower + ((currentPower - previousPower) * endRatio);
+                integratedWattsSeconds += (previousPower + endPower) * 0.5d * segmentDuration.TotalSeconds;
+            }
+
+            if (current.CapturedAt >= windowEnd)
+            {
+                return integratedWattsSeconds / RollingWindow.TotalSeconds;
+            }
+
+            previous = current;
+        }
+
+        return null;
     }
 }

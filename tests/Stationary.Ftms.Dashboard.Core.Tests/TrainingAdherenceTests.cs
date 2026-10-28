@@ -26,4 +26,24 @@ public sealed class TrainingAdherenceTests
             await Assert.That(result.Stars).IsEqualTo(3);
         }
     }
+
+    [Test]
+    public async Task Calculate_AllowsZeroWattCompiledTargets()
+    {
+        var start = DateTimeOffset.UnixEpoch;
+        var samples = new[]
+        {
+            new TrainingAdherenceSample(start.AddSeconds(5), 0d),
+            new TrainingAdherenceSample(start.AddSeconds(10), 0d),
+        };
+
+        var result = TrainingAdherence.Calculate(samples, 0, 100, start, start.AddSeconds(10), completed: true);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.InTargetSamples).IsEqualTo(2);
+            await Assert.That(result.Percentage).IsEqualTo(100d);
+            await Assert.That(result.Stars).IsEqualTo(3);
+        }
+    }
 }

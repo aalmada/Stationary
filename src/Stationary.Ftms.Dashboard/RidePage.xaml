@@ -159,8 +159,8 @@
                 </VerticalStackLayout>
                 <Button Grid.Column="1" Style="{StaticResource ActionButton}" Text="Enable" Command="{Binding RequestControlCommand}" IsVisible="{Binding IsControlPermissionRequired}" VerticalOptions="Start" SemanticProperties.Description="Request control of the fitness machine" />
               </Grid>
-              <ContentView IsVisible="{Binding HasPowerTargetControl}" BindingContext="{Binding PowerTargetControl}" x:DataType="viewModels:TargetControlViewModel">
-                <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+              <ContentView IsVisible="{Binding HasPowerTargetControl}">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="4" BindingContext="{Binding PowerTargetControl}" x:DataType="viewModels:TargetControlViewModel">
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <Label Text="{Binding Name}" FontAttributes="Bold" />
                     <HorizontalStackLayout Grid.Column="1" Spacing="6">

@@ -95,6 +95,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private bool hasControlPermission;
     private bool isWorkoutActive;
     private WorkoutSessionState workoutSessionState;
+    private bool isSessionRecording;
     private bool supportsTargetInclination;
     private bool supportsTargetPower;
     private bool supportsTargetResistance;
@@ -142,7 +143,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private string recoveryText = "Waiting for recovery";
     private int isDisposed;
 
-    private enum WorkoutSessionState
+    public enum WorkoutSessionState
     {
         NotStarted,
         Running,
@@ -873,6 +874,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     public bool IsControlPermissionRequired => IsControllable && !HasControlPermission;
 
     public string StartActionText => IsWorkoutActive ? "Session running" : workoutSessionState == WorkoutSessionState.Paused ? "Resume session" : "Start session";
+    public WorkoutSessionState SessionState => workoutSessionState;
 
     public bool AreTargetControlsAvailable => IsControllable && TargetControls.Count > 0;
 
@@ -1492,6 +1494,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private async Task StartFreeRideAsync(CancellationToken cancellationToken)
     {
         RequestNavigation(DashboardDestination.Ride);
+        StartLocalSessionRecording();
         if (IsControllable && !IsWorkoutActive)
         {
             await ExecuteExclusiveAsync(StartWorkoutSessionAsync, cancellationToken);
@@ -1500,10 +1503,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private async Task EndFreeRideAsync(CancellationToken cancellationToken)
     {
-        if (IsControllable && workoutSessionState is WorkoutSessionState.Running or WorkoutSessionState.Paused
-            && !await ExecuteExclusiveAsync(EndWorkoutSessionAsync, cancellationToken))
+        var machineSessionActive = IsControllable && workoutSessionState is WorkoutSessionState.Running or WorkoutSessionState.Paused;
+        if (machineSessionActive && !await ExecuteExclusiveAsync(EndWorkoutSessionAsync, cancellationToken))
         {
             return;
+        }
+
+        if (!machineSessionActive)
+        {
+            StopWorkoutSession();
         }
 
         RequestNavigation(DashboardDestination.Results);
@@ -1830,19 +1838,25 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         {
             case WorkoutSessionState.NotStarted:
             case WorkoutSessionState.Stopped:
-                Telemetry.StartSession(timestamp);
-                HeartRate.StartSession();
-                lapCount = 0;
-                SessionEvents = [];
-                ClearRecordedSession();
-                AddSessionEvent(timestamp, SessionEventType.Start, "Start");
+                if (!isSessionRecording)
+                {
+                    StartNewSessionRecording(timestamp);
+                }
+
                 break;
             case WorkoutSessionState.Paused:
-                Telemetry.ResumeSession(timestamp);
-                HeartRate.ResumeSession();
-                AddSessionEvent(timestamp, SessionEventType.Resume, "Resume");
+                if (!isSessionRecording)
+                {
+                    ResumeSessionRecording(timestamp);
+                }
+
                 break;
             case WorkoutSessionState.Running:
+                if (!isSessionRecording)
+                {
+                    ResumeSessionRecording(timestamp);
+                }
+
                 return;
         }
 
@@ -1858,8 +1872,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
 
         var timestamp = DateTimeOffset.UtcNow;
-        Telemetry.PauseSession(timestamp);
-        HeartRate.PauseSession(timestamp);
+        PauseSessionRecording(timestamp);
         AddSessionEvent(timestamp, SessionEventType.Pause, "Pause");
         SetWorkoutSessionState(WorkoutSessionState.Paused);
         IsWorkoutActive = false;
@@ -1867,17 +1880,71 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private void StopWorkoutSession()
     {
+        var timestamp = DateTimeOffset.UtcNow;
         if (workoutSessionState is WorkoutSessionState.NotStarted or WorkoutSessionState.Stopped)
+        {
+            if (isSessionRecording)
+            {
+                PauseSessionRecording(timestamp);
+                AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
+            }
+
+            return;
+        }
+
+        PauseSessionRecording(timestamp);
+        AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
+        SetWorkoutSessionState(WorkoutSessionState.Stopped);
+        IsWorkoutActive = false;
+    }
+
+    private void StartLocalSessionRecording()
+    {
+        if (isSessionRecording)
         {
             return;
         }
 
         var timestamp = DateTimeOffset.UtcNow;
+        if (workoutSessionState == WorkoutSessionState.Paused)
+        {
+            ResumeSessionRecording(timestamp);
+        }
+        else
+        {
+            StartNewSessionRecording(timestamp);
+        }
+    }
+
+    private void StartNewSessionRecording(DateTimeOffset timestamp)
+    {
+        Telemetry.StartSession(timestamp);
+        HeartRate.StartSession();
+        lapCount = 0;
+        SessionEvents = [];
+        ClearRecordedSession();
+        isSessionRecording = true;
+        AddSessionEvent(timestamp, SessionEventType.Start, "Start");
+    }
+
+    private void ResumeSessionRecording(DateTimeOffset timestamp)
+    {
+        Telemetry.ResumeSession(timestamp);
+        HeartRate.ResumeSession();
+        isSessionRecording = true;
+        AddSessionEvent(timestamp, SessionEventType.Resume, "Resume");
+    }
+
+    private void PauseSessionRecording(DateTimeOffset timestamp)
+    {
+        if (!isSessionRecording)
+        {
+            return;
+        }
+
         Telemetry.PauseSession(timestamp);
         HeartRate.PauseSession(timestamp);
-        AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
-        SetWorkoutSessionState(WorkoutSessionState.Stopped);
-        IsWorkoutActive = false;
+        isSessionRecording = false;
     }
 
     private void AddLap()
@@ -1957,6 +2024,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
 
         workoutSessionState = value;
+        this.RaisePropertyChanged(nameof(SessionState));
         this.RaisePropertyChanged(nameof(MachineStateText));
         this.RaisePropertyChanged(nameof(StartActionText));
     }
@@ -2192,7 +2260,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     private void RecordSessionSample(DateTimeOffset timestamp)
     {
-        if (workoutSessionState is WorkoutSessionState.Paused or WorkoutSessionState.Stopped
+        if (!isSessionRecording
             || lastRecordedAt is { } previous && timestamp - previous < TimeSpan.FromSeconds(1))
         {
             return;

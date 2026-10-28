@@ -89,19 +89,17 @@ public static class TrainingWorkoutCompiler
         {
             var segment = workout.Segments[index];
             ValidateSegment(segment);
-            var target = checked((int)double.Round(
-                functionalThresholdPowerWatts * segment.FunctionalThresholdPowerPercentage / 100d,
-                MidpointRounding.AwayFromZero));
-            if (target < capabilities.MinimumWatts || target > capabilities.MaximumWatts)
+            var requestedWatts = functionalThresholdPowerWatts * segment.FunctionalThresholdPowerPercentage / 100d;
+            if (requestedWatts < capabilities.MinimumWatts || requestedWatts > capabilities.MaximumWatts)
             {
-                throw new InvalidOperationException($"Segment '{segment.Name}' requires {target} W, outside the bike range.");
+                throw new InvalidOperationException($"Segment '{segment.Name}' requires {requestedWatts:F0} W, outside the bike range.");
             }
 
             var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
             var nearestStep = (int)double.Round(
-                (double)(target - capabilities.MinimumWatts) / capabilities.IncrementWatts,
+                (requestedWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts,
                 MidpointRounding.AwayFromZero);
-            target = capabilities.MinimumWatts + int.Min(nearestStep, maximumStep) * capabilities.IncrementWatts;
+            var target = capabilities.MinimumWatts + int.Clamp(nearestStep, 0, maximumStep) * capabilities.IncrementWatts;
 
             segments[index] = new(segment, target);
         }

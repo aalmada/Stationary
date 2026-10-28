@@ -45,7 +45,9 @@ public static class RampFtpProtocol
 
     private static int Align(double watts, TrainingPowerCapabilities capabilities)
     {
-        var aligned = capabilities.MinimumWatts + (int)double.Round((watts - capabilities.MinimumWatts) / capabilities.IncrementWatts, MidpointRounding.AwayFromZero) * capabilities.IncrementWatts;
-        return int.Clamp(aligned, capabilities.MinimumWatts, capabilities.MaximumWatts);
+        var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
+        var nearestStep = (int)double.Round((watts - capabilities.MinimumWatts) / capabilities.IncrementWatts, MidpointRounding.AwayFromZero);
+        var step = int.Clamp(nearestStep, 0, maximumStep);
+        return capabilities.MinimumWatts + (step * capabilities.IncrementWatts);
     }
 }

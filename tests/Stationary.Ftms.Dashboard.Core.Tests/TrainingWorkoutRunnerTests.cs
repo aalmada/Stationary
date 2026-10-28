@@ -44,6 +44,22 @@ public sealed class TrainingWorkoutRunnerTests
     }
 
     [Test]
+    public async Task Compile_UsesUnroundedFtpRelativePowerWhenSelectingDeviceStep()
+    {
+        var definition = new TrainingWorkout(
+            "test",
+            "Test",
+            "Test workout",
+            TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), 52d, null, null, "Ride", true)]);
+
+        var compiled = TrainingWorkoutCompiler.Compile(definition, 201, new(50, 400, 10));
+
+        await Assert.That(compiled.Segments[0].TargetWatts).IsEqualTo(100);
+    }
+
+    [Test]
     [Arguments(170, 400)]
     [Arguments(0, 160)]
     public async Task Compile_RejectsTargetsOutsideTheBikeRange(int minimum, int maximum)

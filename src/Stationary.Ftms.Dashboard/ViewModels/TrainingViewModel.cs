@@ -3,6 +3,7 @@ using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 
 using ReactiveUI;
 
@@ -39,6 +40,13 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     private DateTimeOffset? segmentStartedAt;
     private RampFtpEstimate? rampEstimate;
     private bool isRampTest;
+    private bool isPausePending;
+    private bool isEnding;
+    private bool isEndFailed;
+    private bool isLocallyEndable;
+    private bool hasSessionStarted;
+    private long sessionGeneration;
+    private Task<bool>? sessionStartTask;
     private TrainingBrowseMode browseMode = TrainingBrowseMode.Workouts;
     private string statusText = "Choose a workout.";
     private string adherenceText = "Precision score appears after a work interval.";
@@ -90,12 +98,21 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         disposables.Add(StartRampTestCommand.ThrownExceptions
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(exception => StatusText = $"The ramp test could not start: {exception.Message}"));
-        PauseCommand = ReactiveCommand.CreateFromTask(PauseAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.Running));
+        PauseCommand = ReactiveCommand.CreateFromTask(PauseAsync, this.WhenAnyValue(viewModel => viewModel.CanPause));
         ResumeCommand = ReactiveCommand.CreateFromTask(ResumeAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.Paused));
         RetryCommand = ReactiveCommand.CreateFromTask(RetryAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.TargetFailed));
-        EndCommand = ReactiveCommand.CreateFromTask(EndAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state is TrainingWorkoutState.ApplyingTarget or TrainingWorkoutState.Running or TrainingWorkoutState.Paused or TrainingWorkoutState.TargetFailed));
-        FinishRampTestCommand = ReactiveCommand.CreateFromTask(FinishRampTestAsync, this.WhenAnyValue(viewModel => viewModel.IsRampTest, viewModel => viewModel.IsActive, (ramp, active) => ramp && active));
-        AcceptRampEstimateCommand = ReactiveCommand.Create(AcceptRampEstimate, this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(estimate => estimate is { IsReady: true, EstimatedFtpWatts: not null }));
+        EndCommand = ReactiveCommand.CreateFromTask(EndAsync, this.WhenAnyValue(viewModel => viewModel.CanEnd));
+        FinishRampTestCommand = ReactiveCommand.CreateFromTask(FinishRampTestAsync, this.WhenAnyValue(viewModel => viewModel.CanFinishRampTest));
+        AcceptRampEstimateCommand = ReactiveCommand.CreateFromTask(AcceptRampEstimateAsync, this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(estimate => estimate is { IsReady: true, EstimatedFtpWatts: not null }));
+        disposables.Add(Observable.Merge(
+            PauseCommand.ThrownExceptions,
+            ResumeCommand.ThrownExceptions,
+            RetryCommand.ThrownExceptions,
+            EndCommand.ThrownExceptions,
+            FinishRampTestCommand.ThrownExceptions,
+            AcceptRampEstimateCommand.ThrownExceptions)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(exception => StatusText = $"Training operation failed: {exception.Message}"));
         disposables.Add(LoadCatalogCommand.ThrownExceptions
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ =>
@@ -107,6 +124,12 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         disposables.Add(Observable.Interval(TimeSpan.FromSeconds(1), RxApp.TaskpoolScheduler)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => AdvanceIfDue()));
+        disposables.Add(Observable.CombineLatest(
+            dashboard.WhenAnyValue(viewModel => viewModel.IsConnected),
+            dashboard.WhenAnyValue(viewModel => viewModel.SessionState),
+            (connected, state) => (connected, state))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(state => HandleDashboardSessionState(state.connected, state.state)));
     }
 
     public ReadOnlyObservableCollection<TrainingWorkout> Workouts { get; }
@@ -126,8 +149,9 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         get => isCatalogLoading;
         private set
         {
-            if (this.RaiseAndSetIfChanged(ref isCatalogLoading, value))
+            if (isCatalogLoading != value)
             {
+                this.RaiseAndSetIfChanged(ref isCatalogLoading, value);
                 this.RaisePropertyChanged(nameof(IsCatalogLoaded));
             }
         }
@@ -151,6 +175,11 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     public bool IsPlansView => BrowseMode == TrainingBrowseMode.Plans;
 
     public bool IsAssessmentView => BrowseMode == TrainingBrowseMode.Assessment;
+    public string WorkoutsTabAccessibleName => IsWorkoutsView ? "Workouts, selected" : "Workouts";
+
+    public string PlansTabAccessibleName => IsPlansView ? "Plans, selected" : "Plans";
+
+    public string AssessmentTabAccessibleName => IsAssessmentView ? "Assessment, selected" : "Assessment";
 
     public TrainingWorkout? SelectedWorkout
     {
@@ -187,14 +216,16 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     public IReadOnlyList<TrainingWorkout> VisiblePlanWorkouts => IsPlansView ? SelectedPlanWorkouts : [];
 
     public TrainingWorkoutState RunnerState => runner?.State ?? TrainingWorkoutState.Selected;
-
-    public bool IsActive => RunnerState is TrainingWorkoutState.ApplyingTarget or TrainingWorkoutState.Running or TrainingWorkoutState.Paused or TrainingWorkoutState.TargetFailed;
+    public bool IsActive => RunnerState is TrainingWorkoutState.ApplyingTarget or TrainingWorkoutState.Running or TrainingWorkoutState.Paused or TrainingWorkoutState.TargetFailed
+        || isEnding
+        || isEndFailed
+        || isLocallyEndable;
 
     public IReadOnlyList<TrainingSegment> ActiveSegments => activeSegments;
 
     public IReadOnlyList<TelemetrySample> TargetPowerSamples
     {
-        get => targetPowerSamples;
+        get => IsActive ? targetPowerSamples : [];
         private set => this.RaiseAndSetIfChanged(ref targetPowerSamples, value);
     }
 
@@ -226,13 +257,15 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
             : "Final interval"
         : string.Empty;
 
-    public bool CanPause => RunnerState == TrainingWorkoutState.Running;
+    public bool CanPause => RunnerState == TrainingWorkoutState.Running && !isPausePending;
 
     public bool CanResume => RunnerState == TrainingWorkoutState.Paused;
 
     public bool CanRetry => RunnerState == TrainingWorkoutState.TargetFailed;
 
     public bool CanEnd => IsActive;
+
+    public bool CanFinishRampTest => IsRampTest && hasSessionStarted && !isSessionStartPending && IsActive && !isEnding;
 
     public bool IsRampTest => isRampTest;
 
@@ -416,6 +449,9 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(IsWorkoutsView));
         this.RaisePropertyChanged(nameof(IsPlansView));
         this.RaisePropertyChanged(nameof(IsAssessmentView));
+        this.RaisePropertyChanged(nameof(WorkoutsTabAccessibleName));
+        this.RaisePropertyChanged(nameof(PlansTabAccessibleName));
+        this.RaisePropertyChanged(nameof(AssessmentTabAccessibleName));
         this.RaisePropertyChanged(nameof(VisiblePlanWorkouts));
     }
 
@@ -484,15 +520,29 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     private async Task PauseAsync(CancellationToken cancellationToken)
     {
-        if (!await dashboard.PauseTrainingSessionAsync(cancellationToken))
+        if (isPausePending || runner?.State != TrainingWorkoutState.Running)
         {
-            StatusText = "The bike session could not be paused.";
             return;
         }
 
-        runner?.Pause(DateTimeOffset.UtcNow);
-        StatusText = "Training timer paused.";
+        isPausePending = true;
         NotifyRunnerChanged();
+        try
+        {
+            if (!await dashboard.PauseTrainingSessionAsync(cancellationToken))
+            {
+                StatusText = "The bike session could not be paused.";
+                return;
+            }
+
+            runner?.Pause(DateTimeOffset.UtcNow);
+            StatusText = "Training timer paused.";
+        }
+        finally
+        {
+            isPausePending = false;
+            NotifyRunnerChanged();
+        }
     }
 
     private async Task ResumeAsync(CancellationToken cancellationToken)
@@ -510,28 +560,82 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     private async Task RetryAsync(CancellationToken cancellationToken)
     {
+        var generation = sessionGeneration;
         runner?.RetryTarget();
         NotifyRunnerChanged();
-        if (isSessionStartPending && !await TryStartSessionAsync(cancellationToken))
+        if (isSessionStartPending)
         {
-            return;
+            var startTask = TryStartSessionAsync(cancellationToken, generation);
+            sessionStartTask = startTask;
+            if (!await startTask || generation != sessionGeneration)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(sessionStartTask, startTask))
+            {
+                sessionStartTask = null;
+            }
         }
 
-        await ApplyCurrentTargetAsync(cancellationToken);
+        await ApplyCurrentTargetAsync(cancellationToken, generation);
     }
 
     private async Task EndAsync(CancellationToken cancellationToken)
     {
-        if (!isSessionStartPending && !await dashboard.EndTrainingSessionAsync(cancellationToken))
+        if (isEnding)
         {
-            StatusText = "The bike did not confirm the end of this training session.";
             return;
         }
 
-        var hadStarted = !isSessionStartPending;
+        var hadStarted = hasSessionStarted;
+        var pendingStart = isSessionStartPending && dashboard.IsConnected ? sessionStartTask : null;
+        isEnding = true;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        sessionGeneration++;
+        StatusText = "Ending training and waiting for the bike...";
+        NotifyRunnerChanged();
+
+        var startAccepted = false;
+        if (pendingStart is not null)
+        {
+            try
+            {
+                startAccepted = await pendingStart;
+            }
+            catch (OperationCanceledException exception)
+            {
+                startAccepted = dashboard.SessionState is DashboardViewModel.WorkoutSessionState.Running or DashboardViewModel.WorkoutSessionState.Paused;
+                StatusText = $"The start response was canceled while ending training: {exception.Message}";
+            }
+            catch (Exception exception)
+            {
+                startAccepted = dashboard.SessionState is DashboardViewModel.WorkoutSessionState.Running or DashboardViewModel.WorkoutSessionState.Paused;
+                StatusText = $"The start response failed while ending training: {exception.Message}";
+            }
+        }
+
+        hadStarted |= startAccepted;
+        var needsMachineStop = dashboard.IsConnected
+            && dashboard.SessionState is (DashboardViewModel.WorkoutSessionState.Running or DashboardViewModel.WorkoutSessionState.Paused);
+        if (needsMachineStop && !await dashboard.EndTrainingSessionAsync(CancellationToken.None))
+        {
+            isEnding = false;
+            isEndFailed = true;
+            StatusText = "The bike did not confirm the end. Retry ending training before starting another ride.";
+            NotifyRunnerChanged();
+            return;
+        }
+
         isSessionStartPending = false;
+        sessionStartTask = null;
         runner?.Abort();
         isRampTest = false;
+        isEnding = false;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        hasSessionStarted = false;
         StatusText = "Training ended.";
         NotifyRunnerChanged();
         dashboard.RequestNavigation(hadStarted ? DashboardDestination.Results : DashboardDestination.Today);
@@ -539,25 +643,10 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     private async Task FinishRampTestAsync(CancellationToken cancellationToken)
     {
-        if (!isRampTest || rampStartedAt is not { } startedAt)
-        {
-            return;
-        }
-
-        if (!await dashboard.PauseTrainingSessionAsync(cancellationToken))
-        {
-            StatusText = "The bike session could not be paused.";
-            return;
-        }
-
-        runner?.Abort();
-        RampEstimate = RampFtpEstimator.Estimate(dashboard.GetRecordedSamplesSince(startedAt), rampCapabilities.MaximumWatts);
-        isRampTest = false;
-        StatusText = RampEstimateText;
-        NotifyRunnerChanged();
+        await FinalizeRampTestAsync(cancellationToken, allStepsExhausted: false);
     }
 
-    private void AcceptRampEstimate()
+    private async Task AcceptRampEstimateAsync(CancellationToken cancellationToken)
     {
         if (RampEstimate is not { IsReady: true, EstimatedFtpWatts: { } ftp })
         {
@@ -565,12 +654,17 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         }
 
         dashboard.Telemetry.FunctionalThresholdPowerText = ftp.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        dashboard.Telemetry.ApplyFunctionalThresholdPowerCommand.Execute();
+        await dashboard.Telemetry.ApplyFunctionalThresholdPowerCommand.Execute().ToTask(cancellationToken);
         StatusText = $"FTP updated to {ftp} W.";
     }
 
     private void AdvanceIfDue()
     {
+        if (isPausePending || isEnding || isEndFailed || dashboard.SessionState != DashboardViewModel.WorkoutSessionState.Running)
+        {
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         if (runner is not null)
         {
@@ -587,16 +681,18 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         NotifyRunnerChanged();
         if (runner.State == TrainingWorkoutState.Completed)
         {
-            _ = CompleteWorkoutAsync();
+            _ = isRampTest
+                ? FinalizeRampTestAsync(CancellationToken.None, allStepsExhausted: true)
+                : CompleteWorkoutAsync();
             return;
         }
 
-        _ = ApplyCurrentTargetAsync(CancellationToken.None);
+        _ = ApplyCurrentTargetAsync(CancellationToken.None, sessionGeneration);
     }
 
-    private async Task ApplyCurrentTargetAsync(CancellationToken cancellationToken)
+    private async Task ApplyCurrentTargetAsync(CancellationToken cancellationToken, long generation)
     {
-        if (runner?.CurrentSegment is not { } segment)
+        if (generation != sessionGeneration || runner?.CurrentSegment is not { } segment)
         {
             return;
         }
@@ -605,13 +701,28 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         StatusText = $"Applying {segment.TargetWatts} W for {segment.Definition.Name}.";
         if (await dashboard.ApplyTrainingTargetAsync(segment.TargetWatts, cancellationToken))
         {
+            if (generation != sessionGeneration)
+            {
+                return;
+            }
+
             segmentStartedAt = DateTimeOffset.UtcNow;
             runner.ConfirmTargetApplied(segmentStartedAt.Value);
+            if (dashboard.SessionState == DashboardViewModel.WorkoutSessionState.Paused)
+            {
+                runner.Pause(segmentStartedAt.Value);
+            }
+
             TargetPowerSamples = [.. TargetPowerSamples, new TelemetrySample(segmentStartedAt.Value, segment.TargetWatts)];
             StatusText = segment.Definition.Cue;
         }
         else
         {
+            if (generation != sessionGeneration)
+            {
+                return;
+            }
+
             runner.RejectTarget();
             StatusText = "The bike did not accept this target. Retry or end training.";
         }
@@ -621,39 +732,85 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     private async Task CompleteWorkoutAsync()
     {
-        if (await dashboard.EndTrainingSessionAsync(CancellationToken.None))
+        if (isRampTest)
         {
-            StatusText = "Workout complete.";
-            dashboard.RequestNavigation(DashboardDestination.Results);
+            await FinalizeRampTestAsync(CancellationToken.None, allStepsExhausted: true);
             return;
         }
 
-        StatusText = "The final interval completed, but the bike did not confirm the session end.";
+        isEnding = true;
+        isEndFailed = false;
+        StatusText = "Workout complete. Waiting for the bike to stop...";
+        NotifyRunnerChanged();
+        if (!await TryEndMachineSessionAsync(CancellationToken.None))
+        {
+            isEnding = false;
+            isEndFailed = true;
+            StatusText = "The final interval completed, but the bike did not confirm the session end. Retry ending training.";
+            NotifyRunnerChanged();
+            return;
+        }
+
+        isEnding = false;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        hasSessionStarted = false;
+        StatusText = "Workout complete.";
+        NotifyRunnerChanged();
+        dashboard.RequestNavigation(DashboardDestination.Results);
     }
 
     private async Task BeginAsync(CompiledTrainingWorkout workout, CancellationToken cancellationToken)
     {
         activeWorkout = workout;
+        var generation = ++sessionGeneration;
         activeSegments = [.. workout.Segments.Select(static segment => segment.Definition)];
         TargetPowerSamples = [];
         CurrentTargetWatts = 0;
         AdherenceText = "Precision score appears after a work interval.";
         isSessionStartPending = true;
+        isEnding = false;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        hasSessionStarted = false;
         runner = new(workout);
         runner.Start();
         this.RaisePropertyChanged(nameof(ActiveSegments));
         NotifyRunnerChanged();
         dashboard.RequestNavigation(DashboardDestination.Ride);
-        if (await TryStartSessionAsync(cancellationToken))
+        var startTask = TryStartSessionAsync(cancellationToken, generation);
+        sessionStartTask = startTask;
+        try
         {
-            await ApplyCurrentTargetAsync(cancellationToken);
+            if (await startTask && generation == sessionGeneration)
+            {
+                await ApplyCurrentTargetAsync(cancellationToken, generation);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(sessionStartTask, startTask))
+            {
+                sessionStartTask = null;
+            }
         }
     }
 
-    private async Task<bool> TryStartSessionAsync(CancellationToken cancellationToken)
+    private async Task<bool> TryStartSessionAsync(CancellationToken cancellationToken, long generation)
     {
         StatusText = "Requesting control and starting the bike session...";
-        if (await dashboard.StartTrainingSessionAsync(cancellationToken))
+        var started = await dashboard.StartTrainingSessionAsync(cancellationToken);
+        if (started)
+        {
+            hasSessionStarted = true;
+        }
+
+        if (generation != sessionGeneration)
+        {
+            return started;
+        }
+
+        if (started)
         {
             isSessionStartPending = false;
             return true;
@@ -663,6 +820,104 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         StatusText = $"The bike did not confirm the session start. Retry or end. {dashboard.ConnectionStatus}";
         NotifyRunnerChanged();
         return false;
+    }
+
+    private async Task FinalizeRampTestAsync(CancellationToken cancellationToken, bool allStepsExhausted)
+    {
+        if (!isRampTest || rampStartedAt is not { } startedAt || isEnding)
+        {
+            return;
+        }
+
+        isEnding = true;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        sessionGeneration++;
+        StatusText = "Ending the ramp test and waiting for the bike...";
+        NotifyRunnerChanged();
+        if (!await TryEndMachineSessionAsync(cancellationToken))
+        {
+            isEnding = false;
+            isEndFailed = true;
+            StatusText = "The bike did not confirm the ramp-test end. Retry ending training.";
+            NotifyRunnerChanged();
+            return;
+        }
+
+        runner?.Abort();
+        RampEstimate = allStepsExhausted
+            ? new(RampFtpEstimateStatus.DeviceMaximumReached, null, null)
+            : RampFtpEstimator.Estimate(dashboard.GetRecordedSamplesSince(startedAt), rampCapabilities.MaximumWatts);
+        isRampTest = false;
+        isEnding = false;
+        isEndFailed = false;
+        isLocallyEndable = false;
+        hasSessionStarted = false;
+        StatusText = RampEstimateText;
+        NotifyRunnerChanged();
+        dashboard.RequestNavigation(DashboardDestination.Training);
+    }
+
+    private async Task<bool> TryEndMachineSessionAsync(CancellationToken cancellationToken)
+    {
+        if (!dashboard.IsConnected
+            || dashboard.SessionState is not (DashboardViewModel.WorkoutSessionState.Running or DashboardViewModel.WorkoutSessionState.Paused))
+        {
+            return true;
+        }
+
+        var ended = await dashboard.EndTrainingSessionAsync(cancellationToken);
+        return ended
+            || !dashboard.IsConnected
+            || dashboard.SessionState == DashboardViewModel.WorkoutSessionState.Stopped;
+    }
+
+    private void HandleDashboardSessionState(bool connected, DashboardViewModel.WorkoutSessionState state)
+    {
+        if (runner is null || !IsActive || isEnding)
+        {
+            return;
+        }
+
+        if (!connected)
+        {
+            sessionGeneration++;
+            isSessionStartPending = false;
+            sessionStartTask = null;
+            runner.Abort();
+            isRampTest = false;
+            isEndFailed = false;
+            isLocallyEndable = true;
+            StatusText = "Connection lost. End training locally to leave the ride.";
+            NotifyRunnerChanged();
+            return;
+        }
+
+        if (state == DashboardViewModel.WorkoutSessionState.Paused && runner.State == TrainingWorkoutState.Running)
+        {
+            runner.Pause(DateTimeOffset.UtcNow);
+            StatusText = "The bike paused. Training timer paused.";
+            NotifyRunnerChanged();
+        }
+        else if (state == DashboardViewModel.WorkoutSessionState.Running && runner.State == TrainingWorkoutState.Paused)
+        {
+            runner.Resume(DateTimeOffset.UtcNow);
+            StatusText = "The bike resumed. Training timer resumed.";
+            NotifyRunnerChanged();
+        }
+        else if (state == DashboardViewModel.WorkoutSessionState.Stopped
+            && runner.State is not (TrainingWorkoutState.Completed or TrainingWorkoutState.Aborted))
+        {
+            sessionGeneration++;
+            isSessionStartPending = false;
+            sessionStartTask = null;
+            runner.Abort();
+            isRampTest = false;
+            isEndFailed = false;
+            isLocallyEndable = true;
+            StatusText = "The bike stopped the session. End training locally to leave the ride.";
+            NotifyRunnerChanged();
+        }
     }
 
     private TimeSpan GetWorkoutTotal()
@@ -710,10 +965,12 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     {
         this.RaisePropertyChanged(nameof(RunnerState));
         this.RaisePropertyChanged(nameof(IsActive));
+        this.RaisePropertyChanged(nameof(TargetPowerSamples));
         this.RaisePropertyChanged(nameof(CanPause));
         this.RaisePropertyChanged(nameof(CanResume));
         this.RaisePropertyChanged(nameof(CanRetry));
         this.RaisePropertyChanged(nameof(CanEnd));
+        this.RaisePropertyChanged(nameof(CanFinishRampTest));
         this.RaisePropertyChanged(nameof(IsRampTest));
         this.RaisePropertyChanged(nameof(CurrentWorkoutName));
         this.RaisePropertyChanged(nameof(IntervalProgressText));
