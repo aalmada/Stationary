@@ -9,6 +9,7 @@
 - Apply formatting and analyzer fixes: `dotnet format Stationary.slnx --no-restore`
 - Verify formatting and analyzer fixes: `dotnet format Stationary.slnx --verify-no-changes --no-restore`
 - Run all tests: `dotnet test --solution Stationary.slnx --no-restore`
+- Linux CI (excludes the Mac Catalyst dashboard): `dotnet restore Stationary.CI.slnf`, `dotnet build Stationary.CI.slnf --no-restore`, then `dotnet test --solution Stationary.CI.slnf --no-build`. Keep the filter updated when adding portable projects.
 - Build benchmarks: `dotnet build benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-restore`
 - Run benchmarks: `dotnet run --project benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-build -- --filter '*FtmsCodecBenchmarks*' --join`
 
