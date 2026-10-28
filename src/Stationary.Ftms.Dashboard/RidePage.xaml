@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
-             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels"
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.RidePage"
              x:DataType="viewModels:DashboardViewModel"
              Title="Ride"
@@ -192,7 +190,7 @@
                       <FlexLayout Grid.Row="3" BindableLayout.ItemsSource="{Binding Presets}" Direction="Row" Wrap="Wrap">
                         <BindableLayout.ItemTemplate>
                           <DataTemplate x:DataType="x:Double">
-                            <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding StringFormat='{}{0:F0}'}" FontSize="12" Padding="8,4" Margin="0,0,6,6" Command="{Binding BindingContext.ApplyPresetCommand, Source={RelativeSource AncestorType={x:Type Grid}}}" CommandParameter="{Binding}" SemanticProperties.Description="Set this target preset" />
+                            <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding StringFormat='{}{0:F0}'}" FontSize="12" Padding="8,4" Margin="0,0,6,6" Command="{Binding ApplyPresetCommand, Source={RelativeSource AncestorType={x:Type viewModels:TargetControlViewModel}}}" CommandParameter="{Binding}" SemanticProperties.Description="Set this target preset" />
                           </DataTemplate>
                         </BindableLayout.ItemTemplate>
                       </FlexLayout>

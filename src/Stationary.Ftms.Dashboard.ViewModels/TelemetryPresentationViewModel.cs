@@ -1,8 +1,10 @@
-using System.Reactive;
+using Microsoft.Maui.Graphics;
 
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms.Dashboard.Core;
+using Stationary.Ftms.Dashboard.Services;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
@@ -11,7 +13,7 @@ internal sealed record TelemetryChartWindow(
     IReadOnlyList<TelemetrySample> Speed,
     IReadOnlyList<TelemetrySample> Cadence);
 
-public sealed class TelemetryPresentationViewModel : ReactiveObject
+public sealed partial class TelemetryPresentationViewModel : ReactiveObject
 {
     private const string MetricUnitsPreferenceKey = "MetricUnits";
     private const string LargeTelemetryTextPreferenceKey = "LargeTelemetryText";
@@ -19,35 +21,11 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private const string CompactChartsPreferenceKey = "CompactCharts";
     private const string FunctionalThresholdPowerPreferenceKey = "FunctionalThresholdPower";
     private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
-    private string speedText = "-- km/h";
-    private string powerText = "-- W";
-    private string currentPowerZoneText = "Set FTP for zones";
-    private string cadenceText = "-- rpm";
-    private string healthText = "Waiting for telemetry";
-    private string powerChartSummary = "No samples";
-    private string speedChartSummary = "No samples";
-    private string cadenceChartSummary = "No samples";
-    private string powerCadenceSummary = "Waiting for paired samples";
-    private string sessionDistanceText = "--";
-    private string sessionElapsedTimeText = "--:--:--";
-    private string sessionEnergyText = "--";
-    private string sessionAveragePowerText = "--";
-    private string sessionMaximumPowerText = "--";
-    private string functionalThresholdPowerText = Preferences.Default.Get(FunctionalThresholdPowerPreferenceKey, string.Empty);
-    private string sessionWorkText = "--";
-    private string normalizedPowerText = "--";
-    private string intensityFactorText = "--";
-    private string trainingStressScoreText = "--";
-    private string peakPowerText = "--";
-    private bool isStale;
-    private bool useMetricUnits = Preferences.Default.Get(MetricUnitsPreferenceKey, true);
-    private bool useLargeTelemetryText = Preferences.Default.Get(LargeTelemetryTextPreferenceKey, false);
-    private bool useHighContrastTelemetry = Preferences.Default.Get(HighContrastTelemetryPreferenceKey, false);
-    private bool useCompactCharts = Preferences.Default.Get(CompactChartsPreferenceKey, false);
-    private IReadOnlyList<TelemetrySample> powerChartSamples = [];
-    private IReadOnlyList<TelemetrySample> speedChartSamples = [];
-    private IReadOnlyList<TelemetrySample> cadenceChartSamples = [];
-    private IReadOnlyList<PowerCadenceSample> powerCadenceSamples = [];
+    private readonly IDashboardPlatform platform;
+    private bool useMetricUnits;
+    private bool useLargeTelemetryText;
+    private bool useHighContrastTelemetry;
+    private bool useCompactCharts;
     private TelemetrySnapshot? latestSnapshot;
     private readonly WorkoutSessionClock sessionClock = new();
     private readonly CyclingMetricsAccumulator cyclingMetrics = new(MaximumTelemetryGap);
@@ -58,125 +36,76 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
     private double sessionPowerTotal;
     private int sessionPowerSampleCount;
     private double? sessionMaximumPower;
-    private TelemetryInsight torqueResponseInsight;
-    private TelemetryInsight powerPacingInsight;
-    private TelemetryInsight speedTrendInsight;
-    private TelemetryInsight cadenceConsistencyInsight;
 
-    public TelemetryPresentationViewModel()
+    public TelemetryPresentationViewModel(IDashboardPlatform platform)
     {
-        SetMetricUnitsCommand = ReactiveCommand.Create<bool>(value => UseMetricUnits = value);
-        SetLargeTelemetryTextCommand = ReactiveCommand.Create<bool>(value => UseLargeTelemetryText = value);
-        SetHighContrastTelemetryCommand = ReactiveCommand.Create<bool>(value => UseHighContrastTelemetry = value);
-        SetCompactChartsCommand = ReactiveCommand.Create<bool>(value => UseCompactCharts = value);
-        ApplyFunctionalThresholdPowerCommand = ReactiveCommand.Create(ApplyFunctionalThresholdPower);
+        this.platform = platform;
+        useMetricUnits = platform.GetPreference(MetricUnitsPreferenceKey, true);
+        useLargeTelemetryText = platform.GetPreference(LargeTelemetryTextPreferenceKey, false);
+        useHighContrastTelemetry = platform.GetPreference(HighContrastTelemetryPreferenceKey, false);
+        useCompactCharts = platform.GetPreference(CompactChartsPreferenceKey, false);
+        FunctionalThresholdPowerText = platform.GetPreference(FunctionalThresholdPowerPreferenceKey, string.Empty);
     }
 
-    public TelemetryInsight TorqueResponseInsight
-    {
-        get => torqueResponseInsight;
-        private set => this.RaiseAndSetIfChanged(ref torqueResponseInsight, value);
-    }
+    [Reactive]
+    public partial TelemetryInsight TorqueResponseInsight { get; private set; }
 
-    public TelemetryInsight PowerPacingInsight
-    {
-        get => powerPacingInsight;
-        private set => this.RaiseAndSetIfChanged(ref powerPacingInsight, value);
-    }
+    [Reactive]
+    public partial TelemetryInsight PowerPacingInsight { get; private set; }
 
-    public TelemetryInsight SpeedTrendInsight
-    {
-        get => speedTrendInsight;
-        private set => this.RaiseAndSetIfChanged(ref speedTrendInsight, value);
-    }
+    [Reactive]
+    public partial TelemetryInsight SpeedTrendInsight { get; private set; }
 
-    public TelemetryInsight CadenceConsistencyInsight
-    {
-        get => cadenceConsistencyInsight;
-        private set => this.RaiseAndSetIfChanged(ref cadenceConsistencyInsight, value);
-    }
+    [Reactive]
+    public partial TelemetryInsight CadenceConsistencyInsight { get; private set; }
 
-    public ReactiveCommand<bool, Unit> SetMetricUnitsCommand { get; }
+    [ReactiveCommand]
+    private void SetMetricUnits(bool value) => UseMetricUnits = value;
 
-    public ReactiveCommand<bool, Unit> SetLargeTelemetryTextCommand { get; }
+    [ReactiveCommand]
+    private void SetLargeTelemetryText(bool value) => UseLargeTelemetryText = value;
 
-    public ReactiveCommand<bool, Unit> SetHighContrastTelemetryCommand { get; }
+    [ReactiveCommand]
+    private void SetHighContrastTelemetry(bool value) => UseHighContrastTelemetry = value;
 
-    public ReactiveCommand<bool, Unit> SetCompactChartsCommand { get; }
+    [ReactiveCommand]
+    private void SetCompactCharts(bool value) => UseCompactCharts = value;
 
-    public ReactiveCommand<Unit, Unit> ApplyFunctionalThresholdPowerCommand { get; }
+    [Reactive]
+    public partial string FunctionalThresholdPowerText { get; set; }
 
-    public string FunctionalThresholdPowerText
-    {
-        get => functionalThresholdPowerText;
-        set => this.RaiseAndSetIfChanged(ref functionalThresholdPowerText, value);
-    }
+    [Reactive]
+    public partial string SessionWorkText { get; private set; } = "--";
 
-    public string SessionWorkText
-    {
-        get => sessionWorkText;
-        private set => this.RaiseAndSetIfChanged(ref sessionWorkText, value);
-    }
+    [Reactive]
+    public partial string NormalizedPowerText { get; private set; } = "--";
 
-    public string NormalizedPowerText
-    {
-        get => normalizedPowerText;
-        private set => this.RaiseAndSetIfChanged(ref normalizedPowerText, value);
-    }
+    [Reactive]
+    public partial string IntensityFactorText { get; private set; } = "--";
 
-    public string IntensityFactorText
-    {
-        get => intensityFactorText;
-        private set => this.RaiseAndSetIfChanged(ref intensityFactorText, value);
-    }
+    [Reactive]
+    public partial string TrainingStressScoreText { get; private set; } = "--";
 
-    public string TrainingStressScoreText
-    {
-        get => trainingStressScoreText;
-        private set => this.RaiseAndSetIfChanged(ref trainingStressScoreText, value);
-    }
+    [Reactive]
+    public partial string PeakPowerText { get; private set; } = "--";
 
-    public string PeakPowerText
-    {
-        get => peakPowerText;
-        private set => this.RaiseAndSetIfChanged(ref peakPowerText, value);
-    }
+    [Reactive]
+    public partial string SpeedText { get; private set; } = "-- km/h";
 
-    public string SpeedText
-    {
-        get => speedText;
-        private set => this.RaiseAndSetIfChanged(ref speedText, value);
-    }
+    [Reactive]
+    public partial string PowerText { get; private set; } = "-- W";
 
-    public string PowerText
-    {
-        get => powerText;
-        private set => this.RaiseAndSetIfChanged(ref powerText, value);
-    }
+    [Reactive]
+    public partial string CurrentPowerZoneText { get; private set; } = "Set FTP for zones";
 
-    public string CurrentPowerZoneText
-    {
-        get => currentPowerZoneText;
-        private set => this.RaiseAndSetIfChanged(ref currentPowerZoneText, value);
-    }
+    [Reactive]
+    public partial string CadenceText { get; private set; } = "-- rpm";
 
-    public string CadenceText
-    {
-        get => cadenceText;
-        private set => this.RaiseAndSetIfChanged(ref cadenceText, value);
-    }
+    [Reactive]
+    public partial string HealthText { get; private set; } = "Waiting for telemetry";
 
-    public string HealthText
-    {
-        get => healthText;
-        private set => this.RaiseAndSetIfChanged(ref healthText, value);
-    }
-
-    public bool IsStale
-    {
-        get => isStale;
-        private set => this.RaiseAndSetIfChanged(ref isStale, value);
-    }
+    [Reactive]
+    public partial bool IsStale { get; private set; }
 
     public bool UseMetricUnits
     {
@@ -189,7 +118,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             }
 
             this.RaiseAndSetIfChanged(ref useMetricUnits, value);
-            Preferences.Default.Set(MetricUnitsPreferenceKey, value);
+            platform.SetPreference(MetricUnitsPreferenceKey, value);
             RefreshPresentation();
         }
     }
@@ -205,7 +134,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             }
 
             this.RaiseAndSetIfChanged(ref useLargeTelemetryText, value);
-            Preferences.Default.Set(LargeTelemetryTextPreferenceKey, value);
+            platform.SetPreference(LargeTelemetryTextPreferenceKey, value);
             this.RaisePropertyChanged(nameof(TelemetryValueFontSize));
             this.RaisePropertyChanged(nameof(RideMetricCardHeight));
             this.RaisePropertyChanged(nameof(SessionMetricValueFontSize));
@@ -224,7 +153,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             }
 
             this.RaiseAndSetIfChanged(ref useHighContrastTelemetry, value);
-            Preferences.Default.Set(HighContrastTelemetryPreferenceKey, value);
+            platform.SetPreference(HighContrastTelemetryPreferenceKey, value);
             this.RaisePropertyChanged(nameof(PowerChartColor));
             this.RaisePropertyChanged(nameof(SpeedChartColor));
             this.RaisePropertyChanged(nameof(CadenceChartColor));
@@ -242,7 +171,7 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
             }
 
             this.RaiseAndSetIfChanged(ref useCompactCharts, value);
-            Preferences.Default.Set(CompactChartsPreferenceKey, value);
+            platform.SetPreference(CompactChartsPreferenceKey, value);
             this.RaisePropertyChanged(nameof(ShowChartSummaries));
         }
     }
@@ -267,83 +196,44 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         ? [ftp * 0.56d, ftp * 0.76d, ftp * 0.91d, ftp * 1.06d, ftp * 1.21d, ftp * 1.51d]
         : [];
 
-    public string PowerChartSummary
-    {
-        get => powerChartSummary;
-        private set => this.RaiseAndSetIfChanged(ref powerChartSummary, value);
-    }
+    [Reactive]
+    public partial string PowerChartSummary { get; private set; } = "No samples";
 
-    public string SpeedChartSummary
-    {
-        get => speedChartSummary;
-        private set => this.RaiseAndSetIfChanged(ref speedChartSummary, value);
-    }
+    [Reactive]
+    public partial string SpeedChartSummary { get; private set; } = "No samples";
 
-    public string CadenceChartSummary
-    {
-        get => cadenceChartSummary;
-        private set => this.RaiseAndSetIfChanged(ref cadenceChartSummary, value);
-    }
+    [Reactive]
+    public partial string CadenceChartSummary { get; private set; } = "No samples";
 
-    public string PowerCadenceSummary
-    {
-        get => powerCadenceSummary;
-        private set => this.RaiseAndSetIfChanged(ref powerCadenceSummary, value);
-    }
+    [Reactive]
+    public partial string PowerCadenceSummary { get; private set; } = "Waiting for paired samples";
 
-    public string SessionDistanceText
-    {
-        get => sessionDistanceText;
-        private set => this.RaiseAndSetIfChanged(ref sessionDistanceText, value);
-    }
+    [Reactive]
+    public partial string SessionDistanceText { get; private set; } = "--";
 
-    public string SessionElapsedTimeText
-    {
-        get => sessionElapsedTimeText;
-        private set => this.RaiseAndSetIfChanged(ref sessionElapsedTimeText, value);
-    }
+    [Reactive]
+    public partial string SessionElapsedTimeText { get; private set; } = "--:--:--";
 
-    public string SessionEnergyText
-    {
-        get => sessionEnergyText;
-        private set => this.RaiseAndSetIfChanged(ref sessionEnergyText, value);
-    }
+    [Reactive]
+    public partial string SessionEnergyText { get; private set; } = "--";
 
-    public string SessionAveragePowerText
-    {
-        get => sessionAveragePowerText;
-        private set => this.RaiseAndSetIfChanged(ref sessionAveragePowerText, value);
-    }
+    [Reactive]
+    public partial string SessionAveragePowerText { get; private set; } = "--";
 
-    public string SessionMaximumPowerText
-    {
-        get => sessionMaximumPowerText;
-        private set => this.RaiseAndSetIfChanged(ref sessionMaximumPowerText, value);
-    }
+    [Reactive]
+    public partial string SessionMaximumPowerText { get; private set; } = "--";
 
-    public IReadOnlyList<TelemetrySample> PowerChartSamples
-    {
-        get => powerChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref powerChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> PowerChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> SpeedChartSamples
-    {
-        get => speedChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref speedChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> SpeedChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> CadenceChartSamples
-    {
-        get => cadenceChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref cadenceChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> CadenceChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<PowerCadenceSample> PowerCadenceSamples
-    {
-        get => powerCadenceSamples;
-        private set => this.RaiseAndSetIfChanged(ref powerCadenceSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<PowerCadenceSample> PowerCadenceSamples { get; private set; } = [];
 
     public void Present(TelemetrySnapshot snapshot)
     {
@@ -576,15 +466,16 @@ public sealed class TelemetryPresentationViewModel : ReactiveObject
         PeakPowerText = "--";
     }
 
+    [ReactiveCommand]
     private void ApplyFunctionalThresholdPower()
     {
         if (ushort.TryParse(FunctionalThresholdPowerText, out var watts) && watts > 0)
         {
-            Preferences.Default.Set(FunctionalThresholdPowerPreferenceKey, FunctionalThresholdPowerText);
+            platform.SetPreference(FunctionalThresholdPowerPreferenceKey, FunctionalThresholdPowerText);
         }
         else
         {
-            Preferences.Default.Remove(FunctionalThresholdPowerPreferenceKey);
+            platform.RemovePreference(FunctionalThresholdPowerPreferenceKey);
         }
 
         this.RaisePropertyChanged(nameof(PowerZoneTransitionValues));

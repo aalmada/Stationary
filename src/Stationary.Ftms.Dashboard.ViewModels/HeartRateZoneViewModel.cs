@@ -1,21 +1,19 @@
+using Microsoft.Maui.Graphics;
+
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms.Dashboard.Core;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
-public sealed class HeartRateZoneViewModel : ReactiveObject
+public sealed partial class HeartRateZoneViewModel : ReactiveObject
 {
-    private string rangeText;
-    private string timeInZoneText = "00:00:00";
-    private string percentageText = "0%";
-    private bool isCurrent;
-
     public HeartRateZoneViewModel(HeartRateZone zone)
     {
         Code = zone.Code;
         Name = zone.Name;
-        rangeText = GetRangeText(zone);
+        RangeText = GetRangeText(zone);
         ZoneColor = GetZoneColor(zone.Code);
     }
 
@@ -23,31 +21,19 @@ public sealed class HeartRateZoneViewModel : ReactiveObject
 
     public string Name { get; }
 
-    public string RangeText
-    {
-        get => rangeText;
-        private set => this.RaiseAndSetIfChanged(ref rangeText, value);
-    }
+    [Reactive]
+    public partial string RangeText { get; private set; }
 
-    public string TimeInZoneText
-    {
-        get => timeInZoneText;
-        private set => this.RaiseAndSetIfChanged(ref timeInZoneText, value);
-    }
+    [Reactive]
+    public partial string TimeInZoneText { get; private set; } = "00:00:00";
 
-    public string PercentageText
-    {
-        get => percentageText;
-        private set => this.RaiseAndSetIfChanged(ref percentageText, value);
-    }
+    [Reactive]
+    public partial string PercentageText { get; private set; } = "0%";
 
     public Color ZoneColor { get; }
 
-    public bool IsCurrent
-    {
-        get => isCurrent;
-        private set => this.RaiseAndSetIfChanged(ref isCurrent, value);
-    }
+    [Reactive]
+    public partial bool IsCurrent { get; private set; }
 
     internal void Update(HeartRateZoneDuration duration, TimeSpan totalDuration, bool current)
     {

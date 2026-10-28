@@ -6,10 +6,12 @@
       "src/Stationary.Ftms/Stationary.Ftms.csproj",
       "src/Stationary.Ftms.Client/Stationary.Ftms.Client.csproj",
       "src/Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj",
+      "src/Stationary.Ftms.Dashboard.ViewModels/Stationary.Ftms.Dashboard.ViewModels.csproj",
       "src/Stationary.HeartRate/Stationary.HeartRate.csproj",
       "tests/Stationary.Ftms.Tests/Stationary.Ftms.Tests.csproj",
       "tests/Stationary.Ftms.Client.Tests/Stationary.Ftms.Client.Tests.csproj",
       "tests/Stationary.Ftms.Dashboard.Core.Tests/Stationary.Ftms.Dashboard.Core.Tests.csproj",
+      "tests/Stationary.Ftms.Dashboard.ViewModels.Tests/Stationary.Ftms.Dashboard.ViewModels.Tests.csproj",
       "tests/Stationary.HeartRate.Tests/Stationary.HeartRate.Tests.csproj",
       "benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj"
     ]

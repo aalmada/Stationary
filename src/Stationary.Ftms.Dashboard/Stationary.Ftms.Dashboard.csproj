@@ -16,10 +16,10 @@
     <ProjectReference Include="../Stationary.Ble/Stationary.Ble.csproj" />
     <ProjectReference Include="../Stationary.Ftms.Client/Stationary.Ftms.Client.csproj" />
     <ProjectReference Include="../Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />
+    <ProjectReference Include="../Stationary.Ftms.Dashboard.ViewModels/Stationary.Ftms.Dashboard.ViewModels.csproj" />
     <ProjectReference Include="../Stationary.HeartRate/Stationary.HeartRate.csproj" />
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="Plugin.BLE" />
     <PackageReference Include="ReactiveUI" />
-    <PackageReference Include="ReactiveUI.Maui" />
   </ItemGroup>
 </Project>

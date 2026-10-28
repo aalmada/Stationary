@@ -3,39 +3,34 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
+using Microsoft.Maui.Graphics;
+
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms.Dashboard.Core;
+using Stationary.Ftms.Dashboard.Services;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
-public sealed class HeartRatePresentationViewModel : ReactiveObject, IDisposable
+public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDisposable
 {
     private const string LactateThresholdPreferenceKey = "HeartRateCyclingLactateThreshold";
     private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
+    private readonly IDashboardPlatform platform;
     private readonly ISubject<HeartRateObservation> chartObservations = Subject.Synchronize(new Subject<HeartRateObservation>());
     private readonly SerialDisposable chartRegionSubscription = new();
     private TelemetryHistory chartHistory = new(ChartWindow);
     private HeartRateZoneProfile? zoneProfile;
     private HeartRateSessionAnalytics? sessionAnalytics;
     private HeartRateObservation? latestObservation;
-    private string lactateThresholdText = Preferences.Default.Get(LactateThresholdPreferenceKey, string.Empty);
-    private string currentHeartRateText = "-- bpm";
-    private string currentZoneText = "Set cycling LTHR";
-    private string currentZoneRangeText = "Zones need your bike threshold.";
-    private string healthText = "No external heart-rate sensor connected";
-    private string chartSummary = "No samples";
-    private string sessionAverageText = "-- bpm";
-    private string sessionMaximumText = "-- bpm";
-    private bool isStale;
     private bool isSessionPaused;
-    private IReadOnlyList<TelemetrySample> chartSamples = [];
-    private IReadOnlyList<TransitionRegion<Color>> chartBackgroundRegions = [];
-    private IReadOnlyList<double> zoneTransitionValues = [];
 
-    public HeartRatePresentationViewModel()
+    public HeartRatePresentationViewModel(IDashboardPlatform platform)
     {
+        this.platform = platform;
+        LactateThresholdText = platform.GetPreference(LactateThresholdPreferenceKey, string.Empty);
         ZoneDurations = [];
         if (TryCreateCyclingLactateThresholdProfile(LactateThresholdText, out var profile))
         {
@@ -45,79 +40,43 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject, IDisposable
 
     public ObservableCollection<HeartRateZoneViewModel> ZoneDurations { get; }
 
-    public string LactateThresholdText
-    {
-        get => lactateThresholdText;
-        set => this.RaiseAndSetIfChanged(ref lactateThresholdText, value);
-    }
+    [Reactive]
+    public partial string LactateThresholdText { get; set; }
 
-    public string CurrentHeartRateText
-    {
-        get => currentHeartRateText;
-        private set => this.RaiseAndSetIfChanged(ref currentHeartRateText, value);
-    }
+    [Reactive]
+    public partial string CurrentHeartRateText { get; private set; } = "-- bpm";
 
-    public string CurrentZoneText
-    {
-        get => currentZoneText;
-        private set => this.RaiseAndSetIfChanged(ref currentZoneText, value);
-    }
+    [Reactive]
+    public partial string CurrentZoneText { get; private set; } = "Set cycling LTHR";
 
-    public string CurrentZoneRangeText
-    {
-        get => currentZoneRangeText;
-        private set => this.RaiseAndSetIfChanged(ref currentZoneRangeText, value);
-    }
+    [Reactive]
+    public partial string CurrentZoneRangeText { get; private set; } = "Zones need your bike threshold.";
 
-    public string HealthText
-    {
-        get => healthText;
-        private set => this.RaiseAndSetIfChanged(ref healthText, value);
-    }
+    [Reactive]
+    public partial string HealthText { get; private set; } = "No external heart-rate sensor connected";
 
-    public string ChartSummary
-    {
-        get => chartSummary;
-        private set => this.RaiseAndSetIfChanged(ref chartSummary, value);
-    }
+    [Reactive]
+    public partial string ChartSummary { get; private set; } = "No samples";
 
-    public string SessionAverageText
-    {
-        get => sessionAverageText;
-        private set => this.RaiseAndSetIfChanged(ref sessionAverageText, value);
-    }
+    [Reactive]
+    public partial string SessionAverageText { get; private set; } = "-- bpm";
 
-    public string SessionMaximumText
-    {
-        get => sessionMaximumText;
-        private set => this.RaiseAndSetIfChanged(ref sessionMaximumText, value);
-    }
+    [Reactive]
+    public partial string SessionMaximumText { get; private set; } = "-- bpm";
 
-    public bool IsStale
-    {
-        get => isStale;
-        private set => this.RaiseAndSetIfChanged(ref isStale, value);
-    }
+    [Reactive]
+    public partial bool IsStale { get; private set; }
 
     public bool IsZoneProfileConfigured => zoneProfile is not null;
 
-    public IReadOnlyList<TelemetrySample> ChartSamples
-    {
-        get => chartSamples;
-        private set => this.RaiseAndSetIfChanged(ref chartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> ChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TransitionRegion<Color>> ChartBackgroundRegions
-    {
-        get => chartBackgroundRegions;
-        private set => this.RaiseAndSetIfChanged(ref chartBackgroundRegions, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TransitionRegion<Color>> ChartBackgroundRegions { get; private set; } = [];
 
-    public IReadOnlyList<double> ZoneTransitionValues
-    {
-        get => zoneTransitionValues;
-        private set => this.RaiseAndSetIfChanged(ref zoneTransitionValues, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<double> ZoneTransitionValues { get; private set; } = [];
 
     public Color ChartColor => Color.FromArgb("B42318");
 
@@ -252,7 +211,7 @@ public sealed class HeartRatePresentationViewModel : ReactiveObject, IDisposable
 
         if (persist)
         {
-            Preferences.Default.Set(LactateThresholdPreferenceKey, LactateThresholdText);
+            platform.SetPreference(LactateThresholdPreferenceKey, LactateThresholdText);
         }
 
         this.RaisePropertyChanged(nameof(IsZoneProfileConfigured));

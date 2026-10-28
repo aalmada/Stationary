@@ -6,11 +6,11 @@
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
-    <PackageVersion Include="Microsoft.Maui.Controls.Compatibility" Version="11.0.0-preview.5.26304.4" />
+    <PackageVersion Include="Microsoft.Maui.Graphics" Version="11.0.0-rc.2.26505.5" />
     <PackageVersion Include="Plugin.BLE" Version="3.2.1" />
-    <PackageVersion Include="ReactiveUI" Version="19.6.12" />
-    <PackageVersion Include="ReactiveUI.Maui" Version="19.6.12" />
-    <PackageVersion Include="System.Reactive" Version="6.0.0" />
+    <PackageVersion Include="ReactiveUI" Version="20.4.1" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.1" />
+    <PackageVersion Include="System.Reactive" Version="7.0.0" />
     <PackageVersion Include="TUnit" Version="1.66.16" />
   </ItemGroup>
 </Project>

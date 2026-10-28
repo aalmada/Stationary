@@ -7,21 +7,21 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
-public sealed class TargetControlViewModel : ReactiveObject, IDisposable
+public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
 {
     private static readonly TimeSpan AutoApplyDelay = TimeSpan.FromMilliseconds(250);
 
     private readonly Func<double, CancellationToken, Task<bool>> applyAsync;
     private readonly ISubject<AutoApplyRequest>? autoApplyRequests;
     private readonly IScheduler autoApplyScheduler;
-    private readonly ObservableAsPropertyHelper<bool> canApply;
+    private readonly IObservable<bool> canApply;
     private readonly CompositeDisposable disposables = [];
-    private readonly ObservableAsPropertyHelper<bool> isApplying;
     private readonly string valueFormat;
     private double value;
     private long valueRevision;
@@ -39,22 +39,13 @@ public sealed class TargetControlViewModel : ReactiveObject, IDisposable
         value = minimum;
         FromRawValue = fromRawValue;
         this.applyAsync = applyAsync;
+        this.canApply = canApply;
         AutomaticallyAppliesValue = autoApplyOnValueChange;
         this.autoApplyScheduler = autoApplyScheduler ?? RxApp.TaskpoolScheduler;
-        ApplyCommand = ReactiveCommand.CreateFromTask<object?>(ApplyAsync, canApply);
-        this.canApply = canApply
+        _canApplyHelper = canApply
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.CanApply);
-        DecreaseCommand = ReactiveCommand.Create(() =>
-        {
-            Value -= Increment;
-        }, canApply);
-        IncreaseCommand = ReactiveCommand.Create(() =>
-        {
-            Value += Increment;
-        }, canApply);
-        ApplyPresetCommand = ReactiveCommand.Create<double>(preset => Value = preset, canApply);
-        isApplying = ApplyCommand.IsExecuting
+        _isApplyingHelper = ApplyCommand.IsExecuting
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsApplying);
         if (AutomaticallyAppliesValue)
@@ -90,7 +81,8 @@ public sealed class TargetControlViewModel : ReactiveObject, IDisposable
 
     public bool RequiresExplicitApply => !AutomaticallyAppliesValue;
 
-    public bool CanApply => canApply.Value;
+    [ObservableAsProperty]
+    public partial bool CanApply { get; }
 
     public double Value
     {
@@ -121,15 +113,17 @@ public sealed class TargetControlViewModel : ReactiveObject, IDisposable
         }
     }
 
-    public ReactiveCommand<object?, Unit> ApplyCommand { get; }
+    [ReactiveCommand(CanExecute = nameof(canApply))]
+    private void Decrease() => Value -= Increment;
 
-    public ReactiveCommand<Unit, Unit> DecreaseCommand { get; }
+    [ReactiveCommand(CanExecute = nameof(canApply))]
+    private void Increase() => Value += Increment;
 
-    public ReactiveCommand<Unit, Unit> IncreaseCommand { get; }
+    [ReactiveCommand(CanExecute = nameof(canApply))]
+    private void ApplyPreset(double preset) => Value = preset;
 
-    public ReactiveCommand<double, Unit> ApplyPresetCommand { get; } = null!;
-
-    public bool IsApplying => isApplying.Value;
+    [ObservableAsProperty]
+    public partial bool IsApplying { get; }
 
     public IReadOnlyList<double> Presets => [.. new double[]
     {
@@ -164,11 +158,11 @@ public sealed class TargetControlViewModel : ReactiveObject, IDisposable
     {
         disposables.Dispose();
         ApplyCommand.Dispose();
-        canApply.Dispose();
+        _canApplyHelper.Dispose();
         DecreaseCommand.Dispose();
         IncreaseCommand.Dispose();
         ApplyPresetCommand.Dispose();
-        isApplying.Dispose();
+        _isApplyingHelper.Dispose();
     }
 
     private void SetValue(double requestedValue, bool requestAutoApply, bool invalidatePendingAutoApply = false, TargetValueState? newValueState = null)
@@ -206,6 +200,7 @@ public sealed class TargetControlViewModel : ReactiveObject, IDisposable
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(canApply))]
     private async Task ApplyAsync(object? requestedValue, CancellationToken cancellationToken)
     {
         var valueToApply = requestedValue is double value ? value : Value;

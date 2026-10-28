@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms.Dashboard.Core;
 
@@ -18,17 +19,23 @@ public enum TrainingBrowseMode
     Assessment,
 }
 
-public sealed class TrainingViewModel : ReactiveObject, IDisposable
+public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 {
     private const int CardBatchSize = 5;
     private readonly DashboardViewModel dashboard;
     private readonly CompositeDisposable disposables = [];
+    private readonly IObservable<bool> canPause;
+    private readonly IObservable<bool> canSelect;
+    private readonly IObservable<bool> canStart;
+    private readonly IObservable<bool> canStartRampTest;
+    private readonly IObservable<bool> canResume;
+    private readonly IObservable<bool> canRetry;
+    private readonly IObservable<bool> canEnd;
+    private readonly IObservable<bool> canFinishRampTest;
+    private readonly IObservable<bool> canAcceptRampEstimate;
     private IReadOnlyDictionary<string, TrainingWorkout> workoutsById = new Dictionary<string, TrainingWorkout>(StringComparer.Ordinal);
     private readonly ObservableCollection<TrainingWorkout> workouts = [];
     private readonly ObservableCollection<TrainingPlan> visiblePlans = [];
-    private IReadOnlyList<TrainingPlan> plans = [];
-    private TrainingWorkout? selectedWorkout;
-    private TrainingPlan? selectedPlan;
     private TrainingPlanWeek? selectedPlanWeek;
     private TrainingWorkoutRunner? runner;
     private CompiledTrainingWorkout? activeWorkout;
@@ -38,7 +45,6 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     private TrainingPowerCapabilities rampCapabilities;
     private DateTimeOffset? rampStartedAt;
     private DateTimeOffset? segmentStartedAt;
-    private RampFtpEstimate? rampEstimate;
     private bool isRampTest;
     private bool isPausePending;
     private bool isEnding;
@@ -48,42 +54,28 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
     private long sessionGeneration;
     private Task<bool>? sessionStartTask;
     private TrainingBrowseMode browseMode = TrainingBrowseMode.Workouts;
-    private string statusText = "Choose a workout.";
-    private string adherenceText = "Precision score appears after a work interval.";
-    private int currentTargetWatts;
     private bool isCatalogLoading = true;
     private bool hasPublishedPlans;
-    private bool isStarting;
 
     public TrainingViewModel(DashboardViewModel dashboard)
     {
         this.dashboard = dashboard;
         Workouts = new ReadOnlyObservableCollection<TrainingWorkout>(workouts);
         VisiblePlans = new ReadOnlyObservableCollection<TrainingPlan>(visiblePlans);
-        LoadCatalogCommand = ReactiveCommand.CreateFromTask(LoadCatalogAsync);
-        SelectWorkoutCommand = ReactiveCommand.Create<TrainingWorkout>(SelectWorkout, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
-        SelectPlanCommand = ReactiveCommand.Create<TrainingPlan>(SelectPlan, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
-        SelectPlanWeekCommand = ReactiveCommand.Create<TrainingPlanWeek>(SelectPlanWeek, this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active));
-        ShowWorkoutsCommand = ReactiveCommand.Create(() => SetBrowseMode(TrainingBrowseMode.Workouts));
-        ShowPlansCommand = ReactiveCommand.CreateFromTask(ShowPlansAsync);
-        ShowAssessmentCommand = ReactiveCommand.Create(() => SetBrowseMode(TrainingBrowseMode.Assessment));
-        ShowHomeCommand = ReactiveCommand.Create(() => dashboard.RequestNavigation(DashboardDestination.Today));
+        canSelect = this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active);
         var hasPowerTarget = dashboard.WhenAnyValue(
                 viewModel => viewModel.IsConnected,
                 viewModel => viewModel.PowerTargetControl,
                 static (connected, power) => connected && power is not null);
         var hasFunctionalThresholdPower = dashboard.WhenAnyValue(viewModel => viewModel.Telemetry.FunctionalThresholdPowerText)
             .Select(static text => ushort.TryParse(text, out var watts) && watts > 0);
-        var isIdle = this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active);
-        StartCommand = ReactiveCommand.CreateFromTask(
-            StartAsync,
-            Observable.CombineLatest(
+        canStart = Observable.CombineLatest(
                     this.WhenAnyValue(viewModel => viewModel.SelectedWorkout).Select(static workout => workout is not null),
                     hasPowerTarget,
                     hasFunctionalThresholdPower,
-                    isIdle,
+                    canSelect,
                     static (selected, power, ftp, idle) => selected && power && ftp && idle)
-                .ObserveOn(RxApp.MainThreadScheduler));
+                .ObserveOn(RxApp.MainThreadScheduler);
         disposables.Add(StartCommand.IsExecuting
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(value => IsStarting = value));
@@ -92,18 +84,16 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
             .Subscribe(exception => StatusText = exception is OperationCanceledException
                 ? "Starting training was cancelled."
                 : $"Training could not start: {exception.Message}"));
-        StartRampTestCommand = ReactiveCommand.CreateFromTask(
-            StartRampTestAsync,
-            Observable.CombineLatest(hasPowerTarget, isIdle, static (power, idle) => power && idle).ObserveOn(RxApp.MainThreadScheduler));
+        canStartRampTest = Observable.CombineLatest(hasPowerTarget, canSelect, static (power, idle) => power && idle).ObserveOn(RxApp.MainThreadScheduler);
         disposables.Add(StartRampTestCommand.ThrownExceptions
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(exception => StatusText = $"The ramp test could not start: {exception.Message}"));
-        PauseCommand = ReactiveCommand.CreateFromTask(PauseAsync, this.WhenAnyValue(viewModel => viewModel.CanPause));
-        ResumeCommand = ReactiveCommand.CreateFromTask(ResumeAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.Paused));
-        RetryCommand = ReactiveCommand.CreateFromTask(RetryAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.TargetFailed));
-        EndCommand = ReactiveCommand.CreateFromTask(EndAsync, this.WhenAnyValue(viewModel => viewModel.CanEnd));
-        FinishRampTestCommand = ReactiveCommand.CreateFromTask(FinishRampTestAsync, this.WhenAnyValue(viewModel => viewModel.CanFinishRampTest));
-        AcceptRampEstimateCommand = ReactiveCommand.CreateFromTask(AcceptRampEstimateAsync, this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(static estimate => estimate is RampFtpEstimateReady));
+        canPause = this.WhenAnyValue(viewModel => viewModel.CanPause);
+        canResume = this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.Paused);
+        canRetry = this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.TargetFailed);
+        canEnd = this.WhenAnyValue(viewModel => viewModel.CanEnd);
+        canFinishRampTest = this.WhenAnyValue(viewModel => viewModel.CanFinishRampTest);
+        canAcceptRampEstimate = this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(static estimate => estimate is RampFtpEstimateReady);
         disposables.Add(Observable.Merge(
             PauseCommand.ThrownExceptions,
             ResumeCommand.ThrownExceptions,
@@ -136,11 +126,8 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public DashboardViewModel Dashboard => dashboard;
 
-    public IReadOnlyList<TrainingPlan> Plans
-    {
-        get => plans;
-        private set => this.RaiseAndSetIfChanged(ref plans, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TrainingPlan> Plans { get; private set; } = [];
 
     public ReadOnlyObservableCollection<TrainingPlan> VisiblePlans { get; }
 
@@ -159,11 +146,8 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public bool IsCatalogLoaded => !IsCatalogLoading && Workouts.Count > 0;
 
-    public bool IsStarting
-    {
-        get => isStarting;
-        private set => this.RaiseAndSetIfChanged(ref isStarting, value);
-    }
+    [Reactive]
+    public partial bool IsStarting { get; private set; }
 
     public TrainingBrowseMode BrowseMode
     {
@@ -181,17 +165,11 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public string AssessmentTabAccessibleName => IsAssessmentView ? "Assessment, selected" : "Assessment";
 
-    public TrainingWorkout? SelectedWorkout
-    {
-        get => selectedWorkout;
-        set => this.RaiseAndSetIfChanged(ref selectedWorkout, value);
-    }
+    [Reactive]
+    public partial TrainingWorkout? SelectedWorkout { get; set; }
 
-    public TrainingPlan? SelectedPlan
-    {
-        get => selectedPlan;
-        private set => this.RaiseAndSetIfChanged(ref selectedPlan, value);
-    }
+    [Reactive]
+    public partial TrainingPlan? SelectedPlan { get; private set; }
 
     public TrainingPlanWeek? SelectedPlanWeek
     {
@@ -269,11 +247,8 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public bool IsRampTest => isRampTest;
 
-    public RampFtpEstimate? RampEstimate
-    {
-        get => rampEstimate;
-        private set => this.RaiseAndSetIfChanged(ref rampEstimate, value);
-    }
+    [Reactive]
+    public partial RampFtpEstimate? RampEstimate { get; private set; }
 
     public string RampEstimateText => RampEstimate switch
     {
@@ -283,17 +258,11 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         null => "",
     };
 
-    public string StatusText
-    {
-        get => statusText;
-        private set => this.RaiseAndSetIfChanged(ref statusText, value);
-    }
+    [Reactive]
+    public partial string StatusText { get; private set; } = "Choose a workout.";
 
-    public string AdherenceText
-    {
-        get => adherenceText;
-        private set => this.RaiseAndSetIfChanged(ref adherenceText, value);
-    }
+    [Reactive]
+    public partial string AdherenceText { get; private set; } = "Precision score appears after a work interval.";
 
     public string CurrentSegmentText => runner?.CurrentSegment is { } segment
         ? $"{segment.Definition.Name}: {segment.TargetWatts} W"
@@ -309,43 +278,8 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         ? FormatRemainingTime(remaining)
         : "--:--";
 
-    public int CurrentTargetWatts
-    {
-        get => currentTargetWatts;
-        private set => this.RaiseAndSetIfChanged(ref currentTargetWatts, value);
-    }
-
-    public ReactiveCommand<TrainingWorkout, Unit> SelectWorkoutCommand { get; }
-
-    public ReactiveCommand<TrainingPlan, Unit> SelectPlanCommand { get; }
-
-    public ReactiveCommand<TrainingPlanWeek, Unit> SelectPlanWeekCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> LoadCatalogCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowWorkoutsCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowPlansCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowAssessmentCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowHomeCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> StartCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> StartRampTestCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> PauseCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ResumeCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> RetryCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> EndCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> FinishRampTestCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> AcceptRampEstimateCommand { get; }
+    [Reactive]
+    public partial int CurrentTargetWatts { get; private set; }
 
     public void Dispose()
     {
@@ -368,6 +302,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         AcceptRampEstimateCommand.Dispose();
     }
 
+    [ReactiveCommand]
     private async Task LoadCatalogAsync(CancellationToken cancellationToken)
     {
         var catalog = await TrainingCatalog.LoadAsync(cancellationToken);
@@ -397,6 +332,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         IsCatalogLoading = false;
     }
 
+    [ReactiveCommand(CanExecute = nameof(canStart))]
     private async Task StartAsync(CancellationToken cancellationToken)
     {
         var workout = SelectedWorkout;
@@ -432,11 +368,21 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(canSelect))]
     private void SelectWorkout(TrainingWorkout workout)
     {
         SelectedWorkout = workout;
         StatusText = $"{workout.Name} selected.";
     }
+
+    [ReactiveCommand]
+    private void ShowWorkouts() => SetBrowseMode(TrainingBrowseMode.Workouts);
+
+    [ReactiveCommand]
+    private void ShowAssessment() => SetBrowseMode(TrainingBrowseMode.Assessment);
+
+    [ReactiveCommand]
+    private void ShowHome() => dashboard.RequestNavigation(DashboardDestination.Today);
 
     private void SetBrowseMode(TrainingBrowseMode mode)
     {
@@ -455,6 +401,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(VisiblePlanWorkouts));
     }
 
+    [ReactiveCommand]
     private async Task ShowPlansAsync(CancellationToken cancellationToken)
     {
         SetBrowseMode(TrainingBrowseMode.Plans);
@@ -486,6 +433,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         hasPublishedPlans = true;
     }
 
+    [ReactiveCommand(CanExecute = nameof(canSelect))]
     private void SelectPlan(TrainingPlan plan)
     {
         SelectedPlan = plan;
@@ -493,6 +441,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         StatusText = $"{plan.Name} selected. Choose a week, then one of its workouts.";
     }
 
+    [ReactiveCommand(CanExecute = nameof(canSelect))]
     private void SelectPlanWeek(TrainingPlanWeek week)
     {
         if (SelectedPlan is null || !SelectedPlan.Weeks.Contains(week))
@@ -504,6 +453,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         StatusText = $"Week {week.Number}: {week.Focus}";
     }
 
+    [ReactiveCommand(CanExecute = nameof(canStartRampTest))]
     private async Task StartRampTestAsync(CancellationToken cancellationToken)
     {
         if (!dashboard.TryGetTrainingPowerCapabilities(out rampCapabilities))
@@ -518,6 +468,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         await BeginAsync(RampFtpProtocol.Create(rampCapabilities), cancellationToken);
     }
 
+    [ReactiveCommand(CanExecute = nameof(canPause))]
     private async Task PauseAsync(CancellationToken cancellationToken)
     {
         if (isPausePending || runner?.State != TrainingWorkoutState.Running)
@@ -545,6 +496,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(canResume))]
     private async Task ResumeAsync(CancellationToken cancellationToken)
     {
         if (!await dashboard.StartTrainingSessionAsync(cancellationToken))
@@ -558,6 +510,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         NotifyRunnerChanged();
     }
 
+    [ReactiveCommand(CanExecute = nameof(canRetry))]
     private async Task RetryAsync(CancellationToken cancellationToken)
     {
         var generation = sessionGeneration;
@@ -581,6 +534,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         await ApplyCurrentTargetAsync(cancellationToken, generation);
     }
 
+    [ReactiveCommand(CanExecute = nameof(canEnd))]
     private async Task EndAsync(CancellationToken cancellationToken)
     {
         if (isEnding)
@@ -641,11 +595,13 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         dashboard.RequestNavigation(hadStarted ? DashboardDestination.Results : DashboardDestination.Today);
     }
 
+    [ReactiveCommand(CanExecute = nameof(canFinishRampTest))]
     private async Task FinishRampTestAsync(CancellationToken cancellationToken)
     {
         await FinalizeRampTestAsync(cancellationToken, allStepsExhausted: false);
     }
 
+    [ReactiveCommand(CanExecute = nameof(canAcceptRampEstimate))]
     private async Task AcceptRampEstimateAsync(CancellationToken cancellationToken)
     {
         if (RampEstimate is not RampFtpEstimateReady estimate)

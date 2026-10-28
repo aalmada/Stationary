@@ -10,6 +10,7 @@ using System.Reactive.Subjects;
 using System.Text.Json;
 
 using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 using Stationary.Ftms;
 using Stationary.Ftms.Dashboard.Core;
@@ -34,7 +35,7 @@ public enum RideSessionMode
     StructuredTraining,
 }
 
-public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
+public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposable
 {
     private const byte StopControlInformation = 0x01;
     private const byte PauseControlInformation = 0x02;
@@ -46,18 +47,25 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private readonly IFtmsDiscoveryService discoveryService;
     private readonly IHeartRateDiscoveryService heartRateDiscoveryService;
     private readonly IScheduler timerScheduler;
-    private readonly ObservableAsPropertyHelper<bool> isBusy;
-    private readonly ObservableAsPropertyHelper<string> operationStatus;
-    private readonly ObservableAsPropertyHelper<string> statusText;
-    private readonly ObservableAsPropertyHelper<bool> canInitiateOperation;
-    private readonly ObservableAsPropertyHelper<bool> isControlOperationExecuting;
-    private readonly ObservableAsPropertyHelper<bool> isWorking;
-    private readonly ReactiveCommand<Unit, PreviousSessionLoadResult> loadPreviousSessionCommand;
+    private readonly IDashboardPlatform platform;
+    private readonly IObservable<bool> canScan;
+    private readonly IObservable<bool> canConnect;
+    private readonly IObservable<bool> canHeartRateConnect;
+    private readonly IObservable<bool> canDisconnect;
+    private readonly IObservable<bool> canHeartRateDisconnect;
+    private readonly IObservable<bool> canResetSession;
+    private readonly IObservable<bool> canRequestControl;
+    private readonly IObservable<bool> canStart;
+    private readonly IObservable<bool> canStop;
+    private readonly IObservable<bool> canAddLap;
+    private readonly IObservable<bool> canStartFreeRide;
+    private readonly IObservable<bool> canEndFreeRide;
     private readonly SerialDisposable sessionSubscriptions = new();
     private readonly SerialDisposable scanSubscriptions = new();
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly ISubject<SessionTelemetry> telemetryIngress = Subject.Synchronize(new Subject<SessionTelemetry>());
     private readonly IObservable<TelemetrySnapshot> currentSessionTelemetry;
+    private readonly IObservable<bool> canApplyTarget;
     private readonly ISubject<Unit> telemetrySessionReset = Subject.Synchronize(new Subject<Unit>());
     private readonly ISubject<SessionTermination> sessionTerminationIngress = Subject.Synchronize(new Subject<SessionTermination>());
     private readonly SerialDisposable heartRateSessionSubscriptions = new();
@@ -68,27 +76,9 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private readonly ISubject<HeartRateSessionTermination> heartRateSessionTerminationIngress = Subject.Synchronize(new Subject<HeartRateSessionTermination>());
     private readonly ISubject<DashboardDestination> navigationRequests = Subject.Synchronize(new Subject<DashboardDestination>());
     private readonly ISubject<Unit> sheetDismissRequests = Subject.Synchronize(new Subject<Unit>());
-    private readonly ObservableAsPropertyHelper<string> machineChipText;
-    private readonly ObservableAsPropertyHelper<string> machineChipDetail;
-    private readonly ObservableAsPropertyHelper<string> heartRateChipText;
-    private readonly ObservableAsPropertyHelper<string> heartRateChipDetail;
-    private readonly ObservableAsPropertyHelper<string> ftpChipText;
-    private readonly ObservableAsPropertyHelper<bool> isFtpSet;
-    private readonly ObservableAsPropertyHelper<bool> isWorkoutReady;
-    private readonly ObservableAsPropertyHelper<string> workoutReadinessText;
-    private readonly ObservableAsPropertyHelper<bool> isRideInProgress;
     private readonly CompositeDisposable subscriptions = [];
     private readonly Queue<RecordedTelemetrySample> recordedSamples = [];
-    private string? machineName;
-    private string connectionStatus = "No fitness machine connected";
-    private string heartRateConnectionStatus = "No external heart-rate sensor connected";
-    private string controlStatus = "Connect a fitness machine to inspect FTMS controls.";
-    private string physicalControlSynchronizationStatus = "Physical controls cannot be synchronized until a fitness machine is connected.";
     private PhysicalControlSynchronizationState physicalControlSynchronizationState;
-    private FtmsDiscoveredDevice? selectedDevice;
-    private HeartRateDiscoveredDevice? selectedHeartRateDevice;
-    private bool isDevicePickerVisible;
-    private bool isHeartRateDevicePickerVisible;
     private bool isConnected;
     private bool isHeartRateConnected;
     private bool isControllable;
@@ -96,13 +86,6 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private bool isWorkoutActive;
     private WorkoutSessionState workoutSessionState;
     private bool isSessionRecording;
-    private bool supportsTargetInclination;
-    private bool supportsTargetPower;
-    private bool supportsTargetResistance;
-    private bool supportsWorkoutGoals;
-    private string targetInclinationText = "0.0";
-    private string targetPowerText = "100";
-    private string targetResistanceText = "1.0";
     private TargetControlViewModel? powerTargetControl;
     private IFtmsSession? session;
     private IHeartRateSession? heartRateSession;
@@ -114,33 +97,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private Task? scanConsumer;
     private CancellationTokenSource? heartRateScanCancellation;
     private Task? heartRateScanConsumer;
-    private bool isScanning;
-    private bool isHeartRateScanning;
-    private bool showUnavailableCapabilities;
-    private DateTimeOffset? chartTimeRangeStart;
-    private DateTimeOffset? chartTimeRangeEnd;
-    private DateTimeOffset? chartHoverTimestamp;
     private DateTimeOffset? chartSelectionStart;
     private DateTimeOffset? chartSelectionEnd;
-    private string selectedIntervalSummary = "Drag across a chart to inspect an interval.";
     private bool isCustomChartRange;
-    private IReadOnlyList<SessionEventMarker> sessionEvents = [];
-    private IReadOnlyList<TelemetrySample> previousPowerChartSamples = [];
-    private IReadOnlyList<TelemetrySample> previousSpeedChartSamples = [];
-    private IReadOnlyList<TelemetrySample> previousCadenceChartSamples = [];
-    private IReadOnlyList<TelemetrySample> previousHeartRateChartSamples = [];
     private int lapCount;
     private TelemetrySnapshot? latestRecordedTelemetry;
     private HeartRateObservation? latestRecordedHeartRate;
     private DateTimeOffset? lastRecordedAt;
     private RecordedSession? previousSession;
-    private string previousSessionComparisonText = "No previous session saved.";
     private DateTimeOffset? lastWorkoutAnalysisAt;
-    private string efficiencyText = "Gathering paired data";
-    private string decouplingText = "Requires 10 minutes";
-    private string cadenceAnalysisText = "Gathering cadence";
-    private string torqueExposureText = "--";
-    private string recoveryText = "Waiting for recovery";
     private int isDisposed;
 
     public enum WorkoutSessionState
@@ -158,16 +123,17 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         Synchronized,
     }
 
-    public DashboardViewModel(IFtmsDiscoveryService discoveryService, IHeartRateDiscoveryService heartRateDiscoveryService)
-        : this(discoveryService, heartRateDiscoveryService, RxApp.TaskpoolScheduler)
+    public DashboardViewModel(IFtmsDiscoveryService discoveryService, IHeartRateDiscoveryService heartRateDiscoveryService, IDashboardPlatform platform)
+        : this(discoveryService, heartRateDiscoveryService, platform, RxApp.TaskpoolScheduler)
     {
     }
 
-    internal DashboardViewModel(IFtmsDiscoveryService discoveryService, IHeartRateDiscoveryService heartRateDiscoveryService, IScheduler timerScheduler)
+    internal DashboardViewModel(IFtmsDiscoveryService discoveryService, IHeartRateDiscoveryService heartRateDiscoveryService, IDashboardPlatform platform, IScheduler timerScheduler)
     {
         this.discoveryService = discoveryService;
         this.heartRateDiscoveryService = heartRateDiscoveryService;
         this.timerScheduler = timerScheduler;
+        this.platform = platform;
         currentSessionTelemetry = telemetryIngress
             .Where(telemetry => ReferenceEquals(session, telemetry.Session))
             .Select(static telemetry => telemetry.Snapshot);
@@ -180,8 +146,8 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         LiveCapabilities = [];
         AvailableControlCapabilities = [];
         UnavailableCapabilities = [];
-        Telemetry = new();
-        HeartRate = new();
+        Telemetry = new(platform);
+        HeartRate = new(platform);
         Training = new(this);
         subscriptions.Add(Training.WhenAnyValue(viewModel => viewModel.IsActive)
             .ObserveOn(RxApp.MainThreadScheduler)
@@ -264,61 +230,41 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
                 UpdateChartTimeRange();
             }, HandleHeartRatePipelineError));
-        var canScan = this.WhenAnyValue(
+        canScan = this.WhenAnyValue(
                 viewModel => viewModel.IsScanning,
                 viewModel => viewModel.IsHeartRateScanning,
                 (scanning, heartRateScanning) => !scanning && !heartRateScanning)
             .ObserveOn(RxApp.MainThreadScheduler);
-        var canConnect = this.WhenAnyValue(
+        canConnect = this.WhenAnyValue(
                 viewModel => viewModel.SelectedDevice,
                 viewModel => viewModel.IsConnected,
                 viewModel => viewModel.IsHeartRateScanning,
                 (device, connected, heartRateScanning) => device is not null && !connected && !heartRateScanning)
             .ObserveOn(RxApp.MainThreadScheduler);
-        var canHeartRateConnect = this.WhenAnyValue(
+        canHeartRateConnect = this.WhenAnyValue(
                 viewModel => viewModel.SelectedHeartRateDevice,
                 viewModel => viewModel.IsHeartRateConnected,
                 viewModel => viewModel.IsScanning,
                 (device, connected, scanning) => device is not null && !connected && !scanning)
             .ObserveOn(RxApp.MainThreadScheduler);
-        var canDisconnect = this.WhenAnyValue(viewModel => viewModel.IsConnected).ObserveOn(RxApp.MainThreadScheduler);
-        var canHeartRateDisconnect = this.WhenAnyValue(viewModel => viewModel.IsHeartRateConnected).ObserveOn(RxApp.MainThreadScheduler);
-        var canResetSession = this.WhenAnyValue(viewModel => viewModel.IsConnected, viewModel => viewModel.IsHeartRateConnected, (fitnessMachineConnected, heartRateConnected) => fitnessMachineConnected || heartRateConnected).ObserveOn(RxApp.MainThreadScheduler);
-        var canRequestControl = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.HasControlPermission, (controllable, hasPermission) => controllable && !hasPermission).ObserveOn(RxApp.MainThreadScheduler);
-        var canStart = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && !active).ObserveOn(RxApp.MainThreadScheduler);
-        var canStop = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && active).ObserveOn(RxApp.MainThreadScheduler);
-        var canAddLap = this.WhenAnyValue(viewModel => viewModel.IsWorkoutActive).ObserveOn(RxApp.MainThreadScheduler);
-        var canApplyTarget = this.WhenAnyValue(viewModel => viewModel.IsControllable).ObserveOn(RxApp.MainThreadScheduler);
-        ScanCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(_ => ScanAsync(), cancellationToken), canScan);
-        ConnectCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(ConnectAsync, cancellationToken), canConnect);
-        DisconnectCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(_ => DisconnectAsync(), cancellationToken), canDisconnect);
-        ScanHeartRateCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(_ => ScanHeartRateAsync(), cancellationToken), canScan);
-        ConnectHeartRateCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(ConnectHeartRateAsync, cancellationToken), canHeartRateConnect);
-        DisconnectHeartRateCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(_ => DisconnectHeartRateAsync(), cancellationToken), canHeartRateDisconnect);
-        RequestControlCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(RequestControlAsync, cancellationToken), canRequestControl);
-        StartCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(StartWorkoutAsync, cancellationToken), canStart);
-        StopCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(PauseWorkoutAsync, cancellationToken), canStop);
-        var isFreeRideAvailable = this.WhenAnyValue(
+        canDisconnect = this.WhenAnyValue(viewModel => viewModel.IsConnected).ObserveOn(RxApp.MainThreadScheduler);
+        canHeartRateDisconnect = this.WhenAnyValue(viewModel => viewModel.IsHeartRateConnected).ObserveOn(RxApp.MainThreadScheduler);
+        canResetSession = this.WhenAnyValue(viewModel => viewModel.IsConnected, viewModel => viewModel.IsHeartRateConnected, (fitnessMachineConnected, heartRateConnected) => fitnessMachineConnected || heartRateConnected).ObserveOn(RxApp.MainThreadScheduler);
+        canRequestControl = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.HasControlPermission, (controllable, hasPermission) => controllable && !hasPermission).ObserveOn(RxApp.MainThreadScheduler);
+        canStart = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && !active).ObserveOn(RxApp.MainThreadScheduler);
+        canStop = this.WhenAnyValue(viewModel => viewModel.IsControllable, viewModel => viewModel.IsWorkoutActive, (controllable, active) => controllable && active).ObserveOn(RxApp.MainThreadScheduler);
+        canAddLap = this.WhenAnyValue(viewModel => viewModel.IsWorkoutActive).ObserveOn(RxApp.MainThreadScheduler);
+        canApplyTarget = this.WhenAnyValue(viewModel => viewModel.IsControllable).ObserveOn(RxApp.MainThreadScheduler);
+        canStartFreeRide = this.WhenAnyValue(
                 viewModel => viewModel.IsSessionAvailable,
                 viewModel => viewModel.Training.IsActive,
                 (available, training) => available && !training)
             .ObserveOn(RxApp.MainThreadScheduler);
-        StartFreeRideCommand = ReactiveCommand.CreateFromTask(StartFreeRideAsync, isFreeRideAvailable);
-        EndFreeRideCommand = ReactiveCommand.CreateFromTask(EndFreeRideAsync, this.WhenAnyValue(viewModel => viewModel.Training.IsActive).Select(static training => !training).ObserveOn(RxApp.MainThreadScheduler));
-        CloseSheetCommand = ReactiveCommand.Create(() => sheetDismissRequests.OnNext(Unit.Default));
-        AddLapCommand = ReactiveCommand.Create(AddLap, canAddLap);
-        ZoomToSelectionCommand = ReactiveCommand.Create(ZoomToSelection);
-        ResetChartZoomCommand = ReactiveCommand.Create(ResetChartZoom);
-        SetTargetInclinationCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetInclinationAsync, cancellationToken), canApplyTarget);
-        SetTargetPowerCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetPowerAsync, cancellationToken), canApplyTarget);
-        SetTargetResistanceCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetResistanceAsync, cancellationToken), canApplyTarget);
-        ResetSessionCommand = ReactiveCommand.Create(ResetSession, canResetSession);
-        ExportSessionCommand = ReactiveCommand.CreateFromTask(ExportSessionAsync, canResetSession);
-        loadPreviousSessionCommand = ReactiveCommand.CreateFromTask(LoadPreviousSessionAsync);
-        subscriptions.Add(loadPreviousSessionCommand
+        canEndFreeRide = this.WhenAnyValue(viewModel => viewModel.Training.IsActive).Select(static training => !training).ObserveOn(RxApp.MainThreadScheduler);
+        subscriptions.Add(LoadPreviousSessionCommand
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(ApplyPreviousSessionLoadResult));
-        subscriptions.Add(loadPreviousSessionCommand.ThrownExceptions
+        subscriptions.Add(LoadPreviousSessionCommand.ThrownExceptions
             .ObserveOn(RxApp.MainThreadScheduler)
             .Where(exception => exception is not OperationCanceledException)
             .Subscribe(exception =>
@@ -326,19 +272,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 PreviousSessionComparisonText = "Previous session data is unavailable.";
                 ConnectionStatus = $"Previous session data could not be loaded: {exception.Message}";
             }));
-        subscriptions.Add(loadPreviousSessionCommand.Execute().Subscribe());
-        ApplyHeartRateZonesCommand = ReactiveCommand.Create(ApplyHeartRateZones);
-        ShowTodayCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Today));
-        ShowRideCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Ride));
-        ShowTrainingCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Training));
-        ShowResultsCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Results));
-        ShowSettingsCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Settings));
-        ShowSensorsCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Sensors));
-        ShowHeartRateSensorCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.HeartRateSensor));
-        ToggleUnavailableCapabilitiesCommand = ReactiveCommand.Create(() =>
-        {
-            ShowUnavailableCapabilities = !ShowUnavailableCapabilities;
-        });
+        subscriptions.Add(LoadPreviousSessionCommand.Execute().Subscribe());
         var sessionTerminationExecuting = sessionTerminationIngress
             .ObserveOn(RxApp.MainThreadScheduler)
             .Select(termination => Observable
@@ -380,7 +314,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 : Observable.Return(false))
             .Switch()
             .DistinctUntilChanged();
-        isBusy = Observable.CombineLatest(
+        _isBusyHelper = Observable.CombineLatest(
                 ScanCommand.IsExecuting,
                 ConnectCommand.IsExecuting,
                 DisconnectCommand.IsExecuting,
@@ -399,11 +333,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .Select(states => states.Any(static executing => executing))
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsBusy);
-        canInitiateOperation = this.WhenAnyValue(viewModel => viewModel.IsBusy)
+        _canInitiateOperationHelper = this.WhenAnyValue(viewModel => viewModel.IsBusy)
             .Select(busy => !busy)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.CanInitiateOperation);
-        operationStatus = Observable.CombineLatest(
+        _operationStatusHelper = Observable.CombineLatest(
                 ScanCommand.IsExecuting.Select(executing => executing ? "Searching for FTMS fitness machines..." : null),
                 ConnectCommand.IsExecuting.Select(executing => executing ? "Connecting to the fitness machine..." : null),
                 DisconnectCommand.IsExecuting.Select(executing => executing ? "Disconnecting from the fitness machine..." : null),
@@ -423,21 +357,21 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .DistinctUntilChanged()
             .ObserveOn(RxApp.MainThreadScheduler)
             .ToProperty(this, viewModel => viewModel.OperationStatus);
-        statusText = this.WhenAnyValue(
+        _statusTextHelper = this.WhenAnyValue(
                 viewModel => viewModel.ConnectionStatus,
                 viewModel => viewModel.OperationStatus,
                 (connection, operation) => string.IsNullOrEmpty(operation) ? connection : operation)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.StatusText);
 
-        isControlOperationExecuting = Observable.CombineLatest(
+        _isControlOperationExecutingHelper = Observable.CombineLatest(
                 RequestControlCommand.IsExecuting,
                 StartCommand.IsExecuting,
                 StopCommand.IsExecuting)
             .Select(states => states.Any(static executing => executing))
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsControlOperationExecuting);
-        isWorking = this.WhenAnyValue(
+        _isWorkingHelper = this.WhenAnyValue(
             viewModel => viewModel.IsBusy,
             viewModel => viewModel.IsScanning,
             viewModel => viewModel.IsHeartRateScanning,
@@ -497,11 +431,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 HeartRate.MarkStale();
                 HeartRateConnectionStatus = "Heart-rate updates have stopped. The sensor may be stale.";
             }, HandleHeartRatePipelineError));
-        machineChipText = this.WhenAnyValue(viewModel => viewModel.IsConnected, viewModel => viewModel.MachineName)
+        _machineChipTextHelper = this.WhenAnyValue(viewModel => viewModel.IsConnected, viewModel => viewModel.MachineName)
             .Select(static state => state.Item1 ? state.Item2 ?? "Fitness machine" : "No machine")
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.MachineChipText, "No machine");
-        machineChipDetail = this.WhenAnyValue(
+        _machineChipDetailHelper = this.WhenAnyValue(
                 viewModel => viewModel.IsConnected,
                 viewModel => viewModel.IsControllable,
                 viewModel => viewModel.PowerTargetControl,
@@ -512,13 +446,13 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                         : controllable ? "Controls without ERG" : "Telemetry only")
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.MachineChipDetail, "Connect");
-        heartRateChipText = this.WhenAnyValue(
+        _heartRateChipTextHelper = this.WhenAnyValue(
                 viewModel => viewModel.IsHeartRateConnected,
                 viewModel => viewModel.HeartRate.CurrentHeartRateText,
                 static (connected, heartRate) => connected ? heartRate : "No HR sensor")
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.HeartRateChipText, "No HR sensor");
-        heartRateChipDetail = this.WhenAnyValue(
+        _heartRateChipDetailHelper = this.WhenAnyValue(
                 viewModel => viewModel.IsHeartRateConnected,
                 viewModel => viewModel.HeartRate.CurrentZoneText,
                 static (connected, zone) => connected ? zone : "Optional")
@@ -529,10 +463,10 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .DistinctUntilChanged()
             .Replay(1)
             .RefCount();
-        isFtpSet = functionalThresholdPower
+        _isFtpSetHelper = functionalThresholdPower
             .Select(static watts => watts > 0)
             .ToProperty(this, viewModel => viewModel.IsFtpSet);
-        ftpChipText = functionalThresholdPower
+        _ftpChipTextHelper = functionalThresholdPower
             .Select(static watts => watts > 0 ? string.Create(CultureInfo.InvariantCulture, $"{watts} W") : "Not set")
             .ToProperty(this, viewModel => viewModel.FtpChipText, "Not set");
         var readiness = Observable.CombineLatest(
@@ -542,11 +476,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 static (connected, hasPowerTarget, ftp) => (connected, hasPowerTarget, ftp))
             .Replay(1)
             .RefCount();
-        isWorkoutReady = readiness
+        _isWorkoutReadyHelper = readiness
             .Select(static state => state.connected && state.hasPowerTarget && state.ftp > 0)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsWorkoutReady);
-        workoutReadinessText = readiness
+        _workoutReadinessTextHelper = readiness
             .Select(static state => !state.connected
                 ? "Connect a fitness machine to start a workout."
                 : !state.hasPowerTarget
@@ -556,7 +490,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                         : string.Create(CultureInfo.InvariantCulture, $"Ready. Targets scale to your {state.ftp} W FTP."))
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.WorkoutReadinessText, "Connect a fitness machine to start a workout.");
-        isRideInProgress = this.WhenAnyValue(
+        _isRideInProgressHelper = this.WhenAnyValue(
                 viewModel => viewModel.IsWorkoutActive,
                 viewModel => viewModel.Training.IsActive,
                 static (workoutActive, trainingActive) => workoutActive || trainingActive)
@@ -564,23 +498,14 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .ToProperty(this, viewModel => viewModel.IsRideInProgress);
     }
 
-    public string ConnectionStatus
-    {
-        get => connectionStatus;
-        private set => this.RaiseAndSetIfChanged(ref connectionStatus, value);
-    }
+    [Reactive]
+    public partial string ConnectionStatus { get; private set; } = "No fitness machine connected";
 
-    public string HeartRateConnectionStatus
-    {
-        get => heartRateConnectionStatus;
-        private set => this.RaiseAndSetIfChanged(ref heartRateConnectionStatus, value);
-    }
+    [Reactive]
+    public partial string HeartRateConnectionStatus { get; private set; } = "No external heart-rate sensor connected";
 
-    public string ControlStatus
-    {
-        get => controlStatus;
-        private set => this.RaiseAndSetIfChanged(ref controlStatus, value);
-    }
+    [Reactive]
+    public partial string ControlStatus { get; private set; } = "Connect a fitness machine to inspect FTMS controls.";
 
     public ObservableCollection<FtmsDiscoveredDevice> DiscoveredDevices { get; }
 
@@ -598,53 +523,29 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     public HeartRatePresentationViewModel HeartRate { get; }
 
-    public DateTimeOffset? ChartTimeRangeStart
-    {
-        get => chartTimeRangeStart;
-        private set => this.RaiseAndSetIfChanged(ref chartTimeRangeStart, value);
-    }
+    [Reactive]
+    public partial DateTimeOffset? ChartTimeRangeStart { get; private set; }
 
-    public DateTimeOffset? ChartTimeRangeEnd
-    {
-        get => chartTimeRangeEnd;
-        private set => this.RaiseAndSetIfChanged(ref chartTimeRangeEnd, value);
-    }
+    [Reactive]
+    public partial DateTimeOffset? ChartTimeRangeEnd { get; private set; }
 
-    public DateTimeOffset? ChartHoverTimestamp
-    {
-        get => chartHoverTimestamp;
-        set => this.RaiseAndSetIfChanged(ref chartHoverTimestamp, value);
-    }
+    [Reactive]
+    public partial DateTimeOffset? ChartHoverTimestamp { get; set; }
 
-    public IReadOnlyList<SessionEventMarker> SessionEvents
-    {
-        get => sessionEvents;
-        private set => this.RaiseAndSetIfChanged(ref sessionEvents, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<SessionEventMarker> SessionEvents { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> PreviousPowerChartSamples
-    {
-        get => previousPowerChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref previousPowerChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> PreviousPowerChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> PreviousSpeedChartSamples
-    {
-        get => previousSpeedChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref previousSpeedChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> PreviousSpeedChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> PreviousCadenceChartSamples
-    {
-        get => previousCadenceChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref previousCadenceChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> PreviousCadenceChartSamples { get; private set; } = [];
 
-    public IReadOnlyList<TelemetrySample> PreviousHeartRateChartSamples
-    {
-        get => previousHeartRateChartSamples;
-        private set => this.RaiseAndSetIfChanged(ref previousHeartRateChartSamples, value);
-    }
+    [Reactive]
+    public partial IReadOnlyList<TelemetrySample> PreviousHeartRateChartSamples { get; private set; } = [];
 
     public DateTimeOffset? ChartSelectionStart
     {
@@ -672,47 +573,26 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    public string SelectedIntervalSummary
-    {
-        get => selectedIntervalSummary;
-        private set => this.RaiseAndSetIfChanged(ref selectedIntervalSummary, value);
-    }
+    [Reactive]
+    public partial string SelectedIntervalSummary { get; private set; } = "Drag across a chart to inspect an interval.";
 
-    public string PreviousSessionComparisonText
-    {
-        get => previousSessionComparisonText;
-        private set => this.RaiseAndSetIfChanged(ref previousSessionComparisonText, value);
-    }
+    [Reactive]
+    public partial string PreviousSessionComparisonText { get; private set; } = "No previous session saved.";
 
-    public string EfficiencyText
-    {
-        get => efficiencyText;
-        private set => this.RaiseAndSetIfChanged(ref efficiencyText, value);
-    }
+    [Reactive]
+    public partial string EfficiencyText { get; private set; } = "Gathering paired data";
 
-    public string DecouplingText
-    {
-        get => decouplingText;
-        private set => this.RaiseAndSetIfChanged(ref decouplingText, value);
-    }
+    [Reactive]
+    public partial string DecouplingText { get; private set; } = "Requires 10 minutes";
 
-    public string CadenceAnalysisText
-    {
-        get => cadenceAnalysisText;
-        private set => this.RaiseAndSetIfChanged(ref cadenceAnalysisText, value);
-    }
+    [Reactive]
+    public partial string CadenceAnalysisText { get; private set; } = "Gathering cadence";
 
-    public string TorqueExposureText
-    {
-        get => torqueExposureText;
-        private set => this.RaiseAndSetIfChanged(ref torqueExposureText, value);
-    }
+    [Reactive]
+    public partial string TorqueExposureText { get; private set; } = "--";
 
-    public string RecoveryText
-    {
-        get => recoveryText;
-        private set => this.RaiseAndSetIfChanged(ref recoveryText, value);
-    }
+    [Reactive]
+    public partial string RecoveryText { get; private set; } = "Waiting for recovery";
 
     public ObservableCollection<TargetControlViewModel> TargetControls { get; }
 
@@ -731,29 +611,17 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    public FtmsDiscoveredDevice? SelectedDevice
-    {
-        get => selectedDevice;
-        set => this.RaiseAndSetIfChanged(ref selectedDevice, value);
-    }
+    [Reactive]
+    public partial FtmsDiscoveredDevice? SelectedDevice { get; set; }
 
-    public HeartRateDiscoveredDevice? SelectedHeartRateDevice
-    {
-        get => selectedHeartRateDevice;
-        set => this.RaiseAndSetIfChanged(ref selectedHeartRateDevice, value);
-    }
+    [Reactive]
+    public partial HeartRateDiscoveredDevice? SelectedHeartRateDevice { get; set; }
 
-    public bool IsDevicePickerVisible
-    {
-        get => isDevicePickerVisible;
-        private set => this.RaiseAndSetIfChanged(ref isDevicePickerVisible, value);
-    }
+    [Reactive]
+    public partial bool IsDevicePickerVisible { get; private set; }
 
-    public bool IsHeartRateDevicePickerVisible
-    {
-        get => isHeartRateDevicePickerVisible;
-        private set => this.RaiseAndSetIfChanged(ref isHeartRateDevicePickerVisible, value);
-    }
+    [Reactive]
+    public partial bool IsHeartRateDevicePickerVisible { get; private set; }
 
     public bool IsConnected
     {
@@ -774,29 +642,35 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
 
     public bool IsDisconnected => !IsConnected;
 
-    public string? MachineName
-    {
-        get => machineName;
-        private set => this.RaiseAndSetIfChanged(ref machineName, value);
-    }
+    [Reactive]
+    public partial string? MachineName { get; private set; }
 
-    public string MachineChipText => machineChipText.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string MachineChipText { get; }
 
-    public string MachineChipDetail => machineChipDetail.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string MachineChipDetail { get; }
 
-    public string HeartRateChipText => heartRateChipText.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string HeartRateChipText { get; }
 
-    public string HeartRateChipDetail => heartRateChipDetail.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string HeartRateChipDetail { get; }
 
-    public string FtpChipText => ftpChipText.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string FtpChipText { get; }
 
-    public bool IsFtpSet => isFtpSet.Value;
+    [ObservableAsProperty]
+    public partial bool IsFtpSet { get; }
 
-    public bool IsWorkoutReady => isWorkoutReady.Value;
+    [ObservableAsProperty]
+    public partial bool IsWorkoutReady { get; }
 
-    public string WorkoutReadinessText => workoutReadinessText.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string WorkoutReadinessText { get; }
 
-    public bool IsRideInProgress => isRideInProgress.Value;
+    [ObservableAsProperty]
+    public partial bool IsRideInProgress { get; }
 
     public bool IsHeartRateConnected
     {
@@ -897,115 +771,62 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         _ => "Unavailable",
     };
 
-    public string PhysicalControlSynchronizationStatus
-    {
-        get => physicalControlSynchronizationStatus;
-        private set => this.RaiseAndSetIfChanged(ref physicalControlSynchronizationStatus, value);
-    }
+    [Reactive]
+    public partial string PhysicalControlSynchronizationStatus { get; private set; } = "Physical controls cannot be synchronized until a fitness machine is connected.";
 
     public bool HasPowerTargetControl => PowerTargetControl is not null;
 
     public bool HasManualTargetControls => ManualTargetControls.Count > 0;
 
-    public bool IsBusy => isBusy.Value;
+    [ObservableAsProperty]
+    public partial bool IsBusy { get; }
 
-    public string OperationStatus => operationStatus.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string OperationStatus { get; }
 
-    public string StatusText => statusText.Value;
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string StatusText { get; }
 
-    public bool CanInitiateOperation => canInitiateOperation.Value;
+    [ObservableAsProperty]
+    public partial bool CanInitiateOperation { get; }
 
-    public bool IsControlOperationExecuting => isControlOperationExecuting.Value;
+    [ObservableAsProperty]
+    public partial bool IsControlOperationExecuting { get; }
 
-    public bool IsWorking => isWorking.Value;
+    [ObservableAsProperty]
+    public partial bool IsWorking { get; }
 
-    public bool IsScanning
-    {
-        get => isScanning;
-        private set => this.RaiseAndSetIfChanged(ref isScanning, value);
-    }
+    [Reactive]
+    public partial bool IsScanning { get; private set; }
 
-    public bool IsHeartRateScanning
-    {
-        get => isHeartRateScanning;
-        private set => this.RaiseAndSetIfChanged(ref isHeartRateScanning, value);
-    }
+    [Reactive]
+    public partial bool IsHeartRateScanning { get; private set; }
 
-    public bool ShowUnavailableCapabilities
-    {
-        get => showUnavailableCapabilities;
-        private set => this.RaiseAndSetIfChanged(ref showUnavailableCapabilities, value);
-    }
+    [Reactive]
+    public partial bool ShowUnavailableCapabilities { get; private set; }
 
-    public bool SupportsTargetPower
-    {
-        get => supportsTargetPower;
-        private set => this.RaiseAndSetIfChanged(ref supportsTargetPower, value);
-    }
+    [Reactive]
+    public partial bool SupportsTargetPower { get; private set; }
 
-    public bool SupportsTargetInclination
-    {
-        get => supportsTargetInclination;
-        private set => this.RaiseAndSetIfChanged(ref supportsTargetInclination, value);
-    }
+    [Reactive]
+    public partial bool SupportsTargetInclination { get; private set; }
 
-    public bool SupportsTargetResistance
-    {
-        get => supportsTargetResistance;
-        private set => this.RaiseAndSetIfChanged(ref supportsTargetResistance, value);
-    }
+    [Reactive]
+    public partial bool SupportsTargetResistance { get; private set; }
 
-    public bool SupportsWorkoutGoals
-    {
-        get => supportsWorkoutGoals;
-        private set => this.RaiseAndSetIfChanged(ref supportsWorkoutGoals, value);
-    }
+    [Reactive]
+    public partial bool SupportsWorkoutGoals { get; private set; }
 
     public bool HasAdjustableTargets => SupportsTargetPower || SupportsTargetResistance || SupportsWorkoutGoals;
 
-    public string TargetPowerText
-    {
-        get => targetPowerText;
-        set => this.RaiseAndSetIfChanged(ref targetPowerText, value);
-    }
+    [Reactive]
+    public partial string TargetPowerText { get; set; } = "100";
 
-    public string TargetInclinationText
-    {
-        get => targetInclinationText;
-        set => this.RaiseAndSetIfChanged(ref targetInclinationText, value);
-    }
+    [Reactive]
+    public partial string TargetInclinationText { get; set; } = "0.0";
 
-    public string TargetResistanceText
-    {
-        get => targetResistanceText;
-        set => this.RaiseAndSetIfChanged(ref targetResistanceText, value);
-    }
-
-    public ReactiveCommand<Unit, Unit> ScanCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ConnectCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> DisconnectCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ScanHeartRateCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ConnectHeartRateCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> DisconnectHeartRateCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> RequestControlCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> StartCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> StopCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> AddLapCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ZoomToSelectionCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ResetChartZoomCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> SetTargetPowerCommand { get; }
+    [Reactive]
+    public partial string TargetResistanceText { get; set; } = "1.0";
 
     public TrainingViewModel Training { get; }
 
@@ -1020,12 +841,6 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     public string RideTitle => IsTrainingActive ? Training.CurrentWorkoutName : "Free ride";
 
     public string RideSubtitle => IsTrainingActive ? "Structured workout" : "Ride freely and set targets as you go";
-
-    public ReactiveCommand<Unit, Unit> StartFreeRideCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> EndFreeRideCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> CloseSheetCommand { get; }
 
     public IObservable<Unit> SheetDismissRequests => sheetDismissRequests.AsObservable();
 
@@ -1063,31 +878,32 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     public IReadOnlyList<RecordedTelemetrySample> GetRecordedSamplesSince(DateTimeOffset timestamp) =>
         [.. recordedSamples.Where(sample => sample.CapturedAt >= timestamp)];
 
-    public ReactiveCommand<Unit, Unit> SetTargetInclinationCommand { get; }
+    [ReactiveCommand]
+    private void CloseSheet() => sheetDismissRequests.OnNext(Unit.Default);
 
-    public ReactiveCommand<Unit, Unit> SetTargetResistanceCommand { get; }
+    [ReactiveCommand]
+    private void ShowToday() => RequestNavigation(DashboardDestination.Today);
 
-    public ReactiveCommand<Unit, Unit> ResetSessionCommand { get; }
+    [ReactiveCommand]
+    private void ShowRide() => RequestNavigation(DashboardDestination.Ride);
 
-    public ReactiveCommand<Unit, Unit> ExportSessionCommand { get; }
+    [ReactiveCommand]
+    private void ShowTraining() => RequestNavigation(DashboardDestination.Training);
 
-    public ReactiveCommand<Unit, Unit> ApplyHeartRateZonesCommand { get; }
+    [ReactiveCommand]
+    private void ShowResults() => RequestNavigation(DashboardDestination.Results);
 
-    public ReactiveCommand<Unit, Unit> ShowTodayCommand { get; }
+    [ReactiveCommand]
+    private void ShowSettings() => RequestNavigation(DashboardDestination.Settings);
 
-    public ReactiveCommand<Unit, Unit> ShowRideCommand { get; }
+    [ReactiveCommand]
+    private void ShowSensors() => RequestNavigation(DashboardDestination.Sensors);
 
-    public ReactiveCommand<Unit, Unit> ShowTrainingCommand { get; }
+    [ReactiveCommand]
+    private void ShowHeartRateSensor() => RequestNavigation(DashboardDestination.HeartRateSensor);
 
-    public ReactiveCommand<Unit, Unit> ShowResultsCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowSettingsCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowSensorsCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ShowHeartRateSensorCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ToggleUnavailableCapabilitiesCommand { get; }
+    [ReactiveCommand]
+    private void ToggleUnavailableCapabilities() => ShowUnavailableCapabilities = !ShowUnavailableCapabilities;
 
     public async ValueTask DisposeAsync()
     {
@@ -1117,12 +933,12 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         subscriptions.Dispose();
         Training.Dispose();
         HeartRate.Dispose();
-        isBusy.Dispose();
-        operationStatus.Dispose();
-        statusText.Dispose();
-        canInitiateOperation.Dispose();
-        isControlOperationExecuting.Dispose();
-        isWorking.Dispose();
+        _isBusyHelper.Dispose();
+        _operationStatusHelper.Dispose();
+        _statusTextHelper.Dispose();
+        _canInitiateOperationHelper.Dispose();
+        _isControlOperationExecutingHelper.Dispose();
+        _isWorkingHelper.Dispose();
         telemetryIngress.OnCompleted();
         telemetrySessionReset.OnCompleted();
         sessionTerminationIngress.OnCompleted();
@@ -1156,7 +972,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         SetTargetResistanceCommand.Dispose();
         ResetSessionCommand.Dispose();
         ExportSessionCommand.Dispose();
-        loadPreviousSessionCommand.Dispose();
+        LoadPreviousSessionCommand.Dispose();
         ApplyHeartRateZonesCommand.Dispose();
         ShowTodayCommand.Dispose();
         ShowRideCommand.Dispose();
@@ -1169,7 +985,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         DisposeTargetControls();
     }
 
-    private async Task ScanAsync()
+    [ReactiveCommand(CanExecute = nameof(canScan))]
+    private Task ScanAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => ScanDevicesAsync(), cancellationToken);
+
+    private async Task ScanDevicesAsync()
     {
         try
         {
@@ -1198,7 +1018,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    private async Task ScanHeartRateAsync()
+    [ReactiveCommand(CanExecute = nameof(canScan))]
+    private Task ScanHeartRateAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => ScanHeartRateDevicesAsync(), cancellationToken);
+
+    private async Task ScanHeartRateDevicesAsync()
     {
         try
         {
@@ -1253,7 +1077,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    private async Task ConnectAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canConnect))]
+    private Task ConnectAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(ConnectDeviceAsync, cancellationToken);
+
+    private async Task ConnectDeviceAsync(CancellationToken cancellationToken)
     {
         if (SelectedDevice is null)
         {
@@ -1317,7 +1145,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    private async Task ConnectHeartRateAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canHeartRateConnect))]
+    private Task ConnectHeartRateAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(ConnectHeartRateDeviceAsync, cancellationToken);
+
+    private async Task ConnectHeartRateDeviceAsync(CancellationToken cancellationToken)
     {
         if (SelectedHeartRateDevice is null)
         {
@@ -1369,7 +1201,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    private async Task DisconnectAsync()
+    [ReactiveCommand(CanExecute = nameof(canDisconnect))]
+    private Task DisconnectAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => DisconnectDeviceAsync(), cancellationToken);
+
+    private async Task DisconnectDeviceAsync()
     {
         try
         {
@@ -1383,7 +1219,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
-    private async Task DisconnectHeartRateAsync()
+    [ReactiveCommand(CanExecute = nameof(canHeartRateDisconnect))]
+    private Task DisconnectHeartRateAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => DisconnectHeartRateDeviceAsync(), cancellationToken);
+
+    private async Task DisconnectHeartRateDeviceAsync()
     {
         try
         {
@@ -1397,10 +1237,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(canResetSession))]
     private async Task ExportSessionAsync(CancellationToken cancellationToken)
     {
         var fileName = $"stationary-session-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.csv";
-        var path = Path.Combine(FileSystem.CacheDirectory, fileName);
+        var path = Path.Combine(platform.CacheDirectory, fileName);
         var archive = CreateRecordedSession();
         await RecordedSessionArchiveStorage.WriteCsvAsync(path, archive, cancellationToken);
         await RecordedSessionArchiveStorage.WriteJsonAsync(GetPreviousSessionPath(), archive, cancellationToken);
@@ -1409,6 +1250,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         ConnectionStatus = $"Session telemetry exported to {path}.";
     }
 
+    [ReactiveCommand(CanExecute = nameof(canResetSession))]
     private void ResetSession()
     {
         Telemetry.ResetSession();
@@ -1419,6 +1261,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         ResetChartZoom();
     }
 
+    [ReactiveCommand]
     private void ApplyHeartRateZones()
     {
         if (HeartRate.TryApplyCyclingLactateThreshold(out var error))
@@ -1432,7 +1275,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         HeartRateConnectionStatus = error;
     }
 
-    private async Task SetTargetPowerAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canApplyTarget))]
+    private Task SetTargetPowerAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(ApplyTargetPowerTextAsync, cancellationToken);
+
+    private async Task ApplyTargetPowerTextAsync(CancellationToken cancellationToken)
     {
         if (!short.TryParse(TargetPowerText, out var watts))
         {
@@ -1442,7 +1289,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         await SetTargetPowerFromSliderAsync(watts, cancellationToken);
     }
 
-    private async Task SetTargetInclinationAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canApplyTarget))]
+    private Task SetTargetInclinationAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(ApplyTargetInclinationTextAsync, cancellationToken);
+
+    private async Task ApplyTargetInclinationTextAsync(CancellationToken cancellationToken)
     {
         if (!TryGetInclinationTenths(TargetInclinationText, out var tenths))
         {
@@ -1452,7 +1303,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         await SetTargetInclinationFromSliderAsync(tenths / 10d, cancellationToken);
     }
 
-    private async Task SetTargetResistanceAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canApplyTarget))]
+    private Task SetTargetResistanceAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(ApplyTargetResistanceTextAsync, cancellationToken);
+
+    private async Task ApplyTargetResistanceTextAsync(CancellationToken cancellationToken)
     {
         if (!TryGetResistanceTenths(TargetResistanceText, out var tenths))
         {
@@ -1462,7 +1317,11 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         await SetTargetResistanceFromSliderAsync(tenths / 10d, cancellationToken);
     }
 
-    private async Task RequestControlAsync(CancellationToken cancellationToken)
+    [ReactiveCommand(CanExecute = nameof(canRequestControl))]
+    private Task RequestControlAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(AcquireControlAsync, cancellationToken);
+
+    private async Task AcquireControlAsync(CancellationToken cancellationToken)
     {
         await EnsureControlPermissionAsync(cancellationToken);
     }
@@ -1472,6 +1331,15 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         await StartWorkoutSessionAsync(cancellationToken);
     }
 
+    [ReactiveCommand(CanExecute = nameof(canStart))]
+    private Task StartAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(StartWorkoutAsync, cancellationToken);
+
+    [ReactiveCommand(CanExecute = nameof(canStop))]
+    private Task StopAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(PauseWorkoutAsync, cancellationToken);
+
+    [ReactiveCommand(CanExecute = nameof(canStartFreeRide))]
     private async Task StartFreeRideAsync(CancellationToken cancellationToken)
     {
         RequestNavigation(DashboardDestination.Ride);
@@ -1482,6 +1350,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(canEndFreeRide))]
     private async Task EndFreeRideAsync(CancellationToken cancellationToken)
     {
         var machineSessionActive = IsControllable && workoutSessionState is WorkoutSessionState.Running or WorkoutSessionState.Paused;
@@ -1928,6 +1797,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         isSessionRecording = false;
     }
 
+    [ReactiveCommand(CanExecute = nameof(canAddLap))]
     private void AddLap()
     {
         lapCount++;
@@ -1937,6 +1807,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private void AddSessionEvent(DateTimeOffset timestamp, SessionEventType type, string label) =>
         SessionEvents = [.. SessionEvents, new(timestamp, type, label)];
 
+    [ReactiveCommand]
     private void ZoomToSelection()
     {
         if (!TryGetSelectedRange(out var start, out var end) || end - start < TimeSpan.FromSeconds(1))
@@ -1950,6 +1821,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         UpdatePreviousComparisonSamples(start, end);
     }
 
+    [ReactiveCommand]
     private void ResetChartZoom()
     {
         isCustomChartRange = false;
@@ -2102,7 +1974,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
         finally
         {
-            await MainThread.InvokeOnMainThreadAsync(() => CompleteScan(cancellation, outcome)).ConfigureAwait(false);
+            await platform.InvokeOnMainThreadAsync(() => CompleteScan(cancellation, outcome)).ConfigureAwait(false);
         }
     }
 
@@ -2123,7 +1995,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         }
         finally
         {
-            await MainThread.InvokeOnMainThreadAsync(() => CompleteHeartRateScan(cancellation, outcome)).ConfigureAwait(false);
+            await platform.InvokeOnMainThreadAsync(() => CompleteHeartRateScan(cancellation, outcome)).ConfigureAwait(false);
         }
     }
 
@@ -2317,6 +2189,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         [.. SessionEvents],
         Telemetry.GetSessionSummary());
 
+    [ReactiveCommand(AccessModifier = PropertyAccessModifier.Private)]
     private async Task<PreviousSessionLoadResult> LoadPreviousSessionAsync(CancellationToken cancellationToken)
     {
         var path = GetPreviousSessionPath();
@@ -2375,7 +2248,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         PreviousSessionComparisonText = $"Vs previous: power {powerDelta:+0;-0;0} W · work {workDelta:+0.0;-0.0;0.0} kJ";
     }
 
-    private static string GetPreviousSessionPath() => Path.Combine(FileSystem.AppDataDirectory, "previous-session.json");
+    private string GetPreviousSessionPath() => Path.Combine(platform.AppDataDirectory, "previous-session.json");
 
     private void ClearTelemetryPresentation() => Telemetry.Clear();
 
@@ -2400,7 +2273,6 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
             .StartWith(silenceTimer)
             .Switch();
     }
-
 
     private async ValueTask StopSessionAsync()
     {

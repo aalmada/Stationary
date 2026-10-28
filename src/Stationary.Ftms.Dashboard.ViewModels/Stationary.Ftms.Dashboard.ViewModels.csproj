@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Stationary.Ftms.Dashboard.ViewModels.Tests" />
+    <ProjectReference Include="../Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />
+    <PackageReference Include="Microsoft.Maui.Graphics" />
+    <PackageReference Include="ReactiveUI" />
+    <PackageReference Include="ReactiveUI.SourceGenerators" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

@@ -1,3 +1,5 @@
+using ReactiveUI;
+
 using Stationary.Ftms.Dashboard.Services;
 using Stationary.Ftms.Dashboard.ViewModels;
 
@@ -14,6 +16,9 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        // The app uses only core ReactiveUI; skip probing optional platform assemblies such as ReactiveUI.Maui.
+        PlatformRegistrationManager.SetRegistrationNamespaces(RegistrationNamespace.None);
+
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>();
@@ -25,6 +30,7 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<IFtmsDiscoveryService, PluginBleFtmsDiscoveryService>();
         builder.Services.AddSingleton<IHeartRateDiscoveryService, PluginBleHeartRateDiscoveryService>();
+        builder.Services.AddSingleton<IDashboardPlatform, MauiDashboardPlatform>();
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<TodayPage>();
         builder.Services.AddSingleton<RidePage>();

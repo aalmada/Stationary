@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:core="clr-namespace:Stationary.Ftms.Dashboard.Core;assembly=Stationary.Ftms.Dashboard.Core"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.TrainingPage"
+             x:DataType="viewModels:TrainingViewModel"
              Title="Training"
              BackgroundColor="{StaticResource Canvas}">
   <ContentPage.Resources>
@@ -13,7 +14,7 @@
     <local:TrainingDurationTextConverter x:Key="TrainingDurationTextConverter" />
     <local:TrainingTargetColorConverter x:Key="TrainingTargetColorConverter" />
     <ControlTemplate x:Key="ReadyToRideTemplate">
-      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsCatalogLoaded}">
+      <Border x:DataType="viewModels:TrainingViewModel" Style="{StaticResource PanelBorder}" IsVisible="{Binding IsCatalogLoaded}">
         <VerticalStackLayout Spacing="10">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <VerticalStackLayout Spacing="2">
@@ -39,7 +40,7 @@
       </Border>
     </ControlTemplate>
   </ContentPage.Resources>
-  <Grid x:Name="TrainingContent" Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
+  <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
       <Button Style="{StaticResource SecondaryActionButton}" Text="Home" Command="{Binding ShowHomeCommand}" VerticalOptions="Center" />
       <VerticalStackLayout Grid.Column="1" Spacing="4">
@@ -87,10 +88,10 @@
           <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks." TextColor="{StaticResource Muted}" FontSize="12" />
           <FlexLayout BindableLayout.ItemsSource="{Binding VisiblePlans}" Direction="Row" Wrap="Wrap" AlignItems="Start">
             <BindableLayout.ItemTemplate>
-              <DataTemplate>
+              <DataTemplate x:DataType="core:TrainingPlan">
                 <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
                   <VerticalStackLayout Spacing="6">
-                    <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectPlanCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                    <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectPlanCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
                     <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
                   </VerticalStackLayout>
                 </Border>
@@ -104,8 +105,8 @@
             <Label Text="{Binding SelectedPlan.Description}" TextColor="{StaticResource Muted}" FontSize="12" />
             <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlan.Weeks}" Direction="Row" Wrap="Wrap" AlignItems="Start">
               <BindableLayout.ItemTemplate>
-                <DataTemplate>
-                  <Button Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,8" Text="{Binding Number, StringFormat='Week {0}'}" Command="{Binding BindingContext.SelectPlanWeekCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                <DataTemplate x:DataType="core:TrainingPlanWeek">
+                  <Button Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,8" Text="{Binding Number, StringFormat='Week {0}'}" Command="{Binding SelectPlanWeekCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
                 </DataTemplate>
               </BindableLayout.ItemTemplate>
             </FlexLayout>
@@ -128,10 +129,10 @@
             <Label Text="WEEKLY WORKOUTS" FontAttributes="Bold" FontSize="12" />
             <FlexLayout BindableLayout.ItemsSource="{Binding VisiblePlanWorkouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
               <BindableLayout.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="core:TrainingWorkout">
                   <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
                     <VerticalStackLayout Spacing="6">
-                      <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+                      <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectWorkoutCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
                       <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
                       <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
                       <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
@@ -159,10 +160,10 @@
         </VerticalStackLayout>
       </CollectionView.Header>
       <CollectionView.ItemTemplate>
-        <DataTemplate>
+        <DataTemplate x:DataType="core:TrainingWorkout">
           <Border Style="{StaticResource PanelBorder}" Padding="10">
             <VerticalStackLayout Spacing="6">
-              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding BindingContext.SelectWorkoutCommand, Source={x:Reference TrainingContent}}" CommandParameter="{Binding .}" />
+              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectWorkoutCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
               <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
               <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
               <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
