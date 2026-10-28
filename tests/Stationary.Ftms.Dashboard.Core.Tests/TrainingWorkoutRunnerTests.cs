@@ -60,6 +60,21 @@ public sealed class TrainingWorkoutRunnerTests
     }
 
     [Test]
+    public async Task Compile_RejectsNotANumberFtpPercentage()
+    {
+        var definition = new TrainingWorkout(
+            "test",
+            "Test",
+            "Test workout",
+            TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), double.NaN, null, null, "Ride", true)]);
+
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(definition, 200, new(0, 400, 5)))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
     [Arguments(170, 400)]
     [Arguments(0, 160)]
     public async Task Compile_RejectsTargetsOutsideTheBikeRange(int minimum, int maximum)

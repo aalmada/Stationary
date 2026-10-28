@@ -1,16 +1,12 @@
 namespace Stationary.Ftms.Dashboard.Core;
 
-public enum RampFtpEstimateStatus
-{
-    Ready,
-    InsufficientTelemetry,
-    DeviceMaximumReached,
-}
+public sealed record RampFtpEstimateReady(int BestRollingMinutePowerWatts, ushort EstimatedFtpWatts);
 
-public readonly record struct RampFtpEstimate(RampFtpEstimateStatus Status, int? BestRollingMinutePowerWatts, ushort? EstimatedFtpWatts)
-{
-    public bool IsReady => Status == RampFtpEstimateStatus.Ready;
-}
+public sealed record RampFtpEstimateInsufficientTelemetry;
+
+public sealed record RampFtpEstimateDeviceMaximumReached;
+
+public union RampFtpEstimate(RampFtpEstimateReady, RampFtpEstimateInsufficientTelemetry, RampFtpEstimateDeviceMaximumReached);
 
 public static class RampFtpEstimator
 {
@@ -31,12 +27,12 @@ public static class RampFtpEstimator
             .ToArray();
         if (powerSamples.Length < 2)
         {
-            return new(RampFtpEstimateStatus.InsufficientTelemetry, null, null);
+            return new RampFtpEstimateInsufficientTelemetry();
         }
 
         if (powerSamples.Any(sample => sample.PowerWatts >= deviceMaximumWatts))
         {
-            return new(RampFtpEstimateStatus.DeviceMaximumReached, null, null);
+            return new RampFtpEstimateDeviceMaximumReached();
         }
 
         double? bestAverage = null;
@@ -51,12 +47,12 @@ public static class RampFtpEstimator
 
         if (bestAverage is not double best)
         {
-            return new(RampFtpEstimateStatus.InsufficientTelemetry, null, null);
+            return new RampFtpEstimateInsufficientTelemetry();
         }
 
         var bestWatts = checked((int)double.Round(best, MidpointRounding.AwayFromZero));
         var estimate = checked((ushort)double.Round(best * 0.75d, MidpointRounding.AwayFromZero));
-        return new(RampFtpEstimateStatus.Ready, bestWatts, estimate);
+        return new RampFtpEstimateReady(bestWatts, estimate);
     }
 
     private static double? GetRollingMinuteAverage(IReadOnlyList<RecordedTelemetrySample> samples, int startIndex)

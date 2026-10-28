@@ -110,7 +110,10 @@ public static class TrainingWorkoutCompiler
     private static void ValidateSegment(TrainingSegment segment)
     {
         ArgumentNullException.ThrowIfNull(segment);
-        if (string.IsNullOrWhiteSpace(segment.Name) || segment.Duration <= TimeSpan.Zero || segment.FunctionalThresholdPowerPercentage <= 0d)
+        if (string.IsNullOrWhiteSpace(segment.Name)
+            || segment.Duration <= TimeSpan.Zero
+            || !double.IsFinite(segment.FunctionalThresholdPowerPercentage)
+            || segment.FunctionalThresholdPowerPercentage <= 0d)
         {
             throw new ArgumentException("Training segments require a name, positive duration, and positive FTP percentage.", nameof(segment));
         }

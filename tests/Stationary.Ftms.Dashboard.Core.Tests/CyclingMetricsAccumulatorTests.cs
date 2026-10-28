@@ -50,4 +50,17 @@ public sealed class CyclingMetricsAccumulatorTests
             await Assert.That(metrics.TrainingStressScore).IsNull();
         }
     }
+
+    [Test]
+    public async Task Add_IncludesSamplesAtPeakWindowCutoff()
+    {
+        var accumulator = new CyclingMetricsAccumulator(TimeSpan.FromSeconds(5));
+        var start = DateTimeOffset.UnixEpoch;
+
+        accumulator.Add(new(start, 100d));
+        accumulator.Add(new(start.AddSeconds(5), 300d));
+        accumulator.Add(new(start.AddSeconds(10), 100d));
+
+        await Assert.That(accumulator.GetMetrics().PeakPower5Seconds).IsEqualTo(200d);
+    }
 }

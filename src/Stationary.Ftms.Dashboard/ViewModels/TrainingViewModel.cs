@@ -103,7 +103,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
         RetryCommand = ReactiveCommand.CreateFromTask(RetryAsync, this.WhenAnyValue(viewModel => viewModel.RunnerState).Select(state => state == TrainingWorkoutState.TargetFailed));
         EndCommand = ReactiveCommand.CreateFromTask(EndAsync, this.WhenAnyValue(viewModel => viewModel.CanEnd));
         FinishRampTestCommand = ReactiveCommand.CreateFromTask(FinishRampTestAsync, this.WhenAnyValue(viewModel => viewModel.CanFinishRampTest));
-        AcceptRampEstimateCommand = ReactiveCommand.CreateFromTask(AcceptRampEstimateAsync, this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(estimate => estimate is { IsReady: true, EstimatedFtpWatts: not null }));
+        AcceptRampEstimateCommand = ReactiveCommand.CreateFromTask(AcceptRampEstimateAsync, this.WhenAnyValue(viewModel => viewModel.RampEstimate).Select(static estimate => estimate is RampFtpEstimateReady));
         disposables.Add(Observable.Merge(
             PauseCommand.ThrownExceptions,
             ResumeCommand.ThrownExceptions,
@@ -277,10 +277,10 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     public string RampEstimateText => RampEstimate switch
     {
-        { Status: RampFtpEstimateStatus.Ready, EstimatedFtpWatts: { } ftp } => $"Estimated FTP: {ftp} W. Review and accept to update zones.",
-        { Status: RampFtpEstimateStatus.DeviceMaximumReached } => "Ramp test was inconclusive because the bike reached its advertised power maximum.",
-        { Status: RampFtpEstimateStatus.InsufficientTelemetry } => "Ramp test was inconclusive because a continuous measured minute was not recorded.",
-        _ => "",
+        RampFtpEstimateReady estimate => $"Estimated FTP: {estimate.EstimatedFtpWatts} W. Review and accept to update zones.",
+        RampFtpEstimateDeviceMaximumReached => "Ramp test was inconclusive because the bike reached its advertised power maximum.",
+        RampFtpEstimateInsufficientTelemetry => "Ramp test was inconclusive because a continuous measured minute was not recorded.",
+        null => "",
     };
 
     public string StatusText
@@ -648,11 +648,12 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
     private async Task AcceptRampEstimateAsync(CancellationToken cancellationToken)
     {
-        if (RampEstimate is not { IsReady: true, EstimatedFtpWatts: { } ftp })
+        if (RampEstimate is not RampFtpEstimateReady estimate)
         {
             return;
         }
 
+        var ftp = estimate.EstimatedFtpWatts;
         dashboard.Telemetry.FunctionalThresholdPowerText = ftp.ToString(System.Globalization.CultureInfo.InvariantCulture);
         await dashboard.Telemetry.ApplyFunctionalThresholdPowerCommand.Execute().ToTask(cancellationToken);
         StatusText = $"FTP updated to {ftp} W.";
@@ -846,7 +847,7 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
 
         runner?.Abort();
         RampEstimate = allStepsExhausted
-            ? new(RampFtpEstimateStatus.DeviceMaximumReached, null, null)
+            ? new RampFtpEstimateDeviceMaximumReached()
             : RampFtpEstimator.Estimate(dashboard.GetRecordedSamplesSince(startedAt), rampCapabilities.MaximumWatts);
         isRampTest = false;
         isEnding = false;

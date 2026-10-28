@@ -4,6 +4,9 @@ public sealed class CyclingMetricsAccumulator(TimeSpan maximumSampleGap)
 {
     private static readonly TimeSpan NormalizedPowerWindow = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaximumPeakWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan Peak5SecondsWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan Peak30SecondsWindow = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Peak1MinuteWindow = TimeSpan.FromMinutes(1);
     private readonly Queue<TelemetrySample> samples = [];
     private TelemetrySample? previousSample;
     private double activeSeconds;
@@ -44,11 +47,7 @@ public sealed class CyclingMetricsAccumulator(TimeSpan maximumSampleGap)
         previousSample = sample;
         samples.Enqueue(sample);
         Trim(sample.CapturedAt - MaximumPeakWindow);
-        UpdatePeak(TimeSpan.FromSeconds(5), ref peakPower5Seconds);
-        UpdatePeak(TimeSpan.FromSeconds(30), ref peakPower30Seconds);
-        UpdatePeak(TimeSpan.FromMinutes(1), ref peakPower1Minute);
-        UpdatePeak(MaximumPeakWindow, ref peakPower5Minutes);
-        UpdateNormalizedPower();
+        UpdateWindowMetrics();
     }
 
     public CyclingMetrics GetMetrics(ushort? functionalThresholdPowerWatts = null)
@@ -90,33 +89,75 @@ public sealed class CyclingMetricsAccumulator(TimeSpan maximumSampleGap)
         peakPower5Minutes = null;
     }
 
-    private void UpdatePeak(TimeSpan window, ref double? peak)
+    private void UpdateWindowMetrics()
     {
-        if (samples.Count == 0 || samples.Last().CapturedAt - samples.First().CapturedAt < window)
+        if (!samples.TryPeek(out var oldest) || previousSample is not { } latest)
         {
             return;
         }
 
-        var cutoff = samples.Last().CapturedAt - window;
-        var average = samples
-            .Where(sample => sample.CapturedAt >= cutoff)
-            .Average(sample => sample.Value);
-        peak = peak is double current ? double.Max(current, average) : average;
+        var elapsed = latest.CapturedAt - oldest.CapturedAt;
+        var cutoff5Seconds = latest.CapturedAt - Peak5SecondsWindow;
+        var cutoff30Seconds = latest.CapturedAt - Peak30SecondsWindow;
+        var cutoff1Minute = latest.CapturedAt - Peak1MinuteWindow;
+        var cutoff5Minutes = latest.CapturedAt - MaximumPeakWindow;
+        var sum5Seconds = 0d;
+        var sum30Seconds = 0d;
+        var sum1Minute = 0d;
+        var sum5Minutes = 0d;
+        var count5Seconds = 0;
+        var count30Seconds = 0;
+        var count1Minute = 0;
+        var count5Minutes = 0;
+
+        foreach (var sample in samples)
+        {
+            if (sample.CapturedAt >= cutoff5Seconds)
+            {
+                sum5Seconds += sample.Value;
+                count5Seconds++;
+            }
+
+            if (sample.CapturedAt >= cutoff30Seconds)
+            {
+                sum30Seconds += sample.Value;
+                count30Seconds++;
+            }
+
+            if (sample.CapturedAt >= cutoff1Minute)
+            {
+                sum1Minute += sample.Value;
+                count1Minute++;
+            }
+
+            if (sample.CapturedAt >= cutoff5Minutes)
+            {
+                sum5Minutes += sample.Value;
+                count5Minutes++;
+            }
+        }
+
+        UpdatePeak(elapsed, Peak5SecondsWindow, sum5Seconds, count5Seconds, ref peakPower5Seconds);
+        UpdatePeak(elapsed, Peak30SecondsWindow, sum30Seconds, count30Seconds, ref peakPower30Seconds);
+        UpdatePeak(elapsed, Peak1MinuteWindow, sum1Minute, count1Minute, ref peakPower1Minute);
+        UpdatePeak(elapsed, MaximumPeakWindow, sum5Minutes, count5Minutes, ref peakPower5Minutes);
+
+        if (elapsed >= NormalizedPowerWindow)
+        {
+            normalizedPowerFourthTotal += double.Pow(sum30Seconds / count30Seconds, 4d);
+            normalizedPowerSampleCount++;
+        }
     }
 
-    private void UpdateNormalizedPower()
+    private static void UpdatePeak(TimeSpan elapsed, TimeSpan window, double sum, int count, ref double? peak)
     {
-        if (samples.Count == 0 || samples.Last().CapturedAt - samples.First().CapturedAt < NormalizedPowerWindow)
+        if (elapsed < window)
         {
             return;
         }
 
-        var cutoff = samples.Last().CapturedAt - NormalizedPowerWindow;
-        var rollingAverage = samples
-            .Where(sample => sample.CapturedAt >= cutoff)
-            .Average(sample => sample.Value);
-        normalizedPowerFourthTotal += double.Pow(rollingAverage, 4d);
-        normalizedPowerSampleCount++;
+        var average = sum / count;
+        peak = peak is double current ? double.Max(current, average) : average;
     }
 
     private void Trim(DateTimeOffset cutoff)

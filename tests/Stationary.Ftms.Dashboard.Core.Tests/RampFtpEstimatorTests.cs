@@ -16,9 +16,7 @@ public sealed class RampFtpEstimatorTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(result.Status).IsEqualTo(RampFtpEstimateStatus.Ready);
-            await Assert.That(result.BestRollingMinutePowerWatts).IsEqualTo(200);
-            await Assert.That(result.EstimatedFtpWatts).IsEqualTo((ushort)150);
+            await Assert.That(result is RampFtpEstimateReady { BestRollingMinutePowerWatts: 200, EstimatedFtpWatts: 150 }).IsTrue();
         }
     }
 
@@ -34,8 +32,7 @@ public sealed class RampFtpEstimatorTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(result.Status).IsEqualTo(RampFtpEstimateStatus.Ready);
-            await Assert.That(result.BestRollingMinutePowerWatts).IsEqualTo(200);
+            await Assert.That(result is RampFtpEstimateReady { BestRollingMinutePowerWatts: 200 }).IsTrue();
         }
     }
 
@@ -53,9 +50,7 @@ public sealed class RampFtpEstimatorTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(result.Status).IsEqualTo(RampFtpEstimateStatus.Ready);
-            await Assert.That(result.BestRollingMinutePowerWatts).IsEqualTo(132);
-            await Assert.That(result.EstimatedFtpWatts).IsEqualTo((ushort)99);
+            await Assert.That(result is RampFtpEstimateReady { BestRollingMinutePowerWatts: 132, EstimatedFtpWatts: 99 }).IsTrue();
         }
     }
 
@@ -70,7 +65,7 @@ public sealed class RampFtpEstimatorTests
 
         var result = RampFtpEstimator.Estimate(samples, 400);
 
-        await Assert.That(result.Status).IsEqualTo(RampFtpEstimateStatus.InsufficientTelemetry);
+        await Assert.That(result is RampFtpEstimateInsufficientTelemetry).IsTrue();
     }
 
     [Test]
@@ -83,6 +78,6 @@ public sealed class RampFtpEstimatorTests
 
         var result = RampFtpEstimator.Estimate(samples, 400);
 
-        await Assert.That(result.Status).IsEqualTo(RampFtpEstimateStatus.DeviceMaximumReached);
+        await Assert.That(result is RampFtpEstimateDeviceMaximumReached).IsTrue();
     }
 }
