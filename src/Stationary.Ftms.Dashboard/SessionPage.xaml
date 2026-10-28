@@ -286,9 +286,9 @@
             <Grid Grid.Row="4" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
               <VerticalStackLayout Spacing="2" VerticalOptions="Center">
                 <Label Text="Effort map" TextColor="{Binding Telemetry.PowerChartColor}" />
-                <Label Text="Power vs cadence" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="Power vs cadence · target shaded" FontSize="11" TextColor="{StaticResource Muted}" />
               </VerticalStackLayout>
-              <local:PowerCadenceMap Grid.Column="1" Points="{Binding Telemetry.PowerCadenceSamples}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
+              <local:PowerCadenceMap Grid.Column="1" Points="{Binding Telemetry.PowerCadenceSamples}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
               <Label Grid.Column="2" Text="{Binding Telemetry.PowerCadenceSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
           </Grid>

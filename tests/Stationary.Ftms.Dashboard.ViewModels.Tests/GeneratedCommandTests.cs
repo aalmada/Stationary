@@ -23,21 +23,43 @@ public sealed class GeneratedCommandTests
         using var platform = new TestDashboardPlatform();
         platform.SetPreference("MetricUnits", false);
         platform.SetPreference("FunctionalThresholdPower", "250");
+        platform.SetPreference("CadenceTargetOffsetRpm", "5");
         var viewModel = new TelemetryPresentationViewModel(platform);
         await Assert.That(viewModel.UseMetricUnits).IsFalse();
         await Assert.That(viewModel.FunctionalThresholdPowerText).IsEqualTo("250");
+        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(5);
 
         await viewModel.SetMetricUnitsCommand.Execute(true).ToTask();
         await viewModel.SetLargeTelemetryTextCommand.Execute(true).ToTask();
         await viewModel.SetHighContrastTelemetryCommand.Execute(true).ToTask();
         await viewModel.SetCompactChartsCommand.Execute(true).ToTask();
+        viewModel.CadenceTargetOffsetText = "-3";
+        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
         var restored = new TelemetryPresentationViewModel(platform);
 
         await Assert.That(restored.UseMetricUnits).IsTrue();
         await Assert.That(restored.UseLargeTelemetryText).IsTrue();
         await Assert.That(restored.UseHighContrastTelemetry).IsTrue();
         await Assert.That(restored.UseCompactCharts).IsTrue();
+        await Assert.That(restored.CadenceTargetOffsetRpm).IsEqualTo(-3);
         await Assert.That(viewModel.ShowChartSummaries).IsFalse();
+    }
+
+    [Test]
+    public async Task CadenceTargetOffsetCommand_RejectsInvalidValuesWithoutOverwritingSavedOffset()
+    {
+        using var platform = new TestDashboardPlatform();
+        var viewModel = new TelemetryPresentationViewModel(platform) { CadenceTargetOffsetText = "16" };
+
+        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
+
+        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(0);
+        await Assert.That(viewModel.CadenceTargetOffsetStatusText.Contains("Enter a whole number", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(platform.GetPreference("CadenceTargetOffsetRpm", "unchanged")).IsEqualTo("unchanged");
+
+        viewModel.CadenceTargetOffsetText = int.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
+        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(0);
     }
 
     [Test]

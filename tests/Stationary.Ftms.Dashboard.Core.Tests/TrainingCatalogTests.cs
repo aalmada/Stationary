@@ -40,6 +40,48 @@ public sealed class TrainingCatalogTests
     }
 
     [Test]
+    public async Task Compile_AppliesCadenceOffsetWithoutChangingPowerTargets()
+    {
+        var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), 100d, 80, 90, "Ride", true)]);
+
+        var compiled = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: 5);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(compiled.Segments[0].TargetWatts).IsEqualTo(200);
+            await Assert.That(compiled.Segments[0].Definition.MinimumCadenceRpm).IsEqualTo(85);
+            await Assert.That(compiled.Segments[0].Definition.MaximumCadenceRpm).IsEqualTo(95);
+            await Assert.That(compiled.Definition.Segments[0].MinimumCadenceRpm).IsEqualTo(80);
+        }
+    }
+
+    [Test]
+    public async Task Compile_RejectsCadenceOffsetsOutsideTheSupportedRange()
+    {
+        var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), 100d, 80, 90, "Ride", true)]);
+
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: 16))
+            .Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: int.MinValue))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public async Task Compile_RejectsOffsetsThatMoveCadenceOutsideThePracticalRange()
+    {
+        var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
+            TrainingExperienceLevel.Beginner,
+            [new("Work", TimeSpan.FromMinutes(1), 100d, 40, 50, "Ride", true)]);
+
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: -15))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
     public async Task Load_ReturnsEveryObjectiveAndExperienceLevel()
     {
         var catalog = await TrainingCatalog.LoadAsync();
@@ -78,6 +120,89 @@ public sealed class TrainingCatalogTests
                 .Distinct()
                 .Count() >= 3)).IsTrue();
         }
+    }
+
+    [Test]
+    public async Task Load_UsesLongerAdvancedSweetSpotAndThresholdIntervals()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+        var experiencedSweetSpot = catalog.Workouts.Single(static workout =>
+            workout.Objective == TrainingObjective.TempoSweetSpot && workout.ExperienceLevel == TrainingExperienceLevel.Experienced);
+        var advancedSweetSpot = catalog.Workouts.Single(static workout =>
+            workout.Objective == TrainingObjective.TempoSweetSpot && workout.ExperienceLevel == TrainingExperienceLevel.Advanced);
+        var experiencedThreshold = catalog.Workouts.Single(static workout =>
+            workout.Objective == TrainingObjective.Threshold && workout.ExperienceLevel == TrainingExperienceLevel.Experienced);
+        var advancedThreshold = catalog.Workouts.Single(static workout =>
+            workout.Objective == TrainingObjective.Threshold && workout.ExperienceLevel == TrainingExperienceLevel.Advanced);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(experiencedSweetSpot.Segments.Where(static segment => segment.Name.StartsWith("Sweet spot", StringComparison.Ordinal))
+                .All(static segment => segment.Duration >= TimeSpan.FromMinutes(10))).IsTrue();
+            await Assert.That(advancedSweetSpot.Segments.Where(static segment => segment.Name.StartsWith("Sweet spot", StringComparison.Ordinal))
+                .All(static segment => segment.Duration >= TimeSpan.FromMinutes(12))).IsTrue();
+            await Assert.That(experiencedThreshold.Segments.Where(static segment => segment.Name.StartsWith("Under", StringComparison.Ordinal))
+                .All(static segment => segment.Duration >= TimeSpan.FromMinutes(8))).IsTrue();
+            await Assert.That(advancedThreshold.Segments.Where(static segment => segment.Name.StartsWith("Under", StringComparison.Ordinal))
+                .All(static segment => segment.Duration >= TimeSpan.FromMinutes(10))).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task Load_AnaerobicIntervalsHaveCadenceBuildsAndAtLeastTwoToOneRecovery()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+        var anaerobicWorkouts = catalog.Workouts.Where(static workout => workout.Objective == TrainingObjective.Anaerobic);
+
+        foreach (var workout in anaerobicWorkouts)
+        {
+            for (var index = 0; index < workout.Segments.Count; index++)
+            {
+                var segment = workout.Segments[index];
+                if (!segment.Name.StartsWith("Burst", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                await Assert.That(index > 0 && workout.Segments[index - 1].Name == "Cadence build").IsTrue();
+
+                var nextBurst = index + 1;
+                while (nextBurst < workout.Segments.Count
+                    && !workout.Segments[nextBurst].Name.StartsWith("Burst", StringComparison.Ordinal))
+                {
+                    nextBurst++;
+                }
+
+                if (nextBurst == workout.Segments.Count)
+                {
+                    continue;
+                }
+
+                var recovery = TimeSpan.Zero;
+                for (var recoveryIndex = index + 1; recoveryIndex < nextBurst; recoveryIndex++)
+                {
+                    recovery += workout.Segments[recoveryIndex].Duration;
+                }
+
+                await Assert.That(recovery >= segment.Duration * 2).IsTrue();
+            }
+        }
+    }
+
+    [Test]
+    public async Task Load_UsesGearNeutralCuesAndMarksHardWorkAsControlledNotAllOut()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+        var cues = catalog.Workouts.SelectMany(static workout => workout.Segments).Select(static segment => segment.Cue);
+
+        await Assert.That(cues.All(static cue =>
+            !cue.Contains("shift", StringComparison.OrdinalIgnoreCase)
+            && !cue.Contains("gear", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        await Assert.That(catalog.Workouts.SelectMany(static workout => workout.Segments)
+            .Where(static segment => segment.CountsTowardAdherence)
+            .All(static segment => segment.MinimumCadenceRpm is not null || segment.MaximumCadenceRpm is not null)).IsTrue();
+        await Assert.That(catalog.Workouts.Where(static workout => workout.Objective == TrainingObjective.Anaerobic)
+            .All(static workout => workout.Description.Contains("ERG-paced", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]

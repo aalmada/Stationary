@@ -46,6 +46,14 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 - Commands use `[ReactiveCommand]` methods, including commands bound in XAML, with `CanExecute` naming an `IObservable<bool>` field initialized before the command is accessed. Keep Control Point operations behind the shared serialization gate, and retain `IsExecuting`, `ThrownExceptions`, and disposal handling.
 - XAML namespace declarations for view models and discovery models include `assembly=Stationary.Ftms.Dashboard.ViewModels`. Keep views, converters, and platform implementations in the MAUI app; do not move generated view models back into its compilation.
 
+### Structured Training
+
+- Structured workouts send each segment's FTMS target-power command to the bike. In ERG mode, the bike controls resistance; the rider follows the segment's cadence target rather than trying to force measured power to match the target.
+- The Power vs Cadence map shades the active power/cadence target zone. Workout adherence measures time in the prescribed cadence range after the five-second settling period; samples are not counted across telemetry gaps longer than five seconds.
+- Settings can shift all workout cadence ranges by -15 to +15 rpm for the rider's preferred cadence. Zero keeps the authored ranges.
+- Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.
+- Workout targets are generic FTP-relative prescriptions. Set FTP accurately and adjust or stop an interval if the effort is unsuitable.
+
 ## Prerequisites
 
 - .NET SDK `11.0.100-rc.3.26522.148`, as pinned in [global.json](global.json). If installed under `~/.dotnet`, put that directory first on `PATH`.

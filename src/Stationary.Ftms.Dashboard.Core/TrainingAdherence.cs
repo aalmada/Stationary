@@ -1,61 +1,97 @@
 namespace Stationary.Ftms.Dashboard.Core;
 
-public readonly record struct TrainingAdherenceSample(DateTimeOffset CapturedAt, double? PowerWatts);
+public readonly record struct TrainingAdherenceSample(DateTimeOffset CapturedAt, double? CadenceRpm);
 
-public sealed record TrainingAdherenceScore(int EligibleSamples, int InTargetSamples, double Percentage, int Stars);
+public sealed record TrainingAdherenceScore(TimeSpan EligibleDuration, TimeSpan InTargetDuration, double Percentage, int Stars);
 
-public sealed record TrainingAdherenceNoMeasuredPower;
+public sealed record TrainingAdherenceNoCadenceTarget;
 
-public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNoMeasuredPower);
+public sealed record TrainingAdherenceNoMeasuredCadence;
+
+public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNoCadenceTarget, TrainingAdherenceNoMeasuredCadence);
 
 public static class TrainingAdherence
 {
     private static readonly TimeSpan SettlingDuration = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaximumMeasurementGap = TimeSpan.FromSeconds(5);
 
     public static TrainingAdherenceResult Calculate(
         IReadOnlyList<TrainingAdherenceSample> samples,
-        int targetWatts,
-        int deviceIncrementWatts,
+        int? minimumCadenceRpm,
+        int? maximumCadenceRpm,
         DateTimeOffset segmentStartedAt,
         DateTimeOffset segmentEndedAt,
         bool completed)
     {
         ArgumentNullException.ThrowIfNull(samples);
-        if (targetWatts < 0)
+        if (minimumCadenceRpm is < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(targetWatts));
+            throw new ArgumentOutOfRangeException(nameof(minimumCadenceRpm));
         }
 
-        if (deviceIncrementWatts <= 0)
+        if (maximumCadenceRpm is < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(deviceIncrementWatts));
+            throw new ArgumentOutOfRangeException(nameof(maximumCadenceRpm));
+        }
+
+        if (minimumCadenceRpm is null && maximumCadenceRpm is null)
+        {
+            return new TrainingAdherenceNoCadenceTarget();
+        }
+
+        if (minimumCadenceRpm is int minimum && maximumCadenceRpm is int maximum && minimum > maximum)
+        {
+            throw new ArgumentException("The cadence range minimum cannot exceed its maximum.");
         }
 
         var eligibleAfter = segmentStartedAt + SettlingDuration;
-        var tolerance = int.Max(deviceIncrementWatts, int.Max(5, (int)double.Ceiling(targetWatts * 0.05d)));
-        var eligible = 0;
-        var inTarget = 0;
-        foreach (var sample in samples)
+        var eligibleTicks = 0L;
+        var inTargetTicks = 0L;
+        var orderedSamples = samples.OrderBy(static sample => sample.CapturedAt).ToArray();
+        for (var index = 0; index < orderedSamples.Length; index++)
         {
-            if (sample.CapturedAt < eligibleAfter || sample.CapturedAt > segmentEndedAt || sample.PowerWatts is not double power)
+            var sample = orderedSamples[index];
+            if (sample.CapturedAt >= segmentEndedAt || sample.CadenceRpm is not double cadence)
             {
                 continue;
             }
 
-            eligible++;
-            if (double.Abs(power - targetWatts) <= tolerance)
+            var nextSampleAt = index + 1 < orderedSamples.Length
+                ? orderedSamples[index + 1].CapturedAt
+                : segmentEndedAt;
+            var sampleEnd = nextSampleAt < segmentEndedAt ? nextSampleAt : segmentEndedAt;
+            var maximumSampleEnd = sample.CapturedAt + MaximumMeasurementGap;
+            if (maximumSampleEnd < sampleEnd)
             {
-                inTarget++;
+                sampleEnd = maximumSampleEnd;
+            }
+
+            var sampleStart = eligibleAfter > sample.CapturedAt ? eligibleAfter : sample.CapturedAt;
+            if (sampleEnd <= sampleStart)
+            {
+                continue;
+            }
+
+            var durationTicks = (sampleEnd - sampleStart).Ticks;
+            eligibleTicks += durationTicks;
+            if ((minimumCadenceRpm is null || cadence >= minimumCadenceRpm)
+                && (maximumCadenceRpm is null || cadence <= maximumCadenceRpm))
+            {
+                inTargetTicks += durationTicks;
             }
         }
 
-        if (eligible == 0)
+        if (eligibleTicks == 0)
         {
-            return new TrainingAdherenceNoMeasuredPower();
+            return new TrainingAdherenceNoMeasuredCadence();
         }
 
-        var percentage = inTarget * 100d / eligible;
-        return new TrainingAdherenceScore(eligible, inTarget, percentage, GetStars(percentage, completed));
+        var percentage = inTargetTicks * 100d / eligibleTicks;
+        return new TrainingAdherenceScore(
+            TimeSpan.FromTicks(eligibleTicks),
+            TimeSpan.FromTicks(inTargetTicks),
+            percentage,
+            GetStars(percentage, completed));
     }
 
     private static int GetStars(double percentage, bool completed) => !completed

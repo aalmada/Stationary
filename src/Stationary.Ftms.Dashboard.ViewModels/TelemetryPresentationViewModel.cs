@@ -20,6 +20,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     private const string HighContrastTelemetryPreferenceKey = "HighContrastTelemetry";
     private const string CompactChartsPreferenceKey = "CompactCharts";
     private const string FunctionalThresholdPowerPreferenceKey = "FunctionalThresholdPower";
+    private const string CadenceTargetOffsetPreferenceKey = "CadenceTargetOffsetRpm";
     private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
     private readonly IDashboardPlatform platform;
     private bool useMetricUnits;
@@ -45,6 +46,18 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         useHighContrastTelemetry = platform.GetPreference(HighContrastTelemetryPreferenceKey, false);
         useCompactCharts = platform.GetPreference(CompactChartsPreferenceKey, false);
         FunctionalThresholdPowerText = platform.GetPreference(FunctionalThresholdPowerPreferenceKey, string.Empty);
+        var savedCadenceOffset = platform.GetPreference(CadenceTargetOffsetPreferenceKey, "0");
+        if (int.TryParse(savedCadenceOffset, out var cadenceOffset)
+            && cadenceOffset is >= -TrainingWorkoutCompiler.MaximumCadenceOffsetRpm and <= TrainingWorkoutCompiler.MaximumCadenceOffsetRpm)
+        {
+            CadenceTargetOffsetRpm = cadenceOffset;
+            CadenceTargetOffsetText = savedCadenceOffset;
+        }
+        else if (savedCadenceOffset != "0")
+        {
+            CadenceTargetOffsetText = savedCadenceOffset;
+            CadenceTargetOffsetStatusText = $"Saved cadence offset is invalid; enter a value from -{TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} to {TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} rpm.";
+        }
     }
 
     [Reactive]
@@ -73,6 +86,32 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
 
     [Reactive]
     public partial string FunctionalThresholdPowerText { get; set; }
+
+    [Reactive]
+    public partial string CadenceTargetOffsetText { get; set; } = "0";
+
+    [Reactive]
+    public partial int CadenceTargetOffsetRpm { get; private set; }
+
+    [Reactive]
+    public partial string CadenceTargetOffsetStatusText { get; private set; } = "Use 0 for the authored cadence ranges.";
+
+    [ReactiveCommand]
+    private void ApplyCadenceTargetOffset()
+    {
+        if (!int.TryParse(CadenceTargetOffsetText, out var offset)
+            || offset is < -TrainingWorkoutCompiler.MaximumCadenceOffsetRpm or > TrainingWorkoutCompiler.MaximumCadenceOffsetRpm)
+        {
+            CadenceTargetOffsetStatusText = $"Enter a whole number from -{TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} to {TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} rpm.";
+            return;
+        }
+
+        CadenceTargetOffsetRpm = offset;
+        platform.SetPreference(CadenceTargetOffsetPreferenceKey, offset.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        CadenceTargetOffsetStatusText = offset == 0
+            ? "Using the authored cadence ranges."
+            : $"Shifting every prescribed cadence range by {offset:+#;-#;0} rpm.";
+    }
 
     [Reactive]
     public partial string SessionWorkText { get; private set; } = "--";

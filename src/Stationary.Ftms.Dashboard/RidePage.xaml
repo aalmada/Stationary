@@ -241,8 +241,8 @@
 
           <Border Style="{StaticResource PanelBorder}" Padding="14">
             <VerticalStackLayout Spacing="6">
-              <Label Text="EFFORT MAP · POWER VS CADENCE" Style="{StaticResource TileCaption}" />
-              <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" />
+              <Label Text="POWER VS CADENCE · SHADED AREA IS THE TARGET" Style="{StaticResource TileCaption}" />
+              <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" />
             </VerticalStackLayout>
           </Border>
         </VerticalStackLayout>

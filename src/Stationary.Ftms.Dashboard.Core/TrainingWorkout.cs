@@ -63,10 +63,13 @@ public sealed record CompiledTrainingWorkout(TrainingWorkout Definition, IReadOn
 
 public static class TrainingWorkoutCompiler
 {
+    public const int MaximumCadenceOffsetRpm = 15;
+
     public static CompiledTrainingWorkout Compile(
         TrainingWorkout workout,
         ushort functionalThresholdPowerWatts,
-        TrainingPowerCapabilities capabilities)
+        TrainingPowerCapabilities capabilities,
+        int cadenceOffsetRpm = 0)
     {
         ArgumentNullException.ThrowIfNull(workout);
         if (functionalThresholdPowerWatts == 0)
@@ -77,6 +80,11 @@ public static class TrainingWorkoutCompiler
         if (!capabilities.IsValid)
         {
             throw new ArgumentOutOfRangeException(nameof(capabilities));
+        }
+
+        if (cadenceOffsetRpm is < -MaximumCadenceOffsetRpm or > MaximumCadenceOffsetRpm)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cadenceOffsetRpm));
         }
 
         if (workout.Segments.Count == 0)
@@ -95,17 +103,27 @@ public static class TrainingWorkoutCompiler
                 throw new InvalidOperationException($"Segment '{segment.Name}' requires {requestedWatts:F0} W, outside the bike range.");
             }
 
+            var adjustedSegment = segment with
+            {
+                MinimumCadenceRpm = AdjustCadence(segment.MinimumCadenceRpm, cadenceOffsetRpm),
+                MaximumCadenceRpm = AdjustCadence(segment.MaximumCadenceRpm, cadenceOffsetRpm),
+            };
+            ValidateSegment(adjustedSegment);
+
             var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
             var nearestStep = (int)double.Round(
                 (requestedWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts,
                 MidpointRounding.AwayFromZero);
             var target = capabilities.MinimumWatts + int.Clamp(nearestStep, 0, maximumStep) * capabilities.IncrementWatts;
 
-            segments[index] = new(segment, target);
+            segments[index] = new(adjustedSegment, target);
         }
 
         return new(workout, segments);
     }
+
+    private static int? AdjustCadence(int? cadenceRpm, int offsetRpm) =>
+        cadenceRpm is int value ? value + offsetRpm : null;
 
     private static void ValidateSegment(TrainingSegment segment)
     {
@@ -121,6 +139,11 @@ public static class TrainingWorkoutCompiler
         if (segment.MinimumCadenceRpm is > 0 && segment.MaximumCadenceRpm is > 0 && segment.MinimumCadenceRpm > segment.MaximumCadenceRpm)
         {
             throw new ArgumentException("A cadence range must have a minimum no greater than its maximum.", nameof(segment));
+        }
+
+        if (segment.MinimumCadenceRpm is < 30 or > 150 || segment.MaximumCadenceRpm is < 30 or > 150)
+        {
+            throw new ArgumentException("Cadence targets must be between 30 and 150 rpm.", nameof(segment));
         }
     }
 }

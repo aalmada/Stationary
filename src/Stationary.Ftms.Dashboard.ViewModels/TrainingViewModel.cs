@@ -218,8 +218,14 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         : FormatRemainingTime(GetWorkoutTotal() - GetWorkoutElapsed(DateTimeOffset.UtcNow));
 
     public string CurrentTargetText => IsActive && CurrentTargetWatts > 0
-        ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Target {CurrentTargetWatts} W")
+        ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"ERG target {CurrentTargetWatts} W")
         : string.Empty;
+
+    public double? PowerCadenceTargetWatts => IsActive && CurrentTargetWatts > 0 ? CurrentTargetWatts : null;
+
+    public int? PowerCadenceMinimumCadenceRpm => IsActive ? runner?.CurrentSegment?.Definition.MinimumCadenceRpm : null;
+
+    public int? PowerCadenceMaximumCadenceRpm => IsActive ? runner?.CurrentSegment?.Definition.MaximumCadenceRpm : null;
 
     public string CadenceTargetText => runner?.CurrentSegment?.Definition switch
     {
@@ -262,7 +268,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     public partial string StatusText { get; private set; } = "Choose a workout.";
 
     [Reactive]
-    public partial string AdherenceText { get; private set; } = "Precision score appears after a work interval.";
+    public partial string AdherenceText { get; private set; } = "Cadence in-range score appears after a work interval.";
 
     public string CurrentSegmentText => runner?.CurrentSegment is { } segment
         ? $"{segment.Definition.Name}: {segment.TargetWatts} W"
@@ -356,7 +362,11 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
         try
         {
-            var compiledWorkout = TrainingWorkoutCompiler.Compile(workout, ftp, capabilities);
+            var compiledWorkout = TrainingWorkoutCompiler.Compile(
+                workout,
+                ftp,
+                capabilities,
+                dashboard.Telemetry.CadenceTargetOffsetRpm);
             isRampTest = false;
             await BeginAsync(compiledWorkout, cancellationToken);
         }
@@ -724,7 +734,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         activeSegments = [.. workout.Segments.Select(static segment => segment.Definition)];
         TargetPowerSamples = [];
         CurrentTargetWatts = 0;
-        AdherenceText = "Precision score appears after a work interval.";
+        AdherenceText = "Cadence in-range score appears after a work interval.";
         isSessionStartPending = true;
         isEnding = false;
         isEndFailed = false;
@@ -934,6 +944,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(CurrentSegmentText));
         this.RaisePropertyChanged(nameof(CurrentTargetWatts));
         this.RaisePropertyChanged(nameof(CurrentTargetText));
+        this.RaisePropertyChanged(nameof(PowerCadenceTargetWatts));
+        this.RaisePropertyChanged(nameof(PowerCadenceMinimumCadenceRpm));
+        this.RaisePropertyChanged(nameof(PowerCadenceMaximumCadenceRpm));
         this.RaisePropertyChanged(nameof(CadenceTargetText));
         this.RaisePropertyChanged(nameof(NextSegmentText));
         this.RaisePropertyChanged(nameof(RampEstimateText));
@@ -948,19 +961,26 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
     private void RecordAdherence(CompiledTrainingSegment? segment, DateTimeOffset completedAt)
     {
-        if (segment is not { Definition.CountsTowardAdherence: true } || segmentStartedAt is not { } startedAt || !dashboard.TryGetTrainingPowerCapabilities(out var capabilities))
+        if (segment is not { Definition.CountsTowardAdherence: true } || segmentStartedAt is not { } startedAt)
         {
             return;
         }
 
         var samples = dashboard.GetRecordedSamplesSince(startedAt)
-            .Select(static sample => new TrainingAdherenceSample(sample.CapturedAt, sample.PowerWatts))
+            .Select(static sample => new TrainingAdherenceSample(sample.CapturedAt, sample.CadenceRpm))
             .ToArray();
-        var result = TrainingAdherence.Calculate(samples, segment.TargetWatts, capabilities.IncrementWatts, startedAt, completedAt, completed: true);
+        var result = TrainingAdherence.Calculate(
+            samples,
+            segment.Definition.MinimumCadenceRpm,
+            segment.Definition.MaximumCadenceRpm,
+            startedAt,
+            completedAt,
+            completed: true);
         AdherenceText = result switch
         {
-            TrainingAdherenceScore score => $"Precision: {score.Percentage:F0}% · {score.Stars} star{(score.Stars == 1 ? string.Empty : "s")}",
-            TrainingAdherenceNoMeasuredPower => "Precision unavailable: no measured power was recorded.",
+            TrainingAdherenceScore score => $"Cadence in range: {score.Percentage:F0}% · {score.Stars} star{(score.Stars == 1 ? string.Empty : "s")}",
+            TrainingAdherenceNoCadenceTarget => "Cadence score unavailable: this interval has no cadence target.",
+            TrainingAdherenceNoMeasuredCadence => "Cadence score unavailable: no measured cadence was recorded.",
         };
     }
 }

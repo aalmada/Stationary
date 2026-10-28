@@ -24,6 +24,15 @@
             <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding Telemetry.ApplyFunctionalThresholdPowerCommand}" />
             <Label Grid.Column="3" Text="Enables power zones, intensity factor, and FTP-relative training targets." TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center" />
           </Grid>
+          <Grid ColumnDefinitions="Auto,112,Auto,*" ColumnSpacing="10">
+            <Label Text="Cadence offset" FontAttributes="Bold" VerticalOptions="Center" />
+            <Entry Grid.Column="1" Text="{Binding Telemetry.CadenceTargetOffsetText}" Keyboard="Numeric" Placeholder="rpm" />
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding Telemetry.ApplyCadenceTargetOffsetCommand}" />
+            <VerticalStackLayout Grid.Column="3" Spacing="2" VerticalOptions="Center">
+              <Label Text="Shifts workout cadence ranges by -15 to +15 rpm on the next workout; use 0 for authored targets." TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.CadenceTargetOffsetStatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+          </Grid>
         </VerticalStackLayout>
       </Border>
 
