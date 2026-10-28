@@ -7,7 +7,6 @@ using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Text;
 using System.Text.Json;
 
 using ReactiveUI;
@@ -53,6 +52,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
     private readonly ObservableAsPropertyHelper<bool> canInitiateOperation;
     private readonly ObservableAsPropertyHelper<bool> isControlOperationExecuting;
     private readonly ObservableAsPropertyHelper<bool> isWorking;
+    private readonly ReactiveCommand<Unit, PreviousSessionLoadResult> loadPreviousSessionCommand;
     private readonly SerialDisposable sessionSubscriptions = new();
     private readonly SerialDisposable scanSubscriptions = new();
     private readonly SemaphoreSlim operationGate = new(1, 1);
@@ -314,6 +314,19 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         SetTargetResistanceCommand = ReactiveCommand.CreateFromTask(cancellationToken => ExecuteExclusiveAsync(SetTargetResistanceAsync, cancellationToken), canApplyTarget);
         ResetSessionCommand = ReactiveCommand.Create(ResetSession, canResetSession);
         ExportSessionCommand = ReactiveCommand.CreateFromTask(ExportSessionAsync, canResetSession);
+        loadPreviousSessionCommand = ReactiveCommand.CreateFromTask(LoadPreviousSessionAsync);
+        subscriptions.Add(loadPreviousSessionCommand
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(ApplyPreviousSessionLoadResult));
+        subscriptions.Add(loadPreviousSessionCommand.ThrownExceptions
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Where(exception => exception is not OperationCanceledException)
+            .Subscribe(exception =>
+            {
+                PreviousSessionComparisonText = "Previous session data is unavailable.";
+                ConnectionStatus = $"Previous session data could not be loaded: {exception.Message}";
+            }));
+        subscriptions.Add(loadPreviousSessionCommand.Execute().Subscribe());
         ApplyHeartRateZonesCommand = ReactiveCommand.Create(ApplyHeartRateZones);
         ShowTodayCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Today));
         ShowRideCommand = ReactiveCommand.Create(() => RequestNavigation(DashboardDestination.Ride));
@@ -549,7 +562,6 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 static (workoutActive, trainingActive) => workoutActive || trainingActive)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsRideInProgress);
-        LoadPreviousSession();
     }
 
     public string ConnectionStatus
@@ -1144,6 +1156,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         SetTargetResistanceCommand.Dispose();
         ResetSessionCommand.Dispose();
         ExportSessionCommand.Dispose();
+        loadPreviousSessionCommand.Dispose();
         ApplyHeartRateZonesCommand.Dispose();
         ShowTodayCommand.Dispose();
         ShowRideCommand.Dispose();
@@ -1389,44 +1402,12 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         var fileName = $"stationary-session-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.csv";
         var path = Path.Combine(FileSystem.CacheDirectory, fileName);
         var archive = CreateRecordedSession();
-        var csv = CreateSessionCsv(archive);
-        await File.WriteAllTextAsync(path, csv, cancellationToken);
-        UpdatePreviousSessionComparison(archive.Summary);
-        var archiveJson = JsonSerializer.SerializeToUtf8Bytes(archive, RecordedSessionJsonContext.Default.RecordedSession);
-        await File.WriteAllBytesAsync(GetPreviousSessionPath(), archiveJson, cancellationToken);
+        await RecordedSessionArchiveStorage.WriteCsvAsync(path, archive, cancellationToken);
+        await RecordedSessionArchiveStorage.WriteJsonAsync(GetPreviousSessionPath(), archive, cancellationToken);
         previousSession = archive;
+        UpdatePreviousSessionComparison(archive.Summary);
         ConnectionStatus = $"Session telemetry exported to {path}.";
     }
-
-    private static string CreateSessionCsv(RecordedSession archive)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("TimestampUtc,RecordType,PowerWatts,SpeedKilometersPerHour,CadenceRpm,HeartRateBeatsPerMinute,Event");
-        foreach (var sample in archive.Samples)
-        {
-            builder.Append(sample.CapturedAt.ToString("O", CultureInfo.InvariantCulture)).Append(",telemetry,")
-                .Append(FormatCsvNumber(sample.PowerWatts)).Append(',')
-                .Append(FormatCsvNumber(sample.SpeedKilometersPerHour)).Append(',')
-                .Append(FormatCsvNumber(sample.CadenceRpm)).Append(',')
-                .Append(FormatCsvNumber(sample.HeartRateBeatsPerMinute)).AppendLine(",");
-        }
-
-        foreach (var marker in archive.Events)
-        {
-            builder.Append(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture)).Append(",event,,,,,")
-                .Append(marker.Type).Append(':').AppendLine(marker.Label.Replace(',', ';'));
-        }
-
-        builder.AppendLine().AppendLine("Metric,Value")
-            .AppendLine($"Distance metres,{archive.Summary.DistanceMeters.ToString("F1", CultureInfo.InvariantCulture)}")
-            .AppendLine($"Elapsed seconds,{archive.Summary.Elapsed.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}")
-            .AppendLine($"Average power watts,{archive.Summary.AveragePowerWatts.ToString("F1", CultureInfo.InvariantCulture)}")
-            .AppendLine($"Maximum power watts,{archive.Summary.MaximumPowerWatts.ToString("F1", CultureInfo.InvariantCulture)}")
-            .AppendLine($"Work kilojoules,{archive.Summary.CyclingMetrics.TotalWorkKilojoules.ToString("F1", CultureInfo.InvariantCulture)}");
-        return builder.ToString();
-    }
-
-    private static string FormatCsvNumber(double? value) => value?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
 
     private void ResetSession()
     {
@@ -2336,32 +2317,50 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         [.. SessionEvents],
         Telemetry.GetSessionSummary());
 
-    private void LoadPreviousSession()
+    private async Task<PreviousSessionLoadResult> LoadPreviousSessionAsync(CancellationToken cancellationToken)
     {
+        var path = GetPreviousSessionPath();
         try
         {
-            var path = GetPreviousSessionPath();
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            previousSession = JsonSerializer.Deserialize(File.ReadAllBytes(path), RecordedSessionJsonContext.Default.RecordedSession);
-            if (previousSession is not null)
-            {
-                var elapsed = previousSession.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
-                PreviousSessionComparisonText = $"Previous: {previousSession.Summary.AveragePowerWatts:F0} W average · {previousSession.Summary.CyclingMetrics.TotalWorkKilojoules:F1} kJ · {elapsed}";
-            }
+            return new(await RecordedSessionArchiveStorage.ReadJsonAsync(path, cancellationToken).ConfigureAwait(false), null);
         }
         catch (JsonException)
         {
-            PreviousSessionComparisonText = "Previous session data could not be read.";
+            return new(null, "Previous session data could not be read.");
+        }
+        catch (FileNotFoundException)
+        {
+            return default;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return default;
         }
         catch (IOException)
         {
-            PreviousSessionComparisonText = "Previous session data is unavailable.";
+            return new(null, "Previous session data is unavailable.");
         }
     }
+
+    private void ApplyPreviousSessionLoadResult(PreviousSessionLoadResult result)
+    {
+        if (result.ErrorMessage is { } errorMessage)
+        {
+            PreviousSessionComparisonText = errorMessage;
+            return;
+        }
+
+        if (result.Session is not { } loadedSession)
+        {
+            return;
+        }
+
+        previousSession = loadedSession;
+        var elapsed = loadedSession.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        PreviousSessionComparisonText = $"Previous: {loadedSession.Summary.AveragePowerWatts:F0} W average · {loadedSession.Summary.CyclingMetrics.TotalWorkKilojoules:F1} kJ · {elapsed}";
+    }
+
+    private readonly record struct PreviousSessionLoadResult(RecordedSession? Session, string? ErrorMessage);
 
     private void UpdatePreviousSessionComparison(SessionSummary current)
     {
