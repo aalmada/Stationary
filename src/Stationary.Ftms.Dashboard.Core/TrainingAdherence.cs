@@ -2,14 +2,11 @@ namespace Stationary.Ftms.Dashboard.Core;
 
 public readonly record struct TrainingAdherenceSample(DateTimeOffset CapturedAt, double? PowerWatts);
 
-public readonly record struct TrainingAdherenceResult(
-    int EligibleSamples,
-    int InTargetSamples,
-    double? Percentage,
-    int Stars)
-{
-    public static readonly TrainingAdherenceResult Empty = new(0, 0, null, 0);
-}
+public sealed record TrainingAdherenceScore(int EligibleSamples, int InTargetSamples, double Percentage, int Stars);
+
+public sealed record TrainingAdherenceNoMeasuredPower;
+
+public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNoMeasuredPower);
 
 public static class TrainingAdherence
 {
@@ -54,11 +51,11 @@ public static class TrainingAdherence
 
         if (eligible == 0)
         {
-            return TrainingAdherenceResult.Empty;
+            return new TrainingAdherenceNoMeasuredPower();
         }
 
         var percentage = inTarget * 100d / eligible;
-        return new(eligible, inTarget, percentage, GetStars(percentage, completed));
+        return new TrainingAdherenceScore(eligible, inTarget, percentage, GetStars(percentage, completed));
     }
 
     private static int GetStars(double percentage, bool completed) => !completed

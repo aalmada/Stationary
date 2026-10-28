@@ -18,13 +18,7 @@ public sealed class TrainingAdherenceTests
 
         var result = TrainingAdherence.Calculate(samples, 300, 5, start, start.AddSeconds(15), completed: true);
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(result.EligibleSamples).IsEqualTo(3);
-            await Assert.That(result.InTargetSamples).IsEqualTo(3);
-            await Assert.That(result.Percentage).IsEqualTo(100d);
-            await Assert.That(result.Stars).IsEqualTo(3);
-        }
+        await Assert.That(result is TrainingAdherenceScore { EligibleSamples: 3, InTargetSamples: 3, Percentage: 100d, Stars: 3 }).IsTrue();
     }
 
     [Test]
@@ -39,11 +33,21 @@ public sealed class TrainingAdherenceTests
 
         var result = TrainingAdherence.Calculate(samples, 0, 100, start, start.AddSeconds(10), completed: true);
 
-        using (Assert.Multiple())
+        await Assert.That(result is TrainingAdherenceScore { InTargetSamples: 2, Percentage: 100d, Stars: 3 }).IsTrue();
+    }
+
+    [Test]
+    public async Task Calculate_ReportsNoMeasuredPowerWhenNoSampleIsEligible()
+    {
+        var start = DateTimeOffset.UnixEpoch;
+        var samples = new[]
         {
-            await Assert.That(result.InTargetSamples).IsEqualTo(2);
-            await Assert.That(result.Percentage).IsEqualTo(100d);
-            await Assert.That(result.Stars).IsEqualTo(3);
-        }
+            new TrainingAdherenceSample(start.AddSeconds(1), 250d),
+            new TrainingAdherenceSample(start.AddSeconds(8), null),
+        };
+
+        var result = TrainingAdherence.Calculate(samples, 250, 5, start, start.AddSeconds(10), completed: true);
+
+        await Assert.That(result is TrainingAdherenceNoMeasuredPower).IsTrue();
     }
 }

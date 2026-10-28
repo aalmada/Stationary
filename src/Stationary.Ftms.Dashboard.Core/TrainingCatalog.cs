@@ -38,8 +38,8 @@ public static class TrainingCatalog
             throw new InvalidOperationException("The training catalog must include one workout for each objective and experience level.");
         }
 
-        var actual = new HashSet<(TrainingObjective, TrainingExperienceLevel)>();
-        var ids = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<(TrainingObjective, TrainingExperienceLevel)> actual = [with(capacity: workouts.Count)];
+        HashSet<string> ids = [with(workouts.Count, StringComparer.Ordinal)];
         foreach (var workout in workouts)
         {
             if (string.IsNullOrWhiteSpace(workout.Id) || !ids.Add(workout.Id))
@@ -73,8 +73,8 @@ public static class TrainingCatalog
             throw new InvalidOperationException("The training plan catalog must include one plan for each objective and experience level.");
         }
 
-        var planIds = new HashSet<string>(StringComparer.Ordinal);
-        var planVariants = new HashSet<(TrainingObjective, TrainingExperienceLevel)>();
+        HashSet<string> planIds = [with(plans.Count, StringComparer.Ordinal)];
+        HashSet<(TrainingObjective, TrainingExperienceLevel)> planVariants = [with(capacity: plans.Count)];
         foreach (var plan in plans)
         {
             ValidatePlan(plan, planIds, planVariants, workoutIds);

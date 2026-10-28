@@ -83,7 +83,7 @@ public sealed class PluginBleFtmsDiscoveryService : IFtmsDiscoveryService
         var isMachineStatusSubscribed = false;
         var machineStatusAvailability = "Fitness Machine Status (0x2ADA) is not exposed. Physical controls cannot be synchronized.";
         var pendingMachineStatusPayloads = new Queue<byte[]>();
-        var machineStatusGate = new object();
+        var machineStatusGate = new Lock();
         try
         {
             await adapter.ConnectToDeviceAsync(device, cancellationToken: cancellationToken).ConfigureAwait(false);

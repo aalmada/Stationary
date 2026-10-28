@@ -16,6 +16,8 @@
 ## Conventions
 
 - Target `net11.0`; nullable reference types, analyzers, code-style enforcement, deterministic builds, and warnings-as-errors are configured in `Directory.Build.props`.
+- Do not enable runtime-native async (`<Features>runtime-async=on</Features>`). The libraries ship inside the Mac Catalyst dashboard, and the .NET 11 Mac Catalyst framework is not compiled with runtime async.
+- Serialize persisted dashboard data with source-generated `JsonSerializerContext` types, not reflection-based `JsonSerializer` overloads.
 - Keep codec hot paths allocation-free and transport-neutral. Prefer `ReadOnlySpan<byte>`, `Span<byte>`, and `BinaryPrimitives` for FTMS wire data.
 - Preserve little-endian encoding and the `FtmsValidationMode` strict/compatible contract.
 - Use central package management in `Directory.Packages.props`; do not hand-edit `apm.lock.yaml`.

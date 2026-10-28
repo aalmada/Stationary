@@ -15,7 +15,7 @@ public sealed class HeartRateZoneProfile
             throw new ArgumentException("At least one heart-rate zone is required.", nameof(zones));
         }
 
-        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> codes = [with(StringComparer.OrdinalIgnoreCase)];
         ushort expectedMinimum = 0;
         for (var index = 0; index < this.zones.Length; index++)
         {

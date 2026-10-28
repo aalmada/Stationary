@@ -1392,8 +1392,8 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
         var csv = CreateSessionCsv(archive);
         await File.WriteAllTextAsync(path, csv, cancellationToken);
         UpdatePreviousSessionComparison(archive.Summary);
-        var archiveJson = JsonSerializer.Serialize(archive);
-        await File.WriteAllTextAsync(GetPreviousSessionPath(), archiveJson, cancellationToken);
+        var archiveJson = JsonSerializer.SerializeToUtf8Bytes(archive, RecordedSessionJsonContext.Default.RecordedSession);
+        await File.WriteAllBytesAsync(GetPreviousSessionPath(), archiveJson, cancellationToken);
         previousSession = archive;
         ConnectionStatus = $"Session telemetry exported to {path}.";
     }
@@ -2346,7 +2346,7 @@ public sealed class DashboardViewModel : ReactiveObject, IAsyncDisposable
                 return;
             }
 
-            previousSession = JsonSerializer.Deserialize<RecordedSession>(File.ReadAllText(path));
+            previousSession = JsonSerializer.Deserialize(File.ReadAllBytes(path), RecordedSessionJsonContext.Default.RecordedSession);
             if (previousSession is not null)
             {
                 var elapsed = previousSession.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);

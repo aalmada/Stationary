@@ -1001,8 +1001,10 @@ public sealed class TrainingViewModel : ReactiveObject, IDisposable
             .Select(static sample => new TrainingAdherenceSample(sample.CapturedAt, sample.PowerWatts))
             .ToArray();
         var result = TrainingAdherence.Calculate(samples, segment.TargetWatts, capabilities.IncrementWatts, startedAt, completedAt, completed: true);
-        AdherenceText = result.Percentage is double percentage
-            ? $"Precision: {percentage:F0}% · {result.Stars} star{(result.Stars == 1 ? string.Empty : "s")}"
-            : "Precision unavailable: no measured power was recorded.";
+        AdherenceText = result switch
+        {
+            TrainingAdherenceScore score => $"Precision: {score.Percentage:F0}% · {score.Stars} star{(score.Stars == 1 ? string.Empty : "s")}",
+            TrainingAdherenceNoMeasuredPower => "Precision unavailable: no measured power was recorded.",
+        };
     }
 }
