@@ -206,6 +206,29 @@ public sealed class TrainingCatalogTests
     }
 
     [Test]
+    public async Task Load_OpensEveryWorkoutWithBroadCadenceThenCadenceLift()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        foreach (var workout in catalog.Workouts)
+        {
+            var opening = workout.Segments[0];
+            var lift = workout.Segments[1];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(opening.Name is "Warm up" or "Ease in").IsTrue();
+                await Assert.That((opening.MinimumCadenceRpm, opening.MaximumCadenceRpm)).IsEqualTo(((int?)60, (int?)100));
+                await Assert.That(lift.Name).IsEqualTo("Cadence lift");
+                await Assert.That((lift.MinimumCadenceRpm, lift.MaximumCadenceRpm)).IsEqualTo(((int?)75, (int?)95));
+                await Assert.That(lift.Duration).IsEqualTo(TimeSpan.FromMinutes(2));
+                await Assert.That(lift.FunctionalThresholdPowerPercentage).IsEqualTo(opening.FunctionalThresholdPowerPercentage);
+                await Assert.That(opening.CountsTowardAdherence || lift.CountsTowardAdherence).IsFalse();
+            }
+        }
+    }
+
+    [Test]
     public async Task Load_CalculatesTotalWorkoutDurationFromSegments()
     {
         var catalog = await TrainingCatalog.LoadAsync();

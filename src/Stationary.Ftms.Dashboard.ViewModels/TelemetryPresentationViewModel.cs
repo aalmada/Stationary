@@ -141,6 +141,9 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public partial string CadenceText { get; private set; } = "-- rpm";
 
     [Reactive]
+    public partial double? CurrentCadenceRpm { get; private set; }
+
+    [Reactive]
     public partial string HealthText { get; private set; } = "Waiting for telemetry";
 
     [Reactive]
@@ -363,6 +366,11 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         PowerText = PresentField(snapshot, TelemetryField.Power, snapshot.PowerWatts, power => $"{power:F0} W", PowerText, "-- W");
         CurrentPowerZoneText = GetCurrentPowerZoneText(snapshot.PowerWatts);
         CadenceText = PresentField(snapshot, TelemetryField.Cadence, snapshot.CadenceRpm, cadence => $"{cadence:F0} rpm", CadenceText, "-- rpm");
+        if ((snapshot.ReportedFields & TelemetryField.Cadence) != 0)
+        {
+            CurrentCadenceRpm = snapshot.CadenceRpm;
+        }
+
         HealthText = $"Live - last packet {snapshot.CapturedAt.ToLocalTime():T}";
         IsStale = false;
         TrackSessionStatistics(snapshot);
@@ -398,6 +406,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         PowerText = "-- W";
         CurrentPowerZoneText = "Set FTP for zones";
         CadenceText = "-- rpm";
+        CurrentCadenceRpm = null;
         HealthText = "Waiting for telemetry";
         IsStale = false;
         SetChartSamples(null);

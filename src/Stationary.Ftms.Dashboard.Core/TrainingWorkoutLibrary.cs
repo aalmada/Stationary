@@ -2,6 +2,7 @@ namespace Stationary.Ftms.Dashboard.Core;
 
 internal static class TrainingWorkoutLibrary
 {
+    private static readonly TimeSpan CadenceLiftDuration = TimeSpan.FromMinutes(2);
     private const string EaseInName = "Ease in";
     private const string EasyEnduranceName = "Easy endurance";
     private const string EasyFloatName = "Easy float";
@@ -25,6 +26,12 @@ internal static class TrainingWorkoutLibrary
     private const string CadenceCloseName = "Cadence close";
     private const string BurstName = "Burst";
     private const string CadencePreparationName = "Cadence build";
+    private const string CadenceLiftName = "Cadence lift";
+    private const string CadenceLiftCue = "Raise cadence gradually toward the work range.";
+    private const int BroadWarmUpMinimumCadenceRpm = 60;
+    private const int BroadWarmUpMaximumCadenceRpm = 100;
+    private const int CadenceLiftMinimumCadenceRpm = 75;
+    private const int CadenceLiftMaximumCadenceRpm = 95;
     private const string StartWithLightSpin = "Start with a light spin.";
     private const string FinishFresher = "Finish fresher than you started.";
     private const string BuildSmoothly = "Build smoothly.";
@@ -511,7 +518,30 @@ internal static class TrainingWorkoutLibrary
         string description,
         TrainingObjective objective,
         TrainingExperienceLevel level,
-        params TrainingSegment[] segments) => new(id, name, description, objective, level, segments);
+        params TrainingSegment[] segments) => new(id, name, description, objective, level, AddWarmUpCadenceGuidance(segments));
+
+    // Opening segments start with a broad cadence range, then lift toward the first work range so riders arrive prepared.
+    private static TrainingSegment[] AddWarmUpCadenceGuidance(TrainingSegment[] segments)
+    {
+        if (segments is not [{ Name: EaseInName or WarmUpName, MinimumCadenceRpm: null, MaximumCadenceRpm: null } opening, ..]
+            || opening.Duration <= CadenceLiftDuration)
+        {
+            return segments;
+        }
+
+        return
+        [
+            opening with
+            {
+                Duration = opening.Duration - CadenceLiftDuration,
+                MinimumCadenceRpm = BroadWarmUpMinimumCadenceRpm,
+                MaximumCadenceRpm = BroadWarmUpMaximumCadenceRpm,
+            },
+            new(CadenceLiftName, CadenceLiftDuration, opening.FunctionalThresholdPowerPercentage,
+                CadenceLiftMinimumCadenceRpm, CadenceLiftMaximumCadenceRpm, CadenceLiftCue, false),
+            .. segments[1..],
+        ];
+    }
 
     private static string Numbered(string name, int number) => $"{name} {number}";
 

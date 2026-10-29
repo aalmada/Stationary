@@ -49,7 +49,12 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 ### Structured Training
 
 - Structured workouts send each segment's FTMS target-power command to the bike. In ERG mode, the bike controls resistance; the rider follows the segment's cadence target rather than trying to force measured power to match the target.
-- The Power vs Cadence map shades the active power/cadence target zone. For the first 10 seconds after each target change, the ride panel reminds the rider to hold cadence steady while the trainer adjusts resistance; the segment cue appears afterward. Workout adherence measures time in the prescribed cadence range after this settling period, excluding telemetry gaps longer than five seconds.
+- Power target changes ramp in 3-second steps over up to 15 seconds (a quarter of shorter segments). The first segment starts from half its target. The FTP ramp test applies its steps directly.
+- Training holds the bike's lowest supported power target until cadence reaches 45 rpm. Only then does the first target ramp begin and the interval timer start, so the trainer does not load resistance against a stopped flywheel.
+- If cadence stays below 35 rpm for 3 seconds during a workout, the target drops to the lowest supported power. Once cadence returns to 45 rpm, it ramps back to the interval target. This guard prevents the ERG "spiral of death" and is disabled during the FTP ramp test.
+- Every workout opens with a broad 60-100 rpm warm-up range, then a 2-minute cadence lift at 75-95 rpm, so riders approach the work range before the first scored interval. These opening segments do not count toward adherence.
+- The cadence tile shows "Pedal faster" or "Pedal slower" while live cadence is outside the active range.
+- The Power vs Cadence map shades the active power/cadence target zone. While a target ramps and for 10 seconds afterward, the ride panel reminds the rider to hold cadence steady while the trainer adjusts resistance; the segment cue appears afterward. Workout adherence measures time in the prescribed cadence range after the ramp and this settling period, excluding telemetry gaps longer than five seconds.
 - Settings can shift all workout cadence ranges by -15 to +15 rpm for the rider's preferred cadence. Zero keeps the authored ranges.
 - Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.
 - Workout targets are generic FTP-relative prescriptions. Set FTP accurately and adjust or stop an interval if the effort is unsuitable.

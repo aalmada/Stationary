@@ -75,6 +75,7 @@
           <Label Text="CADENCE" Style="{StaticResource TileCaption}" TextColor="{Binding Telemetry.CadenceChartColor}" />
           <Label Text="{Binding Telemetry.CadenceText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
           <Label Text="{Binding Training.CadenceTargetText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsTrainingActive}" />
+          <Label Text="{Binding Training.CadenceDirectionText}" Style="{StaticResource TileDetail}" FontAttributes="Bold" IsVisible="{Binding IsTrainingActive}" />
         </VerticalStackLayout>
       </Border>
       <Border Grid.Column="3" Style="{StaticResource TileBorder}">

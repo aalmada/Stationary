@@ -45,6 +45,17 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private TrainingPowerCapabilities rampCapabilities;
     private DateTimeOffset? rampStartedAt;
     private DateTimeOffset? segmentStartedAt;
+    private TrainingPowerCapabilities? targetRampCapabilities;
+    private TrainingTargetRamp activeTargetRamp;
+    private TimeSpan activeTargetRampStartElapsed;
+    private TimeSpan segmentRampDuration;
+    private int activeTargetRampSegmentIndex = -1;
+    private int? lastAppliedTargetWatts;
+    private long targetRevision;
+    private bool isTargetRampStepPending;
+    private bool requiresPedallingBeforeTarget;
+    private bool isWaitingForPedalling;
+    private readonly TrainingCadenceGuard cadenceGuard = new();
     private bool isRampTest;
     private bool isPausePending;
     private bool isEnding;
@@ -110,6 +121,19 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 IsCatalogLoading = false;
                 StatusText = "The training library could not be loaded.";
             }));
+        _cadenceDirectionTextHelper = Observable.CombineLatest(
+                dashboard.WhenAnyValue(
+                    viewModel => viewModel.Telemetry.CurrentCadenceRpm,
+                    viewModel => viewModel.Telemetry.IsStale,
+                    static (cadence, stale) => stale ? null : cadence),
+                this.WhenAnyValue(
+                    viewModel => viewModel.RunnerState,
+                    viewModel => viewModel.PowerCadenceMinimumCadenceRpm,
+                    viewModel => viewModel.PowerCadenceMaximumCadenceRpm),
+                static (cadence, target) => GetCadenceDirectionText(cadence, target.Item1, target.Item2, target.Item3))
+            .DistinctUntilChanged()
+            .ToProperty(this, viewModel => viewModel.CadenceDirectionText, string.Empty);
+        disposables.Add(_cadenceDirectionTextHelper);
         disposables.Add(LoadCatalogCommand.Execute().Subscribe());
         disposables.Add(Observable.Interval(TimeSpan.FromSeconds(1), RxApp.TaskpoolScheduler)
             .ObserveOn(RxApp.MainThreadScheduler)
@@ -284,6 +308,14 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         ? FormatRemainingTime(remaining)
         : "--:--";
 
+    private static readonly string WaitingForPedallingText = string.Create(
+        System.Globalization.CultureInfo.InvariantCulture,
+        $"Start pedalling. The workout begins at {TrainingCadenceGuard.PedallingCadenceRpm:F0} rpm.");
+
+    private static readonly string StalledText = string.Create(
+        System.Globalization.CultureInfo.InvariantCulture,
+        $"Cadence too low, resistance eased. Spin up to {TrainingCadenceGuard.PedallingCadenceRpm:F0} rpm to resume.");
+
     public string IntervalGuidanceText
     {
         get
@@ -291,6 +323,11 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             if (runner?.CurrentSegment is not { } segment)
             {
                 return string.Empty;
+            }
+
+            if (isWaitingForPedalling)
+            {
+                return WaitingForPedallingText;
             }
 
             if (runner.State == TrainingWorkoutState.ApplyingTarget)
@@ -303,16 +340,33 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 return "Training paused.";
             }
 
-            if (runner.State == TrainingWorkoutState.Running
-                && runner.GetCurrentSegmentRemaining(DateTimeOffset.UtcNow) is { } remaining
-                && segment.Definition.Duration - remaining < TrainingAdherence.TrainerSettlingDuration)
+            if (runner.State == TrainingWorkoutState.Running && cadenceGuard.IsStalled)
             {
-                return "Keep cadence steady while the trainer adjusts resistance.";
+                return StalledText;
+            }
+
+            if (runner.State == TrainingWorkoutState.Running
+                && runner.GetCurrentSegmentRemaining(DateTimeOffset.UtcNow) is { } remaining)
+            {
+                var elapsed = segment.Definition.Duration - remaining;
+                var rampEnd = GetActiveTargetRampEndElapsed();
+                if (elapsed < rampEnd)
+                {
+                    return $"Ramping toward {segment.TargetWatts} W. Keep cadence steady.";
+                }
+
+                if (elapsed < rampEnd + TrainingAdherence.TrainerSettlingDuration)
+                {
+                    return "Keep cadence steady while the trainer adjusts resistance.";
+                }
             }
 
             return segment.Definition.Cue;
         }
     }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string CadenceDirectionText { get; }
 
     [Reactive]
     public partial int CurrentTargetWatts { get; private set; }
@@ -398,6 +452,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 capabilities,
                 dashboard.Telemetry.CadenceTargetOffsetRpm);
             isRampTest = false;
+            targetRampCapabilities = capabilities;
             await BeginAsync(compiledWorkout, cancellationToken);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or OverflowException)
@@ -503,6 +558,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         }
 
         isRampTest = true;
+        targetRampCapabilities = null;
         rampStartedAt = DateTimeOffset.UtcNow;
         RampEstimate = null;
         await BeginAsync(RampFtpProtocol.Create(rampCapabilities), cancellationToken);
@@ -571,7 +627,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             }
         }
 
-        await ApplyCurrentTargetAsync(cancellationToken, generation);
+        await StartSegmentTargetAsync(cancellationToken, generation);
     }
 
     [ReactiveCommand(CanExecute = nameof(canEnd))]
@@ -625,6 +681,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         isSessionStartPending = false;
         sessionStartTask = null;
         runner?.Abort();
+        isWaitingForPedalling = false;
         isRampTest = false;
         isEnding = false;
         isEndFailed = false;
@@ -668,9 +725,24 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             NotifyClockChanged();
         }
 
+        var cadence = GetLiveCadenceRpm();
+        if (isWaitingForPedalling)
+        {
+            if (TrainingCadenceGuard.IsPedalling(cadence))
+            {
+                isWaitingForPedalling = false;
+                requiresPedallingBeforeTarget = false;
+                _ = ApplyCurrentTargetAsync(CancellationToken.None, sessionGeneration);
+            }
+
+            return;
+        }
+
         var completedSegment = runner?.CurrentSegment;
         if (runner?.Advance(now) != true)
         {
+            GuardCadence(now, cadence);
+            ContinueTargetRamp(now);
             return;
         }
 
@@ -687,6 +759,47 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         _ = ApplyCurrentTargetAsync(CancellationToken.None, sessionGeneration);
     }
 
+    private double? GetLiveCadenceRpm() => dashboard.Telemetry.IsStale ? null : dashboard.Telemetry.CurrentCadenceRpm;
+
+    private Task StartSegmentTargetAsync(CancellationToken cancellationToken, long generation) =>
+        requiresPedallingBeforeTarget
+            ? HoldUntilPedallingAsync(cancellationToken, generation)
+            : ApplyCurrentTargetAsync(cancellationToken, generation);
+
+    // Holding the lowest target until the rider pedals prevents the trainer from loading resistance against a stopped flywheel.
+    private async Task HoldUntilPedallingAsync(CancellationToken cancellationToken, long generation)
+    {
+        if (generation != sessionGeneration || runner is null || GetHoldCapabilities() is not { } capabilities)
+        {
+            return;
+        }
+
+        StatusText = "Preparing the bike...";
+        if (!await dashboard.ApplyTrainingTargetAsync(capabilities.MinimumWatts, cancellationToken))
+        {
+            if (generation == sessionGeneration)
+            {
+                runner.RejectTarget();
+                StatusText = "The bike did not accept the starting target. Retry or end training.";
+                NotifyRunnerChanged();
+            }
+
+            return;
+        }
+
+        if (generation != sessionGeneration)
+        {
+            return;
+        }
+
+        CurrentTargetWatts = capabilities.MinimumWatts;
+        isWaitingForPedalling = true;
+        StatusText = WaitingForPedallingText;
+        NotifyRunnerChanged();
+    }
+
+    private TrainingPowerCapabilities? GetHoldCapabilities() => isRampTest ? rampCapabilities : targetRampCapabilities;
+
     private async Task ApplyCurrentTargetAsync(CancellationToken cancellationToken, long generation)
     {
         if (generation != sessionGeneration || runner?.CurrentSegment is not { } segment)
@@ -694,9 +807,20 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             return;
         }
 
-        CurrentTargetWatts = segment.TargetWatts;
-        StatusText = $"Applying {segment.TargetWatts} W for {segment.Definition.Name}.";
-        if (await dashboard.ApplyTrainingTargetAsync(segment.TargetWatts, cancellationToken))
+        var revision = ++targetRevision;
+        var segmentIndex = runner.SegmentIndex;
+        var isHeldLow = cadenceGuard.IsStalled && targetRampCapabilities is not null;
+        var ramp = targetRampCapabilities is { } capabilities && !isHeldLow
+            ? TrainingTargetRamp.Create(lastAppliedTargetWatts, segment, capabilities)
+            : new TrainingTargetRamp(segment.TargetWatts, segment.TargetWatts, TimeSpan.Zero);
+        var initialWatts = targetRampCapabilities is { } rampCapabilities
+            ? isHeldLow ? rampCapabilities.MinimumWatts : ramp.GetTargetWatts(TimeSpan.Zero, rampCapabilities)
+            : segment.TargetWatts;
+        CurrentTargetWatts = initialWatts;
+        StatusText = ramp.Duration > TimeSpan.Zero
+            ? $"Ramping toward {segment.TargetWatts} W for {segment.Definition.Name}."
+            : $"Applying {segment.TargetWatts} W for {segment.Definition.Name}.";
+        if (await dashboard.ApplyTrainingTargetAsync(initialWatts, cancellationToken))
         {
             if (generation != sessionGeneration)
             {
@@ -704,13 +828,22 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             }
 
             segmentStartedAt = DateTimeOffset.UtcNow;
+            if (revision == targetRevision)
+            {
+                activeTargetRamp = ramp;
+                activeTargetRampStartElapsed = TimeSpan.Zero;
+                activeTargetRampSegmentIndex = segmentIndex;
+                lastAppliedTargetWatts = initialWatts;
+            }
+
+            segmentRampDuration = ramp.Duration;
             runner.ConfirmTargetApplied(segmentStartedAt.Value);
             if (dashboard.SessionState == DashboardViewModel.WorkoutSessionState.Paused)
             {
                 runner.Pause(segmentStartedAt.Value);
             }
 
-            TargetPowerSamples = [.. TargetPowerSamples, new TelemetrySample(segmentStartedAt.Value, segment.TargetWatts)];
+            TargetPowerSamples = [.. TargetPowerSamples, new TelemetrySample(segmentStartedAt.Value, initialWatts)];
             StatusText = segment.Definition.Cue;
         }
         else
@@ -726,6 +859,110 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
         NotifyRunnerChanged();
     }
+
+    private void GuardCadence(DateTimeOffset now, double? cadence)
+    {
+        if (isRampTest
+            || targetRampCapabilities is not { } capabilities
+            || runner is not { State: TrainingWorkoutState.Running, CurrentSegment: { } segment } activeRunner
+            || activeRunner.GetCurrentSegmentRemaining(now) is not { } remaining)
+        {
+            return;
+        }
+
+        switch (cadenceGuard.Update(now, cadence))
+        {
+            case TrainingCadenceGuardTransition.Stalled:
+                targetRevision++;
+                activeTargetRamp = default;
+                StatusText = StalledText;
+                _ = ApplyHeldTargetAsync(capabilities.MinimumWatts, sessionGeneration, targetRevision);
+                NotifyClockChanged();
+                break;
+            case TrainingCadenceGuardTransition.Recovered:
+                targetRevision++;
+                activeTargetRamp = TrainingTargetRamp.Create(lastAppliedTargetWatts, segment, capabilities);
+                activeTargetRampStartElapsed = segment.Definition.Duration - remaining;
+                activeTargetRampSegmentIndex = activeRunner.SegmentIndex;
+                StatusText = $"Cadence recovered. Ramping back to {segment.TargetWatts} W.";
+                if (activeTargetRamp.Duration <= TimeSpan.Zero)
+                {
+                    _ = ApplyHeldTargetAsync(segment.TargetWatts, sessionGeneration, targetRevision);
+                }
+
+                NotifyClockChanged();
+                break;
+        }
+    }
+
+    private async Task ApplyHeldTargetAsync(int watts, long generation, long revision)
+    {
+        if (!await dashboard.ApplyTrainingTargetAsync(watts, CancellationToken.None)
+            || generation != sessionGeneration
+            || revision != targetRevision)
+        {
+            return;
+        }
+
+        lastAppliedTargetWatts = watts;
+        CurrentTargetWatts = watts;
+        TargetPowerSamples = [.. TargetPowerSamples, new TelemetrySample(DateTimeOffset.UtcNow, watts)];
+        NotifyRunnerChanged();
+    }
+
+    private void ContinueTargetRamp(DateTimeOffset now)
+    {
+        if (isTargetRampStepPending
+            || cadenceGuard.IsStalled
+            || targetRampCapabilities is not { } capabilities
+            || runner is not { State: TrainingWorkoutState.Running, CurrentSegment: { } segment } activeRunner
+            || activeRunner.SegmentIndex != activeTargetRampSegmentIndex
+            || activeTargetRamp.Duration <= TimeSpan.Zero
+            || activeRunner.GetCurrentSegmentRemaining(now) is not { } remaining)
+        {
+            return;
+        }
+
+        var rampElapsed = segment.Definition.Duration - remaining - activeTargetRampStartElapsed;
+        var watts = activeTargetRamp.GetTargetWatts(rampElapsed, capabilities);
+        if (watts != lastAppliedTargetWatts)
+        {
+            _ = ApplyTargetRampStepAsync(watts, sessionGeneration, targetRevision);
+        }
+    }
+
+    private async Task ApplyTargetRampStepAsync(int watts, long generation, long revision)
+    {
+        isTargetRampStepPending = true;
+        try
+        {
+            if (!await dashboard.ApplyTrainingTargetAsync(watts, CancellationToken.None)
+                || generation != sessionGeneration
+                || revision != targetRevision)
+            {
+                return;
+            }
+
+            lastAppliedTargetWatts = watts;
+            CurrentTargetWatts = watts;
+            TargetPowerSamples = [.. TargetPowerSamples, new TelemetrySample(DateTimeOffset.UtcNow, watts)];
+            NotifyRunnerChanged();
+        }
+        finally
+        {
+            isTargetRampStepPending = false;
+        }
+    }
+
+    private TimeSpan GetActiveTargetRampEndElapsed() =>
+        runner?.SegmentIndex == activeTargetRampSegmentIndex
+            ? activeTargetRampStartElapsed + activeTargetRamp.Duration
+            : TimeSpan.Zero;
+
+    private static string GetCadenceDirectionText(double? cadence, TrainingWorkoutState state, int? minimum, int? maximum) =>
+        state == TrainingWorkoutState.Running
+            ? TrainingCadenceGuidance.GetDirectionText(cadence, minimum, maximum)
+            : string.Empty;
 
     private async Task CompleteWorkoutAsync()
     {
@@ -764,6 +1001,15 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         activeSegments = [.. workout.Segments.Select(static segment => segment.Definition)];
         TargetPowerSamples = [];
         CurrentTargetWatts = 0;
+        lastAppliedTargetWatts = null;
+        activeTargetRamp = default;
+        activeTargetRampStartElapsed = TimeSpan.Zero;
+        segmentRampDuration = TimeSpan.Zero;
+        activeTargetRampSegmentIndex = -1;
+        targetRevision++;
+        cadenceGuard.Reset();
+        requiresPedallingBeforeTarget = true;
+        isWaitingForPedalling = false;
         AdherenceText = "Cadence in-range score appears after a work interval.";
         isSessionStartPending = true;
         isEnding = false;
@@ -781,7 +1027,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         {
             if (await startTask && generation == sessionGeneration)
             {
-                await ApplyCurrentTargetAsync(cancellationToken, generation);
+                await StartSegmentTargetAsync(cancellationToken, generation);
             }
         }
         finally
@@ -842,6 +1088,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         }
 
         runner?.Abort();
+        isWaitingForPedalling = false;
         RampEstimate = allStepsExhausted
             ? new RampFtpEstimateDeviceMaximumReached()
             : RampFtpEstimator.Estimate(dashboard.GetRecordedSamplesSince(startedAt), rampCapabilities.MaximumWatts);
@@ -1004,7 +1251,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             samples,
             segment.Definition.MinimumCadenceRpm,
             segment.Definition.MaximumCadenceRpm,
-            startedAt,
+            startedAt + segmentRampDuration,
             completedAt,
             completed: true);
         AdherenceText = result switch
