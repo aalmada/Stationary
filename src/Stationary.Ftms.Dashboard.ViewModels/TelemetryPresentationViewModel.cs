@@ -20,7 +20,8 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     private const string HighContrastTelemetryPreferenceKey = "HighContrastTelemetry";
     private const string CompactChartsPreferenceKey = "CompactCharts";
     private const string FunctionalThresholdPowerPreferenceKey = "FunctionalThresholdPower";
-    private const string CadenceTargetOffsetPreferenceKey = "CadenceTargetOffsetRpm";
+    private const string PreferredCadencePreferenceKey = "PreferredCadenceRpm";
+    private const string LegacyCadenceTargetOffsetPreferenceKey = "CadenceTargetOffsetRpm";
     private static readonly TimeSpan MaximumTelemetryGap = TimeSpan.FromSeconds(5);
     private readonly IDashboardPlatform platform;
     private bool useMetricUnits;
@@ -31,6 +32,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     private readonly WorkoutSessionClock sessionClock = new();
     private readonly CyclingMetricsAccumulator cyclingMetrics = new(MaximumTelemetryGap);
     private uint? previousDistanceCounter;
+    private TelemetrySample? previousDistanceSpeedSample;
     private ushort? previousEnergyCounter;
     private double sessionDistanceMeters;
     private int sessionEnergyKilocalories;
@@ -46,19 +48,35 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         useHighContrastTelemetry = platform.GetPreference(HighContrastTelemetryPreferenceKey, false);
         useCompactCharts = platform.GetPreference(CompactChartsPreferenceKey, false);
         FunctionalThresholdPowerText = platform.GetPreference(FunctionalThresholdPowerPreferenceKey, string.Empty);
-        var savedCadenceOffset = platform.GetPreference(CadenceTargetOffsetPreferenceKey, "0");
-        if (int.TryParse(savedCadenceOffset, out var cadenceOffset)
-            && cadenceOffset is >= -TrainingWorkoutCompiler.MaximumCadenceOffsetRpm and <= TrainingWorkoutCompiler.MaximumCadenceOffsetRpm)
+        var savedPreferredCadence = platform.GetPreference(PreferredCadencePreferenceKey, string.Empty);
+        if (savedPreferredCadence.Length == 0
+            && int.TryParse(platform.GetPreference(LegacyCadenceTargetOffsetPreferenceKey, "0"), out var legacyOffset)
+            && legacyOffset != 0)
         {
-            CadenceTargetOffsetRpm = cadenceOffset;
-            CadenceTargetOffsetText = savedCadenceOffset;
+            savedPreferredCadence = (TrainingWorkoutCompiler.ReferenceCadenceRpm + legacyOffset).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
-        else if (savedCadenceOffset != "0")
+
+        if (savedPreferredCadence.Length == 0)
         {
-            CadenceTargetOffsetText = savedCadenceOffset;
-            CadenceTargetOffsetStatusText = $"Saved cadence offset is invalid; enter a value from -{TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} to {TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} rpm.";
+            PreferredCadenceText = TrainingWorkoutCompiler.ReferenceCadenceRpm.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else if (int.TryParse(savedPreferredCadence, out var preferredCadence)
+            && TrainingWorkoutCompiler.IsValidPreferredCadence(preferredCadence))
+        {
+            PreferredCadenceRpm = preferredCadence;
+            PreferredCadenceText = savedPreferredCadence;
+            PreferredCadenceStatusText = DescribePreferredCadence(preferredCadence);
+        }
+        else
+        {
+            PreferredCadenceText = savedPreferredCadence;
+            PreferredCadenceStatusText = $"Saved preferred cadence is invalid; {PreferredCadenceRangeText}";
         }
     }
+
+    private static readonly string PreferredCadenceRangeText = string.Create(
+        System.Globalization.CultureInfo.InvariantCulture,
+        $"enter a whole number from {TrainingWorkoutCompiler.MinimumPreferredCadenceRpm} to {TrainingWorkoutCompiler.MaximumPreferredCadenceRpm} rpm.");
 
     [Reactive]
     public partial TelemetryInsight TorqueResponseInsight { get; private set; }
@@ -88,30 +106,33 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public partial string FunctionalThresholdPowerText { get; set; }
 
     [Reactive]
-    public partial string CadenceTargetOffsetText { get; set; } = "0";
+    public partial string PreferredCadenceText { get; set; } = string.Empty;
 
     [Reactive]
-    public partial int CadenceTargetOffsetRpm { get; private set; }
+    public partial int PreferredCadenceRpm { get; private set; } = TrainingWorkoutCompiler.ReferenceCadenceRpm;
 
     [Reactive]
-    public partial string CadenceTargetOffsetStatusText { get; private set; } = "Use 0 for the authored cadence ranges.";
+    public partial string PreferredCadenceStatusText { get; private set; } = "Using the authored cadence ranges.";
 
     [ReactiveCommand]
-    private void ApplyCadenceTargetOffset()
+    private void ApplyPreferredCadence()
     {
-        if (!int.TryParse(CadenceTargetOffsetText, out var offset)
-            || offset is < -TrainingWorkoutCompiler.MaximumCadenceOffsetRpm or > TrainingWorkoutCompiler.MaximumCadenceOffsetRpm)
+        if (!int.TryParse(PreferredCadenceText, out var preferredCadence)
+            || !TrainingWorkoutCompiler.IsValidPreferredCadence(preferredCadence))
         {
-            CadenceTargetOffsetStatusText = $"Enter a whole number from -{TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} to {TrainingWorkoutCompiler.MaximumCadenceOffsetRpm} rpm.";
+            PreferredCadenceStatusText = $"Please {PreferredCadenceRangeText}";
             return;
         }
 
-        CadenceTargetOffsetRpm = offset;
-        platform.SetPreference(CadenceTargetOffsetPreferenceKey, offset.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        CadenceTargetOffsetStatusText = offset == 0
-            ? "Using the authored cadence ranges."
-            : $"Shifting every prescribed cadence range by {offset:+#;-#;0} rpm.";
+        PreferredCadenceRpm = preferredCadence;
+        platform.SetPreference(PreferredCadencePreferenceKey, preferredCadence.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        PreferredCadenceStatusText = DescribePreferredCadence(preferredCadence);
     }
+
+    private static string DescribePreferredCadence(int preferredCadence) =>
+        preferredCadence == TrainingWorkoutCompiler.ReferenceCadenceRpm
+            ? "Using the authored cadence ranges."
+            : $"Scaling workout cadence ranges to {preferredCadence} rpm.";
 
     [Reactive]
     public partial string SessionWorkText { get; private set; } = "--";
@@ -132,6 +153,9 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public partial string SpeedText { get; private set; } = "-- km/h";
 
     [Reactive]
+    public partial double? CurrentSpeedKilometersPerHour { get; private set; }
+
+    [Reactive]
     public partial string PowerText { get; private set; } = "-- W";
 
     [Reactive]
@@ -142,6 +166,9 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
 
     [Reactive]
     public partial double? CurrentCadenceRpm { get; private set; }
+
+    [Reactive]
+    public partial double? CurrentPowerWatts { get; private set; }
 
     [Reactive]
     public partial string HealthText { get; private set; } = "Waiting for telemetry";
@@ -299,12 +326,14 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public void PauseSession(DateTimeOffset timestamp)
     {
         sessionClock.Pause(timestamp);
+        previousDistanceSpeedSample = null;
         RefreshPresentation();
     }
 
     public void ResumeSession(DateTimeOffset timestamp)
     {
         sessionClock.Resume(timestamp);
+        previousDistanceSpeedSample = null;
         RefreshPresentation();
     }
 
@@ -359,6 +388,11 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         }
 
         SpeedText = PresentField(snapshot, TelemetryField.Speed, snapshot.SpeedKilometersPerHour, speed => $"{speed:F1} km/h", SpeedText, "-- km/h");
+        if ((snapshot.ReportedFields & TelemetryField.Speed) != 0)
+        {
+            CurrentSpeedKilometersPerHour = snapshot.SpeedKilometersPerHour;
+        }
+
         if (!UseMetricUnits && snapshot.SpeedKilometersPerHour is double speed)
         {
             SpeedText = $"{speed * 0.621_371d:F1} mph";
@@ -369,6 +403,11 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         if ((snapshot.ReportedFields & TelemetryField.Cadence) != 0)
         {
             CurrentCadenceRpm = snapshot.CadenceRpm;
+        }
+
+        if ((snapshot.ReportedFields & TelemetryField.Power) != 0)
+        {
+            CurrentPowerWatts = snapshot.PowerWatts;
         }
 
         HealthText = $"Live - last packet {snapshot.CapturedAt.ToLocalTime():T}";
@@ -403,10 +442,12 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public void Clear()
     {
         SpeedText = "-- km/h";
+        CurrentSpeedKilometersPerHour = null;
         PowerText = "-- W";
         CurrentPowerZoneText = "Set FTP for zones";
         CadenceText = "-- rpm";
         CurrentCadenceRpm = null;
+        CurrentPowerWatts = null;
         HealthText = "Waiting for telemetry";
         IsStale = false;
         SetChartSamples(null);
@@ -431,7 +472,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
             return;
         }
 
-        SessionDistanceText = UpdateSessionDistance(snapshot.TotalDistanceMeters) is double distance
+        SessionDistanceText = UpdateSessionDistance(snapshot) is double distance
             ? UseMetricUnits ? $"{distance:F0} m" : $"{distance * 0.000_621_371d:F2} mi"
             : "--";
         SessionElapsedTimeText = sessionClock.GetElapsed(snapshot.CapturedAt)?.ToString(@"hh\:mm\:ss") ?? "--:--:--";
@@ -456,7 +497,44 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         cyclingMetrics.Add(new(snapshot.CapturedAt, power));
     }
 
-    private double? UpdateSessionDistance(uint? totalDistance)
+    private double? UpdateSessionDistance(TelemetrySnapshot snapshot)
+    {
+        if (snapshot.MachineType == FtmsMachineDataType.IndoorBike
+            && snapshot.PowerWatts is short
+            && snapshot.SpeedKilometersPerHour is double speed)
+        {
+            previousDistanceCounter = null;
+            return UpdateDistanceFromSpeed(snapshot.CapturedAt, speed);
+        }
+
+        previousDistanceSpeedSample = null;
+        return UpdateDistanceFromCounter(snapshot.TotalDistanceMeters);
+    }
+
+    private double UpdateDistanceFromSpeed(DateTimeOffset timestamp, double speedKilometersPerHour)
+    {
+        if (sessionClock.IsPaused || !double.IsFinite(speedKilometersPerHour) || speedKilometersPerHour < 0d)
+        {
+            previousDistanceSpeedSample = null;
+            return sessionDistanceMeters;
+        }
+
+        if (previousDistanceSpeedSample is { } previous && timestamp > previous.CapturedAt)
+        {
+            var interval = timestamp - previous.CapturedAt;
+            if (interval <= MaximumTelemetryGap)
+            {
+                sessionDistanceMeters += ((previous.Value + speedKilometersPerHour) / 2d) * (interval.TotalSeconds / 3.6d);
+            }
+
+            previousDistanceSpeedSample = new(timestamp, speedKilometersPerHour);
+        }
+        else previousDistanceSpeedSample ??= new(timestamp, speedKilometersPerHour);
+
+        return sessionDistanceMeters;
+    }
+
+    private double? UpdateDistanceFromCounter(uint? totalDistance)
     {
         if (totalDistance is not uint value)
         {
@@ -491,6 +569,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     private void ResetSessionStatistics()
     {
         previousDistanceCounter = null;
+        previousDistanceSpeedSample = null;
         previousEnergyCounter = null;
         sessionDistanceMeters = 0d;
         sessionEnergyKilocalories = 0;

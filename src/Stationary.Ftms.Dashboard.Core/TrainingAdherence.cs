@@ -13,7 +13,21 @@ public union TrainingAdherenceResult(TrainingAdherenceScore, TrainingAdherenceNo
 public static class TrainingAdherence
 {
     public static readonly TimeSpan TrainerSettlingDuration = TimeSpan.FromSeconds(10);
+
+    // Riders took 7.5–12 s to reach a new cadence band while ERG traded resistance for cadence.
+    public static readonly TimeSpan CadenceTransitionDuration = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan MaximumMeasurementGap = TimeSpan.FromSeconds(5);
+
+    public static bool ChangesCadenceTarget(TrainingSegment? previous, TrainingSegment current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        return previous is not null
+            && (current.MinimumCadenceRpm is not null || current.MaximumCadenceRpm is not null)
+            && (previous.MinimumCadenceRpm != current.MinimumCadenceRpm || previous.MaximumCadenceRpm != current.MaximumCadenceRpm);
+    }
+
+    public static TimeSpan GetSettlingDuration(TrainingSegment? previous, TrainingSegment current) =>
+        ChangesCadenceTarget(previous, current) ? CadenceTransitionDuration : TrainerSettlingDuration;
 
     public static TrainingAdherenceResult Calculate(
         IReadOnlyList<TrainingAdherenceSample> samples,
@@ -21,7 +35,8 @@ public static class TrainingAdherence
         int? maximumCadenceRpm,
         DateTimeOffset segmentStartedAt,
         DateTimeOffset segmentEndedAt,
-        bool completed)
+        bool completed,
+        TimeSpan? settlingDuration = null)
     {
         ArgumentNullException.ThrowIfNull(samples);
         if (minimumCadenceRpm is < 1)
@@ -44,7 +59,7 @@ public static class TrainingAdherence
             throw new ArgumentException("The cadence range minimum cannot exceed its maximum.");
         }
 
-        var eligibleAfter = segmentStartedAt + TrainerSettlingDuration;
+        var eligibleAfter = segmentStartedAt + (settlingDuration ?? TrainerSettlingDuration);
         var eligibleTicks = 0L;
         var inTargetTicks = 0L;
         var orderedSamples = samples.OrderBy(static sample => sample.CapturedAt).ToArray();

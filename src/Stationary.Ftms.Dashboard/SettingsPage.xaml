@@ -25,12 +25,12 @@
             <Label Grid.Column="3" Text="Enables power zones, intensity factor, and FTP-relative training targets." TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center" />
           </Grid>
           <Grid ColumnDefinitions="Auto,112,Auto,*" ColumnSpacing="10">
-            <Label Text="Cadence offset" FontAttributes="Bold" VerticalOptions="Center" />
-            <Entry Grid.Column="1" Text="{Binding Telemetry.CadenceTargetOffsetText}" Keyboard="Numeric" Placeholder="rpm" />
-            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding Telemetry.ApplyCadenceTargetOffsetCommand}" />
+            <Label Text="Preferred cadence" FontAttributes="Bold" VerticalOptions="Center" />
+            <Entry Grid.Column="1" Text="{Binding Telemetry.PreferredCadenceText}" Keyboard="Numeric" Placeholder="rpm" />
+            <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding Telemetry.ApplyPreferredCadenceCommand}" />
             <VerticalStackLayout Grid.Column="3" Spacing="2" VerticalOptions="Center">
-              <Label Text="Shifts workout cadence ranges by -15 to +15 rpm on the next workout; use 0 for authored targets." TextColor="{StaticResource Muted}" FontSize="12" />
-              <Label Text="{Binding Telemetry.CadenceTargetOffsetStatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="Your natural cadence, 40 to 110 rpm. Workouts are written for 90 rpm; their cadence ranges scale to this value, and the warm-up refines it by up to 10 rpm each ride." TextColor="{StaticResource Muted}" FontSize="12" />
+              <Label Text="{Binding Telemetry.PreferredCadenceStatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
             </VerticalStackLayout>
           </Grid>
         </VerticalStackLayout>

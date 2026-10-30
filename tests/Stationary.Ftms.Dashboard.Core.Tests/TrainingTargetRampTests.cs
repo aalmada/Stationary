@@ -15,33 +15,40 @@ public sealed class TrainingTargetRampTests
     }
 
     [Test]
-    public async Task GetTargetWatts_StepsEveryThreeSecondsAndReachesTarget()
+    public async Task GetTargetWatts_StepsEveryFiveSecondsAndReachesTarget()
     {
-        var ramp = TrainingTargetRamp.Create(100, Segment(200, TimeSpan.FromMinutes(5)), Capabilities);
+        var ramp = TrainingTargetRamp.Create(100, Segment(190, TimeSpan.FromMinutes(5)), Capabilities);
 
         using (Assert.Multiple())
         {
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.Zero, Capabilities)).IsEqualTo(120);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(2.9), Capabilities)).IsEqualTo(120);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(3), Capabilities)).IsEqualTo(140);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(9), Capabilities)).IsEqualTo(180);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(12), Capabilities)).IsEqualTo(200);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(30), Capabilities)).IsEqualTo(200);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.Zero, Capabilities)).IsEqualTo(130);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(4.9), Capabilities)).IsEqualTo(130);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(5), Capabilities)).IsEqualTo(160);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(10), Capabilities)).IsEqualTo(190);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(30), Capabilities)).IsEqualTo(190);
         }
     }
 
     [Test]
-    public async Task GetTargetWatts_RampsDownAndRespectsPowerIncrement()
+    public async Task Create_AppliesDecreasesImmediately()
     {
         var capabilities = new TrainingPowerCapabilities(50, 500, 10);
         var ramp = TrainingTargetRamp.Create(300, Segment(150, TimeSpan.FromMinutes(5)), capabilities);
 
         using (Assert.Multiple())
         {
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.Zero, capabilities)).IsEqualTo(270);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(6), capabilities)).IsEqualTo(210);
-            await Assert.That(ramp.GetTargetWatts(TimeSpan.FromSeconds(12), capabilities)).IsEqualTo(150);
+            await Assert.That(ramp.Duration).IsEqualTo(TimeSpan.Zero);
+            await Assert.That(ramp.GetTargetWatts(TimeSpan.Zero, capabilities)).IsEqualTo(150);
         }
+    }
+
+    [Test]
+    public async Task GetTargetWatts_RespectsPowerIncrement()
+    {
+        var capabilities = new TrainingPowerCapabilities(50, 500, 10);
+        var ramp = TrainingTargetRamp.Create(150, Segment(300, TimeSpan.FromMinutes(5)), capabilities);
+
+        await Assert.That(ramp.GetTargetWatts(TimeSpan.Zero, capabilities)).IsEqualTo(200);
     }
 
     [Test]
@@ -69,7 +76,7 @@ public sealed class TrainingTargetRampTests
     [Test]
     public async Task Create_SkipsRampWhenSegmentIsTooShortForOneStep()
     {
-        var ramp = TrainingTargetRamp.Create(100, Segment(300, TimeSpan.FromSeconds(10)), Capabilities);
+        var ramp = TrainingTargetRamp.Create(100, Segment(300, TimeSpan.FromSeconds(18)), Capabilities);
 
         await Assert.That(ramp.Duration).IsEqualTo(TimeSpan.Zero);
     }

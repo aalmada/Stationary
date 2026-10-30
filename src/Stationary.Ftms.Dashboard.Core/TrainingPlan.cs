@@ -7,6 +7,7 @@ public enum TrainingPlanPhase
     Consolidation,
     Peak,
     Recovery,
+    Diagnostics,
 }
 
 public sealed record TrainingPlanWeek(

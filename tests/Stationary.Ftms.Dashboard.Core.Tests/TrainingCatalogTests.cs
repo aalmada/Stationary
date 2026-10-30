@@ -40,45 +40,71 @@ public sealed class TrainingCatalogTests
     }
 
     [Test]
-    public async Task Compile_AppliesCadenceOffsetWithoutChangingPowerTargets()
+    public async Task Compile_ScalesCadenceToPreferredCadenceWithoutChangingPowerTargets()
     {
         var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
             TrainingExperienceLevel.Beginner,
-            [new("Work", TimeSpan.FromMinutes(1), 100d, 80, 90, "Ride", true)]);
+            [new("Work", TimeSpan.FromMinutes(1), 100d, 85, 95, "Ride", true)]);
 
-        var compiled = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: 5);
+        var compiled = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), preferredCadenceRpm: 50);
 
         using (Assert.Multiple())
         {
             await Assert.That(compiled.Segments[0].TargetWatts).IsEqualTo(200);
-            await Assert.That(compiled.Segments[0].Definition.MinimumCadenceRpm).IsEqualTo(85);
-            await Assert.That(compiled.Segments[0].Definition.MaximumCadenceRpm).IsEqualTo(95);
-            await Assert.That(compiled.Definition.Segments[0].MinimumCadenceRpm).IsEqualTo(80);
+            await Assert.That(compiled.Segments[0].Definition.MinimumCadenceRpm).IsEqualTo(47);
+            await Assert.That(compiled.Segments[0].Definition.MaximumCadenceRpm).IsEqualTo(53);
+            await Assert.That(compiled.Definition.Segments[0].MinimumCadenceRpm).IsEqualTo(85);
         }
     }
 
     [Test]
-    public async Task Compile_RejectsCadenceOffsetsOutsideTheSupportedRange()
+    public async Task Compile_RejectsPreferredCadenceOutsideTheSupportedRange()
     {
         var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
             TrainingExperienceLevel.Beginner,
             [new("Work", TimeSpan.FromMinutes(1), 100d, 80, 90, "Ride", true)]);
 
-        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: 16))
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), preferredCadenceRpm: 39))
             .Throws<ArgumentOutOfRangeException>();
-        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: int.MinValue))
+        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), preferredCadenceRpm: 111))
             .Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public async Task Compile_RejectsOffsetsThatMoveCadenceOutsideThePracticalRange()
+    public async Task RescaleCadence_ChangesOnlyLaterSegmentsFromAuthoredRanges()
     {
         var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.Endurance,
             TrainingExperienceLevel.Beginner,
-            [new("Work", TimeSpan.FromMinutes(1), 100d, 40, 50, "Ride", true)]);
+            [
+                new("Warm", TimeSpan.FromMinutes(1), 50d, 60, 100, "Spin", false),
+                new("Work", TimeSpan.FromMinutes(1), 100d, 85, 95, "Ride", true),
+            ]);
+        var compiled = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), preferredCadenceRpm: 60);
 
-        await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), cadenceOffsetRpm: -15))
-            .Throws<ArgumentException>();
+        var rescaled = TrainingWorkoutCompiler.RescaleCadence(compiled, 50, fromSegmentIndex: 1);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(rescaled.Segments[0]).IsEqualTo(compiled.Segments[0]);
+            await Assert.That(rescaled.Segments[1].Definition.MinimumCadenceRpm).IsEqualTo(47);
+            await Assert.That(rescaled.Segments[1].Definition.MaximumCadenceRpm).IsEqualTo(53);
+            await Assert.That(rescaled.Segments[1].TargetWatts).IsEqualTo(200);
+        }
+    }
+
+    [Test]
+    [Arguments(TrainingWorkoutCompiler.MinimumPreferredCadenceRpm)]
+    [Arguments(TrainingWorkoutCompiler.MaximumPreferredCadenceRpm)]
+    public async Task Load_EveryWorkoutCompilesAcrossThePreferredCadenceRange(int preferredCadenceRpm)
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        foreach (var workout in catalog.Workouts)
+        {
+            _ = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 500, 1), preferredCadenceRpm);
+        }
+
+        await Assert.That(catalog.Workouts.Count).IsGreaterThan(0);
     }
 
     [Test]
@@ -203,6 +229,76 @@ public sealed class TrainingCatalogTests
             .All(static segment => segment.MinimumCadenceRpm is not null || segment.MaximumCadenceRpm is not null)).IsTrue();
         await Assert.That(catalog.Workouts.Where(static workout => workout.Objective == TrainingObjective.Anaerobic)
             .All(static workout => workout.Description.Contains("ERG-paced", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Load_KeepsLowCadenceTorqueWorkAtOrBelowSweetSpotPower()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        await Assert.That(catalog.Workouts.SelectMany(static workout => workout.Segments)
+            .Where(static segment => segment.CountsTowardAdherence && segment.MinimumCadenceRpm < 75)
+            .All(static segment => segment.FunctionalThresholdPowerPercentage <= 95d)).IsTrue();
+    }
+
+    [Test]
+    public async Task Load_ChangesEitherPowerOrCadenceBetweenScoredIntervals()
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        foreach (var workout in catalog.Workouts)
+        {
+            for (var index = 1; index < workout.Segments.Count; index++)
+            {
+                var previous = workout.Segments[index - 1];
+                var current = workout.Segments[index];
+                if (!previous.CountsTowardAdherence || !current.CountsTowardAdherence)
+                {
+                    continue;
+                }
+
+                var powerChanges = previous.FunctionalThresholdPowerPercentage != current.FunctionalThresholdPowerPercentage;
+                var cadenceChanges = (previous.MinimumCadenceRpm, previous.MaximumCadenceRpm) != (current.MinimumCadenceRpm, current.MaximumCadenceRpm);
+                await Assert.That(powerChanges && cadenceChanges).IsFalse();
+            }
+        }
+    }
+
+    [Test]
+    [Arguments(TrainingObjective.Recovery)]
+    [Arguments(TrainingObjective.Endurance)]
+    [Arguments(TrainingObjective.TempoSweetSpot)]
+    [Arguments(TrainingObjective.Threshold)]
+    [Arguments(TrainingObjective.CadenceSkills)]
+    public async Task Load_UsesCadenceChangesAtConstantPower(TrainingObjective objective)
+    {
+        var catalog = await TrainingCatalog.LoadAsync();
+
+        foreach (var workout in catalog.Workouts.Where(workout => workout.Objective == objective))
+        {
+            var hasCadenceOnlyChange = workout.Segments.Zip(workout.Segments.Skip(1)).Any(static pair =>
+                pair.First.CountsTowardAdherence
+                && pair.Second.CountsTowardAdherence
+                && pair.First.FunctionalThresholdPowerPercentage == pair.Second.FunctionalThresholdPowerPercentage
+                && (pair.First.MinimumCadenceRpm, pair.First.MaximumCadenceRpm) != (pair.Second.MinimumCadenceRpm, pair.Second.MaximumCadenceRpm));
+            await Assert.That(hasCadenceOnlyChange).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task Compile_KeepsLowCadenceBandsAbovePedallingThresholdAtLowPreferredCadence()
+    {
+        var workout = new TrainingWorkout("test", "Test", "Test workout", TrainingObjective.CadenceSkills,
+            TrainingExperienceLevel.Beginner,
+            [new("Torque", TimeSpan.FromMinutes(1), 75d, 60, 70, "Press", true)]);
+
+        var compiled = TrainingWorkoutCompiler.Compile(workout, 200, new(0, 400, 5), preferredCadenceRpm: 40);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(compiled.Segments[0].Definition.MinimumCadenceRpm).IsEqualTo(45);
+            await Assert.That(compiled.Segments[0].Definition.MaximumCadenceRpm).IsEqualTo(51);
+        }
     }
 
     [Test]

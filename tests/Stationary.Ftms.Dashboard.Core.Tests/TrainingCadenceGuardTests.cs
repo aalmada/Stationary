@@ -7,15 +7,15 @@ public sealed class TrainingCadenceGuardTests
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;
 
     [Test]
-    public async Task Update_StallsAfterThreeSecondsBelowThreshold()
+    public async Task Update_StallsAfterStallDurationBelowThreshold()
     {
         var guard = new TrainingCadenceGuard();
 
         using (Assert.Multiple())
         {
             await Assert.That(guard.Update(Start, 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.Update(Start.AddSeconds(2), 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.Update(Start.AddSeconds(3), 30d)).IsEqualTo(TrainingCadenceGuardTransition.Stalled);
+            await Assert.That(guard.Update(Start.AddSeconds(1), 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
+            await Assert.That(guard.Update(Start.Add(TrainingCadenceGuard.StallDuration), 8d)).IsEqualTo(TrainingCadenceGuardTransition.Stalled);
             await Assert.That(guard.IsStalled).IsTrue();
         }
     }
@@ -36,7 +36,7 @@ public sealed class TrainingCadenceGuardTests
     }
 
     [Test]
-    public async Task Update_RecoversOnlyAtPedallingCadence()
+    public async Task Update_RecoversOnFirstPedallingSample()
     {
         var guard = new TrainingCadenceGuard();
         guard.Update(Start, 20d);
@@ -44,10 +44,12 @@ public sealed class TrainingCadenceGuardTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(guard.Update(Start.AddSeconds(4), 40d)).IsEqualTo(TrainingCadenceGuardTransition.None);
+            await Assert.That(guard.Update(Start.AddSeconds(4), 26d)).IsEqualTo(TrainingCadenceGuardTransition.None);
+            await Assert.That(guard.Update(Start.AddSeconds(5), 40d)).IsEqualTo(TrainingCadenceGuardTransition.None);
             await Assert.That(guard.IsStalled).IsTrue();
-            await Assert.That(guard.Update(Start.AddSeconds(5), 45d)).IsEqualTo(TrainingCadenceGuardTransition.Recovered);
+            await Assert.That(guard.Update(Start.AddSeconds(6), 46d)).IsEqualTo(TrainingCadenceGuardTransition.Recovered);
             await Assert.That(guard.IsStalled).IsFalse();
+            await Assert.That(guard.Update(Start.AddSeconds(7), 70d)).IsEqualTo(TrainingCadenceGuardTransition.None);
         }
     }
 

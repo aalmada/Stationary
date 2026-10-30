@@ -25,28 +25,34 @@ public static class RecordedSessionArchiveStorage
         await using var writer = new StreamWriter(stream, new UTF8Encoding(false), FileBufferSize, leaveOpen: true);
         await WriteLineAsync(writer, CsvHeader, cancellationToken).ConfigureAwait(false);
 
+        // Telemetry and events are merged chronologically so training targets sit next to the samples they affected.
         var row = new StringBuilder(128);
-        foreach (var sample in archive.Samples)
+        var sampleIndex = 0;
+        var eventIndex = 0;
+        while (sampleIndex < archive.Samples.Length || eventIndex < archive.Events.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            row.Clear()
-                .Append(sample.CapturedAt.ToString("O", CultureInfo.InvariantCulture))
-                .Append(",telemetry,")
-                .Append(FormatCsvNumber(sample.PowerWatts)).Append(',')
-                .Append(FormatCsvNumber(sample.SpeedKilometersPerHour)).Append(',')
-                .Append(FormatCsvNumber(sample.CadenceRpm)).Append(',')
-                .Append(FormatCsvNumber(sample.HeartRateBeatsPerMinute)).Append(',');
-            await WriteLineAsync(writer, row.ToString(), cancellationToken).ConfigureAwait(false);
-        }
+            row.Clear();
+            if (eventIndex >= archive.Events.Length
+                || (sampleIndex < archive.Samples.Length && archive.Samples[sampleIndex].CapturedAt <= archive.Events[eventIndex].Timestamp))
+            {
+                var sample = archive.Samples[sampleIndex++];
+                row.Append(sample.CapturedAt.ToString("O", CultureInfo.InvariantCulture))
+                    .Append(",telemetry,")
+                    .Append(FormatCsvNumber(sample.PowerWatts)).Append(',')
+                    .Append(FormatCsvNumber(sample.SpeedKilometersPerHour)).Append(',')
+                    .Append(FormatCsvNumber(sample.CadenceRpm)).Append(',')
+                    .Append(FormatCsvNumber(sample.HeartRateBeatsPerMinute)).Append(',');
+            }
+            else
+            {
+                var marker = archive.Events[eventIndex++];
+                row.Append(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture))
+                    .Append(",event,,,,,")
+                    .Append(marker.Type).Append(':')
+                    .Append(marker.Label.Replace(',', ';'));
+            }
 
-        foreach (var marker in archive.Events)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            row.Clear()
-                .Append(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture))
-                .Append(",event,,,,,")
-                .Append(marker.Type).Append(':')
-                .Append(marker.Label.Replace(',', ';'));
             await WriteLineAsync(writer, row.ToString(), cancellationToken).ConfigureAwait(false);
         }
 

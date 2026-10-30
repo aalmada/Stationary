@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+
 using Stationary.Ftms.Dashboard.Core;
 
 namespace Stationary.Ftms.Dashboard.Core.Tests;
@@ -78,6 +79,35 @@ public sealed class RecordedSessionJsonContextTests
             await Assert.That(await reader.ReadLineAsync()).IsEqualTo("Maximum power watts,410.0");
             await Assert.That(await reader.ReadLineAsync()).IsEqualTo("Work kilojoules,24.6");
             await Assert.That(await reader.ReadLineAsync()).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task RecordedSession_WritesTrainingEventsBetweenSurroundingSamples()
+    {
+        var start = DateTimeOffset.UnixEpoch;
+        var session = Session with
+        {
+            Samples =
+            [
+                new RecordedTelemetrySample(start, 100d, 24d, 67d, null),
+                new RecordedTelemetrySample(start.AddSeconds(2), 110d, 28d, 78d, null),
+            ],
+            Events = [new SessionEventMarker(start.AddSeconds(1), SessionEventType.Training, "Target 124 W accepted in 90 ms")],
+        };
+        var path = GetTemporaryPath(".csv");
+        try
+        {
+            await RecordedSessionArchiveStorage.WriteCsvAsync(path, session);
+
+            var lines = await File.ReadAllLinesAsync(path);
+            await Assert.That(lines[1]).Contains(",telemetry,100,");
+            await Assert.That(lines[2]).EndsWith(",event,,,,,Training:Target 124 W accepted in 90 ms");
+            await Assert.That(lines[3]).Contains(",telemetry,110,");
         }
         finally
         {

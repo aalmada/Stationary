@@ -23,43 +23,54 @@ public sealed class GeneratedCommandTests
         using var platform = new TestDashboardPlatform();
         platform.SetPreference("MetricUnits", false);
         platform.SetPreference("FunctionalThresholdPower", "250");
-        platform.SetPreference("CadenceTargetOffsetRpm", "5");
+        platform.SetPreference("PreferredCadenceRpm", "55");
         var viewModel = new TelemetryPresentationViewModel(platform);
         await Assert.That(viewModel.UseMetricUnits).IsFalse();
         await Assert.That(viewModel.FunctionalThresholdPowerText).IsEqualTo("250");
-        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(5);
+        await Assert.That(viewModel.PreferredCadenceRpm).IsEqualTo(55);
 
         await viewModel.SetMetricUnitsCommand.Execute(true).ToTask();
         await viewModel.SetLargeTelemetryTextCommand.Execute(true).ToTask();
         await viewModel.SetHighContrastTelemetryCommand.Execute(true).ToTask();
         await viewModel.SetCompactChartsCommand.Execute(true).ToTask();
-        viewModel.CadenceTargetOffsetText = "-3";
-        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
+        viewModel.PreferredCadenceText = "48";
+        await viewModel.ApplyPreferredCadenceCommand.Execute().ToTask();
         var restored = new TelemetryPresentationViewModel(platform);
 
         await Assert.That(restored.UseMetricUnits).IsTrue();
         await Assert.That(restored.UseLargeTelemetryText).IsTrue();
         await Assert.That(restored.UseHighContrastTelemetry).IsTrue();
         await Assert.That(restored.UseCompactCharts).IsTrue();
-        await Assert.That(restored.CadenceTargetOffsetRpm).IsEqualTo(-3);
+        await Assert.That(restored.PreferredCadenceRpm).IsEqualTo(48);
         await Assert.That(viewModel.ShowChartSummaries).IsFalse();
     }
 
     [Test]
-    public async Task CadenceTargetOffsetCommand_RejectsInvalidValuesWithoutOverwritingSavedOffset()
+    public async Task PreferredCadenceCommand_RejectsInvalidValuesWithoutOverwritingSavedCadence()
     {
         using var platform = new TestDashboardPlatform();
-        var viewModel = new TelemetryPresentationViewModel(platform) { CadenceTargetOffsetText = "16" };
+        var viewModel = new TelemetryPresentationViewModel(platform) { PreferredCadenceText = "39" };
 
-        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
+        await viewModel.ApplyPreferredCadenceCommand.Execute().ToTask();
 
-        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(0);
-        await Assert.That(viewModel.CadenceTargetOffsetStatusText.Contains("Enter a whole number", StringComparison.Ordinal)).IsTrue();
-        await Assert.That(platform.GetPreference("CadenceTargetOffsetRpm", "unchanged")).IsEqualTo("unchanged");
+        await Assert.That(viewModel.PreferredCadenceRpm).IsEqualTo(90);
+        await Assert.That(viewModel.PreferredCadenceStatusText.Contains("enter a whole number", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(platform.GetPreference("PreferredCadenceRpm", "unchanged")).IsEqualTo("unchanged");
 
-        viewModel.CadenceTargetOffsetText = int.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await viewModel.ApplyCadenceTargetOffsetCommand.Execute().ToTask();
-        await Assert.That(viewModel.CadenceTargetOffsetRpm).IsEqualTo(0);
+        viewModel.PreferredCadenceText = int.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await viewModel.ApplyPreferredCadenceCommand.Execute().ToTask();
+        await Assert.That(viewModel.PreferredCadenceRpm).IsEqualTo(90);
+    }
+
+    [Test]
+    public async Task PreferredCadence_MigratesLegacyCadenceOffset()
+    {
+        using var platform = new TestDashboardPlatform();
+        platform.SetPreference("CadenceTargetOffsetRpm", "-10");
+
+        var viewModel = new TelemetryPresentationViewModel(platform);
+
+        await Assert.That(viewModel.PreferredCadenceRpm).IsEqualTo(80);
     }
 
     [Test]
@@ -74,6 +85,76 @@ public sealed class GeneratedCommandTests
         viewModel.FunctionalThresholdPowerText = "invalid";
         await viewModel.ApplyFunctionalThresholdPowerCommand.Execute().ToTask();
         await Assert.That(platform.GetPreference("FunctionalThresholdPower", "removed")).IsEqualTo("removed");
+    }
+
+    [Test]
+    public async Task SessionDistance_IntegratesVirtualBikeSpeedInsteadOfBikeCounter()
+    {
+        using var platform = new TestDashboardPlatform();
+        var viewModel = new TelemetryPresentationViewModel(platform);
+        var start = DateTimeOffset.UnixEpoch;
+
+        viewModel.Present(CreatePowerBikeSample(start, 0));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(1), 1_000));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(viewModel.SpeedText).IsEqualTo($"{VirtualSpeed.FromPower(200d):F1} km/h");
+            await Assert.That(viewModel.SessionDistanceText).IsEqualTo("9 m");
+            await Assert.That(viewModel.GetSessionSummary().DistanceMeters)
+                .IsEqualTo(VirtualSpeed.FromPower(200d) / 3.6d).Within(1e-6);
+        }
+    }
+
+    [Test]
+    public async Task SessionDistance_DoesNotBridgeTelemetryGapsOrPausedTime()
+    {
+        using var platform = new TestDashboardPlatform();
+        var viewModel = new TelemetryPresentationViewModel(platform);
+        var start = DateTimeOffset.UnixEpoch;
+
+        viewModel.Present(CreatePowerBikeSample(start, 0));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(1), 1));
+        viewModel.PauseSession(start.AddSeconds(1));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(10), 1_000));
+        viewModel.ResumeSession(start.AddSeconds(10));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(11), 1_000));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(30), 1_000));
+        viewModel.Present(CreatePowerBikeSample(start.AddSeconds(31), 1_000));
+
+        await Assert.That(viewModel.GetSessionSummary().DistanceMeters)
+            .IsEqualTo(3d * VirtualSpeed.FromPower(200d) / 3.6d).Within(1e-6);
+    }
+
+    [Test]
+    public async Task EffortMapSpeed_FollowsLiveSpeedAndStopsWhenPausedStaleOrCleared()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var dashboard = environment.ViewModel;
+        var snapshot = CreatePowerBikeSample(DateTimeOffset.UtcNow, 0);
+        dashboard.Telemetry.Present(snapshot);
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(0d);
+
+        await dashboard.StartCommand.Execute().ToTask();
+        dashboard.Telemetry.Present(snapshot);
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(VirtualSpeed.FromPower(200d));
+
+        dashboard.Telemetry.MarkStale();
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(0d);
+        dashboard.Telemetry.Present(snapshot);
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(VirtualSpeed.FromPower(200d));
+
+        dashboard.Telemetry.Present(VirtualSpeed.Apply(snapshot with { CadenceRpm = 0d }));
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(0d);
+        dashboard.Telemetry.Present(snapshot);
+        await dashboard.StopCommand.Execute().ToTask();
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(0d);
+
+        await dashboard.StartCommand.Execute().ToTask();
+        dashboard.Telemetry.Clear();
+        await Assert.That(dashboard.EffortMapSpeedKilometersPerHour).IsEqualTo(0d);
     }
 
     [Test]
@@ -177,7 +258,8 @@ public sealed class GeneratedCommandTests
         var destinations = new List<DashboardDestination>();
         using var subscription = dashboard.NavigationRequests.Subscribe(destinations.Add);
 
-        await Assert.That(training.Workouts.Count).IsEqualTo(35);
+        await Assert.That(training.Workouts.Count).IsEqualTo(35 + TrainingDebugCatalog.Workouts.Count);
+        await Assert.That(training.Plans[^1].Id).IsEqualTo(TrainingDebugCatalog.PlanId);
         await Assert.That(await training.StartCommand.CanExecute.FirstAsync()).IsFalse();
         await Assert.That(await training.PauseCommand.CanExecute.FirstAsync()).IsFalse();
         await Assert.That(await training.SelectWorkoutCommand.CanExecute.FirstAsync()).IsTrue();
@@ -295,4 +377,16 @@ public sealed class GeneratedCommandTests
         await Assert.That(archive is not null).IsTrue();
         await Assert.That(environment.ViewModel.ConnectionStatus.Contains(exports[0], StringComparison.Ordinal)).IsTrue();
     }
+
+    private static TelemetrySnapshot CreatePowerBikeSample(DateTimeOffset capturedAt, uint totalDistanceMeters) =>
+        VirtualSpeed.Apply(new(
+            capturedAt,
+            FtmsMachineDataType.IndoorBike,
+            null,
+            80d,
+            200,
+            null,
+            null,
+            totalDistanceMeters,
+            ReportedFields: TelemetryField.Power | TelemetryField.TotalDistance));
 }

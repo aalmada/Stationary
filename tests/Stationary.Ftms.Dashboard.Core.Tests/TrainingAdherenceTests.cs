@@ -78,6 +78,42 @@ public sealed class TrainingAdherenceTests
     }
 
     [Test]
+    public async Task GetSettlingDuration_AllowsLongerTransitionWhenCadenceTargetChanges()
+    {
+        var steady = new TrainingSegment("Steady", TimeSpan.FromMinutes(1), 60d, 85, 95, "Ride", true);
+        var climb = steady with { Name = "Climb", MinimumCadenceRpm = 70, MaximumCadenceRpm = 80 };
+        var harder = steady with { Name = "Harder", FunctionalThresholdPowerPercentage = 70d };
+        var free = steady with { Name = "Float", MinimumCadenceRpm = null, MaximumCadenceRpm = null };
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(TrainingAdherence.GetSettlingDuration(steady, climb)).IsEqualTo(TimeSpan.FromSeconds(15));
+            await Assert.That(TrainingAdherence.GetSettlingDuration(free, steady)).IsEqualTo(TimeSpan.FromSeconds(15));
+            await Assert.That(TrainingAdherence.GetSettlingDuration(steady, harder)).IsEqualTo(TimeSpan.FromSeconds(10));
+            await Assert.That(TrainingAdherence.GetSettlingDuration(null, steady)).IsEqualTo(TimeSpan.FromSeconds(10));
+            await Assert.That(TrainingAdherence.GetSettlingDuration(steady, free)).IsEqualTo(TimeSpan.FromSeconds(10));
+        }
+    }
+
+    [Test]
+    public async Task Calculate_UsesProvidedSettlingDuration()
+    {
+        var start = DateTimeOffset.UnixEpoch;
+        var samples = new[]
+        {
+            new TrainingAdherenceSample(start.AddSeconds(10), 60d),
+            new TrainingAdherenceSample(start.AddSeconds(15), 75d),
+            new TrainingAdherenceSample(start.AddSeconds(20), 75d),
+        };
+
+        var result = TrainingAdherence.Calculate(samples, 70, 80, start, start.AddSeconds(25), completed: true, TimeSpan.FromSeconds(15));
+
+        await Assert.That(result is TrainingAdherenceScore
+        { EligibleDuration: var eligible, Percentage: 100d }
+            && eligible == TimeSpan.FromSeconds(10)).IsTrue();
+    }
+
+    [Test]
     public async Task Calculate_ReportsMissingCadenceTarget()
     {
         var result = TrainingAdherence.Calculate(

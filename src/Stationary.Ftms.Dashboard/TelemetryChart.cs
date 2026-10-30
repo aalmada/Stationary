@@ -579,7 +579,7 @@ public sealed class TelemetryChart : GraphicsView
             foreach (var marker in EventMarkers)
             {
                 var x = ToX(marker.Timestamp, plot);
-                if (x < plot.Left || x > plot.Right)
+                if (marker.Type == SessionEventType.Training || x < plot.Left || x > plot.Right)
                 {
                     continue;
                 }

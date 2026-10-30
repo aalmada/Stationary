@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reactive;
 using System.Reactive.Concurrency;
@@ -86,6 +87,10 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     private bool isWorkoutActive;
     private WorkoutSessionState workoutSessionState;
     private bool isSessionRecording;
+
+    // Pause/start echoes from a stall pause must not pause or resume the dashboard session.
+    private short? lastLoggedResistanceTenths;
+    private bool hasLoggedResistanceLevel;
     private TargetControlViewModel? powerTargetControl;
     private IFtmsSession? session;
     private IHeartRateSession? heartRateSession;
@@ -496,6 +501,14 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
                 static (workoutActive, trainingActive) => workoutActive || trainingActive)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsRideInProgress);
+        _effortMapSpeedKilometersPerHourHelper = this.WhenAnyValue(
+                viewModel => viewModel.IsWorkoutActive,
+                viewModel => viewModel.Telemetry.CurrentSpeedKilometersPerHour,
+                viewModel => viewModel.Telemetry.IsStale,
+                static (active, speed, stale) => active && !stale && speed is > 0d && double.IsFinite(speed.Value) ? speed.Value : 0d)
+            .DistinctUntilChanged()
+            .ToProperty(this, viewModel => viewModel.EffortMapSpeedKilometersPerHour);
+        subscriptions.Add(_effortMapSpeedKilometersPerHourHelper);
     }
 
     [Reactive]
@@ -671,6 +684,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
 
     [ObservableAsProperty]
     public partial bool IsRideInProgress { get; }
+
+    [ObservableAsProperty]
+    public partial double EffortMapSpeedKilometersPerHour { get; }
 
     public bool IsHeartRateConnected
     {
@@ -859,8 +875,22 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         return false;
     }
 
-    public Task<bool> ApplyTrainingTargetAsync(int watts, CancellationToken cancellationToken) =>
-        ExecuteExclusiveAsync(token => SetTargetPowerFromSliderAsync(watts, token), cancellationToken);
+    public async Task<bool> ApplyTrainingTargetAsync(int watts, CancellationToken cancellationToken)
+    {
+        var sentAt = Stopwatch.GetTimestamp();
+        var accepted = await ExecuteExclusiveAsync(token => SetTargetPowerFromSliderAsync(watts, token), cancellationToken);
+        AddTrainingEvent(TrainingEventLabels.Target(watts, accepted, Stopwatch.GetElapsedTime(sentAt), ConnectionStatus));
+        return accepted;
+    }
+
+    // Training events are kept only while recording so they line up with the exported telemetry.
+    public void AddTrainingEvent(string label)
+    {
+        if (isSessionRecording)
+        {
+            AddSessionEvent(DateTimeOffset.UtcNow, SessionEventType.Training, label);
+        }
+    }
 
     public Task<bool> StartTrainingSessionAsync(CancellationToken cancellationToken) =>
         ExecuteExclusiveAsync(StartWorkoutSessionAsync, cancellationToken);
@@ -1628,6 +1658,7 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             return;
         }
 
+        AddTrainingEvent(TrainingEventLabels.MachineStatus(eventArgs.Opcode, eventArgs.Parameters.Span));
         switch (eventArgs.Opcode)
         {
             case FtmsMachineStatusOpcode.StartedOrResumedByUser:
@@ -1917,7 +1948,7 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         {
             await foreach (var snapshot in activeSession.Telemetry.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                telemetryIngress.OnNext(new(activeSession, snapshot));
+                telemetryIngress.OnNext(new(activeSession, VirtualSpeed.Apply(snapshot)));
             }
 
             if (!cancellationToken.IsCancellationRequested)
@@ -2132,6 +2163,14 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             return;
         }
 
+        if (machine is { } resistanceSource
+            && (!hasLoggedResistanceLevel || resistanceSource.ResistanceTenths != lastLoggedResistanceTenths))
+        {
+            hasLoggedResistanceLevel = true;
+            lastLoggedResistanceTenths = resistanceSource.ResistanceTenths;
+            AddTrainingEvent(TrainingEventLabels.ResistanceLevel(resistanceSource.ResistanceTenths / 10d));
+        }
+
         recordedSamples.Enqueue(new(
             timestamp,
             machine?.PowerWatts,
@@ -2155,6 +2194,8 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     {
         recordedSamples.Clear();
         lastRecordedAt = null;
+        hasLoggedResistanceLevel = false;
+        lastLoggedResistanceTenths = null;
         lastWorkoutAnalysisAt = null;
         EfficiencyText = "Gathering paired data";
         DecouplingText = "Requires 10 minutes";

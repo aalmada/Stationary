@@ -8,6 +8,7 @@ public enum SessionEventType
     Stop,
     Lap,
     Disconnect,
+    Training,
 }
 
 public readonly record struct SessionEventMarker(

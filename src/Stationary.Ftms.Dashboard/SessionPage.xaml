@@ -286,9 +286,9 @@
             <Grid Grid.Row="4" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
               <VerticalStackLayout Spacing="2" VerticalOptions="Center">
                 <Label Text="Effort map" TextColor="{Binding Telemetry.PowerChartColor}" />
-                <Label Text="Power vs cadence · target shaded" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="Power vs cadence · cadence band shaded, power target dashed · starfield motion follows speed" FontSize="11" TextColor="{StaticResource Muted}" />
               </VerticalStackLayout>
-              <local:PowerCadenceMap Grid.Column="1" Points="{Binding Telemetry.PowerCadenceSamples}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
+              <local:PowerCadenceMap Grid.Column="1" Points="{Binding Telemetry.PowerCadenceSamples}" SpeedKilometersPerHour="{Binding EffortMapSpeedKilometersPerHour}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AxisMinimumCadenceRpm="{Binding Training.PowerCadenceAxisMinimumCadenceRpm}" AxisMaximumCadenceRpm="{Binding Training.PowerCadenceAxisMaximumCadenceRpm}" AxisMaximumWatts="{Binding Training.PowerCadenceAxisMaximumWatts}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" SemanticProperties.Description="Power versus cadence. Background stars move faster as bike speed increases." />
               <Label Grid.Column="2" Text="{Binding Telemetry.PowerCadenceSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
           </Grid>

@@ -1,10 +1,11 @@
 namespace Stationary.Ftms.Dashboard.Core;
 
-// Steps an ERG target toward its segment value so the trainer and rider do not fight a single large jump.
+// Steps an ERG target up toward its segment value so the trainer and rider do not fight a single large jump.
+// Steps are no faster than budget trainers respond (3-6 s), and decreases apply at once because easing resistance needs no ramp.
 public readonly record struct TrainingTargetRamp(int FromWatts, int ToWatts, TimeSpan Duration)
 {
     public static readonly TimeSpan MaximumDuration = TimeSpan.FromSeconds(15);
-    public static readonly TimeSpan StepInterval = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan StepInterval = TimeSpan.FromSeconds(5);
 
     public static TrainingTargetRamp Create(
         int? previousTargetWatts,
@@ -21,7 +22,7 @@ public readonly record struct TrainingTargetRamp(int FromWatts, int ToWatts, Tim
         var from = previousTargetWatts ?? Quantize(target / 2d, capabilities);
         var segmentLimit = segment.Definition.Duration / 4;
         var duration = segmentLimit < MaximumDuration ? segmentLimit : MaximumDuration;
-        return int.Abs(target - from) <= capabilities.IncrementWatts || duration < StepInterval
+        return target - from <= capabilities.IncrementWatts || duration < StepInterval
             ? new(target, target, TimeSpan.Zero)
             : new(from, target, duration);
     }

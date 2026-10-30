@@ -13,7 +13,7 @@ public enum TrainingWorkoutState
 
 public sealed class TrainingWorkoutRunner
 {
-    private readonly CompiledTrainingWorkout workout;
+    private CompiledTrainingWorkout workout;
     private readonly WorkoutSessionClock segmentClock = new();
     private int segmentIndex;
     private TrainingWorkoutState state = TrainingWorkoutState.Selected;
@@ -109,6 +109,18 @@ public sealed class TrainingWorkoutRunner
         segmentClock.Reset();
         state = segmentIndex == workout.Segments.Count ? TrainingWorkoutState.Completed : TrainingWorkoutState.ApplyingTarget;
         return true;
+    }
+
+    // Swaps in revised segment metadata, such as recalibrated cadence ranges, without disturbing progress.
+    public void ReplaceWorkout(CompiledTrainingWorkout updated)
+    {
+        ArgumentNullException.ThrowIfNull(updated);
+        if (updated.Segments.Count != workout.Segments.Count)
+        {
+            throw new ArgumentException("A replacement workout must keep the same segments.", nameof(updated));
+        }
+
+        workout = updated;
     }
 
     public void Abort()

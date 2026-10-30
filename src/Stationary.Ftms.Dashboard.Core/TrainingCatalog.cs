@@ -27,6 +27,7 @@ public static class TrainingCatalog
 
     private static HashSet<(TrainingObjective, TrainingExperienceLevel)> GetExpectedVariants() =>
         [.. Enum.GetValues<TrainingObjective>()
+            .Where(static objective => objective != TrainingObjective.Diagnostics)
             .SelectMany(static objective => Enum.GetValues<TrainingExperienceLevel>().Select(level => (objective, level)))];
 
     private static HashSet<string> ValidateWorkouts(

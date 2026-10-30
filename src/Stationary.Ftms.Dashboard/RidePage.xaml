@@ -112,7 +112,10 @@
         <local:TrainingProfileView Grid.Row="1" Segments="{Binding Training.ActiveSegments}" Progress="{Binding Training.WorkoutProgress}" HeightRequest="60" />
         <Label Grid.Row="2" Text="{Binding Training.IntervalGuidanceText}" Style="{StaticResource TileDetail}" FontAttributes="Bold" />
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-          <Label Text="{Binding Training.AdherenceText}" Style="{StaticResource TileDetail}" />
+          <VerticalStackLayout Spacing="2">
+            <Label Text="{Binding Training.AdherenceText}" Style="{StaticResource TileDetail}" />
+            <Label Text="{Binding Training.CadenceCalibrationText}" Style="{StaticResource TileDetail}" />
+          </VerticalStackLayout>
           <Label Grid.Column="1" Text="{Binding Training.WorkoutElapsedText, StringFormat='{0} elapsed'}" Style="{StaticResource TileDetail}" />
         </Grid>
       </Grid>
@@ -243,8 +246,9 @@
 
           <Border Style="{StaticResource PanelBorder}" Padding="14">
             <VerticalStackLayout Spacing="6">
-              <Label Text="POWER VS CADENCE · SHADED AREA IS THE TARGET" Style="{StaticResource TileCaption}" />
-              <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" />
+              <Label Text="POWER VS CADENCE · KEEP THE DOT IN THE SHADED CADENCE BAND" Style="{StaticResource TileCaption}" />
+              <Label Text="Starfield warp speed follows your bike speed" Style="{StaticResource TileDetail}" />
+              <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" SpeedKilometersPerHour="{Binding EffortMapSpeedKilometersPerHour}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AxisMinimumCadenceRpm="{Binding Training.PowerCadenceAxisMinimumCadenceRpm}" AxisMaximumCadenceRpm="{Binding Training.PowerCadenceAxisMaximumCadenceRpm}" AxisMaximumWatts="{Binding Training.PowerCadenceAxisMaximumWatts}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" SemanticProperties.Description="Power versus cadence. The shaded band is your cadence target. Background stars move faster as bike speed increases." />
             </VerticalStackLayout>
           </Border>
         </VerticalStackLayout>
