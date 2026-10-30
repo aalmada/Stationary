@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:core="clr-namespace:Stationary.Ftms.Dashboard.Core;assembly=Stationary.Ftms.Dashboard.Core"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.TrainingPlansPage"
+             x:DataType="viewModels:TrainingViewModel"
+             Title="Workouts"
+             BackgroundColor="{StaticResource Canvas}">
+  <Grid Padding="24" RowDefinitions="Auto,*" RowSpacing="16">
+    <HorizontalStackLayout Spacing="8">
+      <Label Text="Pick a plan and a week, then start one of its rides." TextColor="{StaticResource Muted}" FontSize="14" VerticalOptions="Center" />
+      <ActivityIndicator IsVisible="{Binding IsCatalogLoading}" IsRunning="{Binding IsCatalogLoading}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" />
+    </HorizontalStackLayout>
+    <ScrollView Grid.Row="1">
+      <VerticalStackLayout Spacing="16">
+        <local:ReadyToRideView />
+        <VerticalStackLayout Spacing="8">
+          <Label Text="TRAINING PLANS" FontAttributes="Bold" />
+          <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks." TextColor="{StaticResource Muted}" FontSize="12" />
+          <FlexLayout BindableLayout.ItemsSource="{Binding Plans}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="core:TrainingPlan">
+                <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                  <VerticalStackLayout Spacing="6">
+                    <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectPlanCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
+                    <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                  </VerticalStackLayout>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+        </VerticalStackLayout>
+        <Border Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="{Binding SelectedPlan.Name}" FontAttributes="Bold" />
+            <Label Text="{Binding SelectedPlan.Description}" TextColor="{StaticResource Muted}" FontSize="12" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlan.Weeks}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="core:TrainingPlanWeek">
+                  <Button Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,8" Text="{Binding Number, StringFormat='Week {0}'}" Command="{Binding SelectPlanWeekCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
+              <VerticalStackLayout Spacing="2">
+                <Label Text="PHASE" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="1" Spacing="2">
+                <Label Text="EASY VOLUME" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.LowIntensityMinutes, StringFormat='{}{0} min'}" FontAttributes="Bold" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="2" Spacing="2">
+                <Label Text="STRENGTH / REST" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="{Binding SelectedPlanWeek.StrengthSessions, StringFormat='{}{0} sessions'}" FontAttributes="Bold" />
+                <Label Text="{Binding SelectedPlanWeek.RecoveryDays, StringFormat='{}{0} recovery days'}" TextColor="{StaticResource Muted}" FontSize="11" />
+              </VerticalStackLayout>
+            </Grid>
+            <Label Text="{Binding SelectedPlanWeek.Focus}" TextColor="{StaticResource Muted}" FontSize="12" />
+            <Label Text="WEEKLY WORKOUTS" FontAttributes="Bold" FontSize="12" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlanWorkouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="core:TrainingWorkout">
+                  <Border Style="{StaticResource PanelBorder}" WidthRequest="216" Margin="0,0,8,8" Padding="10">
+                    <VerticalStackLayout Spacing="6">
+                      <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectWorkoutCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
+                      <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+                      <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+                      <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
+                        <BoxView BackgroundColor="{Binding TotalDuration, Converter={StaticResource TrainingDurationColorConverter}}" WidthRequest="{Binding TotalDuration, Converter={StaticResource TrainingDurationWidthConverter}}" HorizontalOptions="Start" />
+                      </Border>
+                      <local:TrainingProfileView Segments="{Binding Segments}" HeightRequest="42" />
+                    </VerticalStackLayout>
+                  </Border>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </FlexLayout>
+          </VerticalStackLayout>
+        </Border>
+      </VerticalStackLayout>
+    </ScrollView>
+  </Grid>
+</ContentPage>

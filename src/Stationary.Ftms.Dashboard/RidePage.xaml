@@ -3,19 +3,17 @@
              xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.RidePage"
              x:DataType="viewModels:DashboardViewModel"
-             Title="Ride"
+             Title="{Binding RideTitle}"
              BackgroundColor="{StaticResource Canvas}">
   <Grid Padding="16,12,16,16" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
 
-    <!-- Command bar: identity, live status, devices, and session actions stay in one row. -->
-    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
-      <Button Style="{StaticResource SecondaryActionButton}" Text="Home" Command="{Binding ShowTodayCommand}" VerticalOptions="Center" SemanticProperties.Description="Return to the home screen; the ride keeps recording" />
-      <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
-        <Label Text="{Binding RideTitle}" FontAttributes="Bold" FontSize="22" LineBreakMode="TailTruncation" />
+    <!-- Command bar: live status, devices, and session actions stay in one row. -->
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14">
+      <VerticalStackLayout Spacing="1" VerticalOptions="Center">
         <Label Text="{Binding StatusText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsOpenRide}" />
         <Label Text="{Binding Training.StatusText}" Style="{StaticResource TileDetail}" IsVisible="{Binding IsTrainingActive}" />
       </VerticalStackLayout>
-      <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+      <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
         <Border Style="{StaticResource ChipBorder}">
           <Border.GestureRecognizers>
             <TapGestureRecognizer Command="{Binding ShowSensorsCommand}" />
@@ -35,7 +33,7 @@
           </VerticalStackLayout>
         </Border>
       </HorizontalStackLayout>
-      <Grid Grid.Column="3" VerticalOptions="Center">
+      <Grid Grid.Column="2" VerticalOptions="Center">
         <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsOpenRide}">
           <ActivityIndicator IsRunning="{Binding IsControlOperationExecuting}" IsVisible="{Binding IsControlOperationExecuting}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" />
           <Button Style="{StaticResource ActionButton}" Text="{Binding StartActionText}" Command="{Binding StartCommand}" IsVisible="{Binding IsControllable}" SemanticProperties.Description="Start or resume the fitness machine session" />

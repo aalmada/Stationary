@@ -10,16 +10,18 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 
 ## Navigation And Ride Flow
 
-- The Shell has no flyout. Pages own their headers: Home (ride choice and readiness), Ride (live dashboard), Workouts (lazy library), Results. Pairing and Settings are form-sheet modals opened through `DashboardDestination.Sensors` (FTMS machine), `HeartRateSensor` (Heart Rate Service), and `Settings`, and closed with `CloseSheetCommand`, so they never replace the ride dashboard.
+- Use native navigation bars and the shared `ToolbarItem` back control from `AppShell.WithBackNavigation`; let the platform choose its placement. Do not add custom navigation renderers or in-page back buttons. Keep page titles in the native bar rather than repeating them in content.
+- The Shell has no flyout: Home (ride choice and readiness), Ride (live dashboard), Workouts (lazy library), Results. Pairing and Settings are form-sheet modals wrapped in `NavigationPage`, opened through `DashboardDestination.Sensors` (FTMS machine), `HeartRateSensor` (Heart Rate Service), and `Settings`, and closed with `CloseSheetCommand`, so they never replace the ride dashboard.
 - Keep FTMS and heart-rate pairing in separate sheets; they are different Bluetooth profiles with independent connections.
 - Starting any ride (free ride, workout, ramp test, or a machine-reported start) navigates to Ride immediately, before awaiting BLE acknowledgements. Show pending, rejected, and timed-out starts on the Ride page with Retry and End.
 - Keep the Ride page charts visible in every mode without scrolling; put secondary panels in the side column.
 - Shell `MenuBarItems` do not currently appear on Mac Catalyst; keep every action reachable from page UI.
 
-## Mac Catalyst Training Page
+## Mac Catalyst Training Pages
 
-- Keep the Training `ShellContent` lazy. Eager XAML materialization previously crashed the application during startup.
-- Do not reintroduce the `Picker` removed from `TrainingPage.xaml`; it previously crashed navigation to Training. Replace it only with a separately tested selector.
+- Workouts, Plans, and Assessment are Shell top tabs: one `Tab` with three `ShellContent` pages (`TrainingWorkoutsPage`, `TrainingPlansPage`, `TrainingAssessmentPage`) titled "Workouts". Keep the title and native toolbar back control above the tabs; do not repeat a header inside each tab. Do not reintroduce button-driven browse modes in `TrainingViewModel`.
+- Keep the Training `ShellContent` pages lazy (`ContentTemplate`). Eager XAML materialization previously crashed the application during startup.
+- Do not add a `Picker` to the Training pages; it previously crashed navigation to Training. Replace it only with a separately tested selector.
 - Apply the shared `ActionButton` style to every Training action, including ramp-test and currently unavailable actions. It is the established Sensors-page pattern and provides the correct enabled and disabled presentation.
 
 ## Mac Catalyst Button Rendering

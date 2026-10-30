@@ -7,13 +7,7 @@
              BackgroundColor="{StaticResource Canvas}">
   <ScrollView>
     <VerticalStackLayout Padding="24" Spacing="16">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-        <VerticalStackLayout Spacing="4">
-          <Label Text="Settings" FontAttributes="Bold" FontSize="30" />
-          <Label Text="Rider profile and display preferences used across every ride." TextColor="{StaticResource Muted}" FontSize="14" />
-        </VerticalStackLayout>
-        <Button Grid.Column="1" Style="{StaticResource ActionButton}" Text="Done" Command="{Binding CloseSheetCommand}" VerticalOptions="Center" SemanticProperties.Description="Close settings" />
-      </Grid>
+      <Label Text="Rider profile and display preferences used across every ride." TextColor="{StaticResource Muted}" FontSize="14" />
 
       <Border Style="{StaticResource PanelBorder}">
         <VerticalStackLayout Spacing="10">

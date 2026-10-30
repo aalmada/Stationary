@@ -21,26 +21,31 @@ public sealed class AppShell : Shell
     public const string ResultsRoute = "results";
     public const string TrainingRoute = "training";
 
-    private readonly SensorsPage sensorsPage;
-    private readonly HeartRateSensorPage heartRateSensorPage;
-    private readonly SettingsPage settingsPage;
+    private readonly NavigationPage sensorsPage;
+    private readonly NavigationPage heartRateSensorPage;
+    private readonly NavigationPage settingsPage;
 
     public AppShell(TodayPage todayPage, RidePage ridePage, ResultsPage resultsPage, SensorsPage sensorsPage, HeartRateSensorPage heartRateSensorPage, SettingsPage settingsPage, IServiceProvider services, DashboardViewModel viewModel)
     {
-        this.sensorsPage = sensorsPage;
-        this.heartRateSensorPage = heartRateSensorPage;
-        this.settingsPage = settingsPage;
-        PrepareSheet(sensorsPage);
-        PrepareSheet(heartRateSensorPage);
-        PrepareSheet(settingsPage);
+        this.sensorsPage = CreateSheet(sensorsPage, viewModel.CloseSheetCommand);
+        this.heartRateSensorPage = CreateSheet(heartRateSensorPage, viewModel.CloseSheetCommand);
+        this.settingsPage = CreateSheet(settingsPage, viewModel.CloseSheetCommand);
 
-        // Pages carry their own headers and in-context navigation; the ride cockpit gets the whole window.
         FlyoutBehavior = FlyoutBehavior.Disabled;
+        SetBackgroundColor(this, (Color)Application.Current!.Resources["Canvas"]);
+        SetForegroundColor(this, (Color)Application.Current.Resources["Accent"]);
+        SetTitleColor(this, (Color)Application.Current.Resources["Accent"]);
+        SetNavBarHasShadow(this, false);
 
         Items.Add(CreateItem("Home", TodayRoute, todayPage));
-        Items.Add(CreateItem("Ride", RideRoute, ridePage));
-        Items.Add(CreateLazyItem("Workouts", TrainingRoute, () => HideNavigationBar(services.GetRequiredService<TrainingPage>())));
-        Items.Add(CreateItem("Results", ResultsRoute, resultsPage));
+        Items.Add(CreateItem("Ride", RideRoute, WithBackNavigation(ridePage, viewModel.ShowTodayCommand, "Back to home; the ride keeps recording")));
+        Items.Add(CreateTabbedItem(
+            "Workouts",
+            TrainingRoute,
+            ("Workouts", "workouts", () => WithBackNavigation(services.GetRequiredService<TrainingWorkoutsPage>(), viewModel.ShowTodayCommand, "Back to home")),
+            ("Plans", "plans", () => WithBackNavigation(services.GetRequiredService<TrainingPlansPage>(), viewModel.ShowTodayCommand, "Back to home")),
+            ("Assessment", "assessment", () => WithBackNavigation(services.GetRequiredService<TrainingAssessmentPage>(), viewModel.ShowTodayCommand, "Back to home"))));
+        Items.Add(CreateItem("Results", ResultsRoute, WithBackNavigation(resultsPage, viewModel.ShowTodayCommand, "Back to home")));
 
         MenuBarItems.Add(CreateDeviceMenu(viewModel));
         MenuBarItems.Add(CreateViewMenu(viewModel));
@@ -60,12 +65,32 @@ public sealed class AppShell : Shell
             .Subscribe(dismiss => { _ = CloseSheetAsync(); }));
     }
 
-    private static void PrepareSheet(ContentPage page) =>
-        IosPage.SetModalPresentationStyle(page.On<IosPlatform>(), IosPresentationStyle.FormSheet);
-
-    private static ContentPage HideNavigationBar(ContentPage page)
+    private static NavigationPage CreateSheet(ContentPage page, ICommand command)
     {
-        SetNavBarIsVisible(page, false);
+        var sheet = new NavigationPage(WithBackNavigation(page, command, $"Close {page.Title}"))
+        {
+            BarBackgroundColor = (Color)Application.Current!.Resources["Canvas"],
+            BarTextColor = (Color)Application.Current.Resources["Accent"],
+        };
+        IosPage.SetModalPresentationStyle(sheet.On<IosPlatform>(), IosPresentationStyle.FormSheet);
+        return sheet;
+    }
+
+    private static ContentPage WithBackNavigation(ContentPage page, ICommand command, string description)
+    {
+        page.ToolbarItems.Add(new ToolbarItem
+        {
+            Command = command,
+            Text = description,
+            AutomationId = "NavigateBack",
+            Order = ToolbarItemOrder.Primary,
+            IconImageSource = new FontImageSource
+            {
+                Glyph = "\u2190",
+                Size = 24,
+                Color = (Color)Application.Current!.Resources["Accent"],
+            },
+        });
         return page;
     }
 
@@ -80,24 +105,43 @@ public sealed class AppShell : Shell
         {
             Title = title,
             Route = GetContentRoute(route),
-            Content = HideNavigationBar(page),
+            Content = page,
         });
         return item;
     }
 
-    private static FlyoutItem CreateLazyItem(string title, string route, Func<ContentPage> pageFactory)
+    // Several contents in one section render as native top tabs; each page is still created only when first shown.
+    private static FlyoutItem CreateTabbedItem(string title, string route, params ReadOnlySpan<(string Title, string Route, Func<ContentPage> PageFactory)> tabs)
     {
+        var section = new Tab
+        {
+            Title = title,
+            Route = GetContentRoute(route),
+        };
+        var canvas = (Color)Application.Current!.Resources["Canvas"];
+        var accent = (Color)Application.Current.Resources["Accent"];
+        var muted = (Color)Application.Current.Resources["Muted"];
+        SetBackgroundColor(section, canvas);
+        SetForegroundColor(section, accent);
+        SetTitleColor(section, accent);
+        SetUnselectedColor(section, muted);
+        foreach (var tab in tabs)
+        {
+            section.Items.Add(new ShellContent
+            {
+                Title = tab.Title,
+                Route = tab.Route,
+                ContentTemplate = new DataTemplate(tab.PageFactory),
+            });
+        }
+
+        section.CurrentItem = section.Items[0];
         var item = new FlyoutItem
         {
             Title = title,
             Route = route,
         };
-        item.Items.Add(new ShellContent
-        {
-            Title = title,
-            Route = GetContentRoute(route),
-            ContentTemplate = new DataTemplate(pageFactory),
-        });
+        item.Items.Add(section);
         return item;
     }
 
@@ -169,13 +213,13 @@ public sealed class AppShell : Shell
         return item;
     }
 
-    private MenuFlyoutItem CreateSensorScanItem(string text, ContentPage sheet, ICommand command) => new()
+    private MenuFlyoutItem CreateSensorScanItem(string text, NavigationPage sheet, ICommand command) => new()
     {
         Text = text,
         Command = new Command(async () => await ShowSheetAndExecuteAsync(sheet, command)),
     };
 
-    private async Task ShowSheetAndExecuteAsync(ContentPage sheet, ICommand command)
+    private async Task ShowSheetAndExecuteAsync(NavigationPage sheet, ICommand command)
     {
         await ShowSheetAsync(sheet);
         if (command.CanExecute(null))
@@ -191,7 +235,7 @@ public sealed class AppShell : Shell
             DashboardDestination.Sensors => sensorsPage,
             DashboardDestination.HeartRateSensor => heartRateSensorPage,
             DashboardDestination.Settings => settingsPage,
-            _ => (ContentPage?)null,
+            _ => (NavigationPage?)null,
         };
         if (sheet is not null)
         {
@@ -223,7 +267,7 @@ public sealed class AppShell : Shell
         }
     }
 
-    private async Task ShowSheetAsync(ContentPage sheet)
+    private async Task ShowSheetAsync(NavigationPage sheet)
     {
         var modalStack = Navigation.ModalStack;
         if (modalStack.Count > 0 && ReferenceEquals(modalStack[^1], sheet))

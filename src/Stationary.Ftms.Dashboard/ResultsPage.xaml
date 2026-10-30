@@ -6,13 +6,11 @@
              BackgroundColor="{StaticResource Canvas}">
   <ScrollView>
     <VerticalStackLayout Padding="24" Spacing="16">
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-        <Button Style="{StaticResource SecondaryActionButton}" Text="Home" Command="{Binding ShowTodayCommand}" VerticalOptions="Center" />
-        <VerticalStackLayout Grid.Column="1" Spacing="4">
-          <Label Text="Results" FontAttributes="Bold" FontSize="30" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <VerticalStackLayout Spacing="4">
           <Label Text="Review the session, compare the previous effort, and export your data." TextColor="{StaticResource Muted}" FontSize="14" />
         </VerticalStackLayout>
-        <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+        <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
           <Button Style="{StaticResource SecondaryActionButton}" Text="Ride dashboard" Command="{Binding ShowRideCommand}" />
           <Button Style="{StaticResource ActionButton}" Text="Export CSV" Command="{Binding ExportSessionCommand}" />
         </HorizontalStackLayout>

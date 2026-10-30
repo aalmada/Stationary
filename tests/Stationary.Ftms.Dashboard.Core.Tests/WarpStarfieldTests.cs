@@ -16,67 +16,61 @@ public sealed class WarpStarfieldTests
     }
 
     [Test]
-    public async Task Advance_TravelGrowsWithSpeedSquaredAndElapsedTime()
-    {
-        var slow = new WarpStarfield();
-        var fast = new WarpStarfield();
-        var longer = new WarpStarfield();
-        var initial = slow.Stars[0].Depth;
-
-        slow.Advance(TimeSpan.FromMilliseconds(10), 10d);
-        fast.Advance(TimeSpan.FromMilliseconds(10), 20d);
-        longer.Advance(TimeSpan.FromMilliseconds(40), 10d);
-
-        using (Assert.Multiple())
-        {
-            await Assert.That(initial - fast.Stars[0].Depth)
-                .IsEqualTo(4d * (initial - slow.Stars[0].Depth)).Within(1e-12);
-            await Assert.That(fast.Stars[0].Depth).IsEqualTo(longer.Stars[0].Depth).Within(1e-12);
-        }
-    }
-
-    [Test]
-    public async Task Advance_MovesReferenceDepthPerSecondAtReferenceSpeed()
+    public async Task Advance_MovesTheViewerForwardAtBikeSpeed()
     {
         var starfield = new WarpStarfield();
         var stars = starfield.Stars.ToArray();
         var index = Array.IndexOf(stars, stars.MaxBy(star => star.Depth));
-        var nearest = stars[index];
 
-        starfield.Advance(TimeSpan.FromMilliseconds(100), 36d);
+        starfield.Advance(TimeSpan.FromSeconds(1), 36d);
 
-        await Assert.That(nearest.Depth - starfield.Stars[index].Depth).IsEqualTo(0.06d).Within(1e-12);
+        await Assert.That(stars[index].Depth - starfield.Stars[index].Depth).IsEqualTo(10d).Within(1e-9);
     }
 
     [Test]
-    public async Task DepthRatePerSecond_KeepsEasySpinningCalm()
-    {
-        using (Assert.Multiple())
-        {
-            await Assert.That(WarpStarfield.DepthRatePerSecond(0d)).IsEqualTo(0d);
-            await Assert.That(WarpStarfield.DepthRatePerSecond(18d)).IsEqualTo(0.15d).Within(1e-12);
-            await Assert.That(WarpStarfield.DepthRatePerSecond(36d)).IsEqualTo(0.6d).Within(1e-12);
-        }
-    }
-
-    [Test]
-    public async Task Advance_RecyclesStarsWithoutChangingTheirDirection()
+    public async Task Advance_KeepsStarsInsideTheViewWithoutChangingTheirPosition()
     {
         var starfield = new WarpStarfield();
         var before = starfield.Stars.ToArray();
 
-        starfield.Advance(TimeSpan.FromSeconds(10), 100d);
+        starfield.Advance(TimeSpan.FromMinutes(3), 40d);
         var after = starfield.Stars.ToArray();
 
         for (var index = 0; index < after.Length; index++)
         {
+            var (x, y) = WarpStarfield.Project(after[index]);
             using (Assert.Multiple())
             {
-                await Assert.That(after[index].Depth).IsGreaterThanOrEqualTo(0.08d);
-                await Assert.That(after[index].Depth).IsLessThanOrEqualTo(1d);
+                await Assert.That(after[index].Depth).IsGreaterThanOrEqualTo(WarpStarfield.NearDepthMetres);
+                await Assert.That(after[index].Depth).IsLessThanOrEqualTo(WarpStarfield.FarDepthMetres);
+                await Assert.That(double.Abs(x)).IsLessThanOrEqualTo(1d + 1e-9);
+                await Assert.That(double.Abs(y)).IsLessThanOrEqualTo(1d + 1e-9);
                 await Assert.That(after[index].X).IsEqualTo(before[index].X);
                 await Assert.That(after[index].Y).IsEqualTo(before[index].Y);
             }
+        }
+    }
+
+    [Test]
+    public async Task StreakLength_EasyRidingDrawsPointsAndFastRidingDrawsStreaks()
+    {
+        var starfield = new WarpStarfield();
+        var slowest = 0d;
+        var fastest = 0d;
+        for (var step = 0; step < 200; step++)
+        {
+            starfield.Advance(TimeSpan.FromMilliseconds(250), 12d);
+            foreach (var star in starfield.Stars)
+            {
+                slowest = double.Max(slowest, WarpStarfield.StreakLength(star, 12d));
+                fastest = double.Max(fastest, WarpStarfield.StreakLength(star, 40d));
+            }
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(slowest).IsLessThan(WarpStarfield.MinimumStreakLength);
+            await Assert.That(fastest).IsGreaterThan(WarpStarfield.MinimumStreakLength);
         }
     }
 }

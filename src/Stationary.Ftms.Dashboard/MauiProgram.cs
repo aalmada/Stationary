@@ -38,7 +38,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<SensorsPage>();
         builder.Services.AddSingleton<HeartRateSensorPage>();
         builder.Services.AddSingleton<SettingsPage>();
-        builder.Services.AddSingleton<TrainingPage>();
+        builder.Services.AddSingleton<TrainingWorkoutsPage>();
+        builder.Services.AddSingleton<TrainingPlansPage>();
+        builder.Services.AddSingleton<TrainingAssessmentPage>();
         builder.Services.AddSingleton<AppShell>();
 
         return builder.Build();

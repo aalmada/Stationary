@@ -12,13 +12,6 @@ using Stationary.Ftms.Dashboard.Core;
 
 namespace Stationary.Ftms.Dashboard.ViewModels;
 
-public enum TrainingBrowseMode
-{
-    Workouts,
-    Plans,
-    Assessment,
-}
-
 public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 {
     private const int CardBatchSize = 5;
@@ -35,7 +28,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private readonly IObservable<bool> canAcceptRampEstimate;
     private IReadOnlyDictionary<string, TrainingWorkout> workoutsById = new Dictionary<string, TrainingWorkout>(StringComparer.Ordinal);
     private readonly ObservableCollection<TrainingWorkout> workouts = [];
-    private readonly ObservableCollection<TrainingPlan> visiblePlans = [];
     private TrainingPlanWeek? selectedPlanWeek;
     private TrainingWorkoutRunner? runner;
     private CompiledTrainingWorkout? activeWorkout;
@@ -67,15 +59,12 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private bool hasSessionStarted;
     private long sessionGeneration;
     private Task<bool>? sessionStartTask;
-    private TrainingBrowseMode browseMode = TrainingBrowseMode.Workouts;
     private bool isCatalogLoading = true;
-    private bool hasPublishedPlans;
 
     public TrainingViewModel(DashboardViewModel dashboard)
     {
         this.dashboard = dashboard;
         Workouts = new ReadOnlyObservableCollection<TrainingWorkout>(workouts);
-        VisiblePlans = new ReadOnlyObservableCollection<TrainingPlan>(visiblePlans);
         canSelect = this.WhenAnyValue(viewModel => viewModel.IsActive).Select(static active => !active);
         var hasPowerTarget = dashboard.WhenAnyValue(
                 viewModel => viewModel.IsConnected,
@@ -156,8 +145,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     [Reactive]
     public partial IReadOnlyList<TrainingPlan> Plans { get; private set; } = [];
 
-    public ReadOnlyObservableCollection<TrainingPlan> VisiblePlans { get; }
-
     public bool IsCatalogLoading
     {
         get => isCatalogLoading;
@@ -175,22 +162,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
     [Reactive]
     public partial bool IsStarting { get; private set; }
-
-    public TrainingBrowseMode BrowseMode
-    {
-        get => browseMode;
-    }
-
-    public bool IsWorkoutsView => BrowseMode == TrainingBrowseMode.Workouts;
-
-    public bool IsPlansView => BrowseMode == TrainingBrowseMode.Plans;
-
-    public bool IsAssessmentView => BrowseMode == TrainingBrowseMode.Assessment;
-    public string WorkoutsTabAccessibleName => IsWorkoutsView ? "Workouts, selected" : "Workouts";
-
-    public string PlansTabAccessibleName => IsPlansView ? "Plans, selected" : "Plans";
-
-    public string AssessmentTabAccessibleName => IsAssessmentView ? "Assessment, selected" : "Assessment";
 
     [Reactive]
     public partial TrainingWorkout? SelectedWorkout { get; set; }
@@ -210,15 +181,12 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
             this.RaiseAndSetIfChanged(ref selectedPlanWeek, value);
             this.RaisePropertyChanged(nameof(SelectedPlanWorkouts));
-            this.RaisePropertyChanged(nameof(VisiblePlanWorkouts));
         }
     }
 
     public IReadOnlyList<TrainingWorkout> SelectedPlanWorkouts => SelectedPlanWeek is null
         ? []
         : [.. SelectedPlanWeek.WorkoutIds.Select(workoutId => workoutsById[workoutId])];
-
-    public IReadOnlyList<TrainingWorkout> VisiblePlanWorkouts => IsPlansView ? SelectedPlanWorkouts : [];
 
     public TrainingWorkoutState RunnerState => runner?.State ?? TrainingWorkoutState.Selected;
     public bool IsActive => RunnerState is TrainingWorkoutState.ApplyingTarget or TrainingWorkoutState.Running or TrainingWorkoutState.Paused or TrainingWorkoutState.TargetFailed
@@ -413,10 +381,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         SelectWorkoutCommand.Dispose();
         SelectPlanCommand.Dispose();
         SelectPlanWeekCommand.Dispose();
-        ShowWorkoutsCommand.Dispose();
-        ShowPlansCommand.Dispose();
-        ShowAssessmentCommand.Dispose();
-        ShowHomeCommand.Dispose();
         StartCommand.Dispose();
         StartRampTestCommand.Dispose();
         PauseCommand.Dispose();
@@ -448,11 +412,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             {
                 await Task.Yield();
             }
-        }
-
-        if (IsPlansView)
-        {
-            await PublishPlansAsync(cancellationToken);
         }
 
         IsCatalogLoading = false;
@@ -506,64 +465,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     {
         SelectedWorkout = workout;
         StatusText = $"{workout.Name} selected.";
-    }
-
-    [ReactiveCommand]
-    private void ShowWorkouts() => SetBrowseMode(TrainingBrowseMode.Workouts);
-
-    [ReactiveCommand]
-    private void ShowAssessment() => SetBrowseMode(TrainingBrowseMode.Assessment);
-
-    [ReactiveCommand]
-    private void ShowHome() => dashboard.RequestNavigation(DashboardDestination.Today);
-
-    private void SetBrowseMode(TrainingBrowseMode mode)
-    {
-        if (browseMode == mode)
-        {
-            return;
-        }
-
-        this.RaiseAndSetIfChanged(ref browseMode, mode);
-        this.RaisePropertyChanged(nameof(IsWorkoutsView));
-        this.RaisePropertyChanged(nameof(IsPlansView));
-        this.RaisePropertyChanged(nameof(IsAssessmentView));
-        this.RaisePropertyChanged(nameof(WorkoutsTabAccessibleName));
-        this.RaisePropertyChanged(nameof(PlansTabAccessibleName));
-        this.RaisePropertyChanged(nameof(AssessmentTabAccessibleName));
-        this.RaisePropertyChanged(nameof(VisiblePlanWorkouts));
-    }
-
-    [ReactiveCommand]
-    private async Task ShowPlansAsync(CancellationToken cancellationToken)
-    {
-        SetBrowseMode(TrainingBrowseMode.Plans);
-
-        if (!IsCatalogLoading)
-        {
-            await PublishPlansAsync(cancellationToken);
-        }
-    }
-
-    private async Task PublishPlansAsync(CancellationToken cancellationToken)
-    {
-        if (hasPublishedPlans)
-        {
-            return;
-        }
-
-        for (var planIndex = 0; planIndex < Plans.Count; planIndex++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            visiblePlans.Add(Plans[planIndex]);
-
-            if ((planIndex + 1) % CardBatchSize == 0)
-            {
-                await Task.Yield();
-            }
-        }
-
-        hasPublishedPlans = true;
     }
 
     [ReactiveCommand(CanExecute = nameof(canSelect))]

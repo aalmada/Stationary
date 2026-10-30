@@ -265,11 +265,9 @@ public sealed class GeneratedCommandTests
         await Assert.That(await training.SelectWorkoutCommand.CanExecute.FirstAsync()).IsTrue();
         await training.SelectWorkoutCommand.Execute(training.Workouts[1]).ToTask();
         await Assert.That(training.SelectedWorkout).IsEqualTo(training.Workouts[1]);
-        await training.ShowAssessmentCommand.Execute().ToTask();
-        await Assert.That(training.IsAssessmentView).IsTrue();
-        await training.ShowWorkoutsCommand.Execute().ToTask();
-        await Assert.That(training.IsWorkoutsView).IsTrue();
-        await training.ShowHomeCommand.Execute().ToTask();
+        await training.SelectPlanWeekCommand.Execute(training.Plans[0].Weeks[1]).ToTask();
+        await Assert.That(training.SelectedPlanWorkouts.Count).IsEqualTo(training.Plans[0].Weeks[1].WorkoutIds.Count);
+        await dashboard.ShowTodayCommand.Execute().ToTask();
         await dashboard.ShowTrainingCommand.Execute().ToTask();
         await Assert.That(destinations.SequenceEqual([DashboardDestination.Today, DashboardDestination.Training])).IsTrue();
     }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.TrainingAssessmentPage"
+             x:DataType="viewModels:TrainingViewModel"
+             Title="Workouts"
+             BackgroundColor="{StaticResource Canvas}">
+  <Grid Padding="24" RowDefinitions="Auto,*" RowSpacing="16">
+    <HorizontalStackLayout Spacing="8">
+      <Label Text="Reassess your FTP to keep workout targets accurate." TextColor="{StaticResource Muted}" FontSize="14" VerticalOptions="Center" />
+      <ActivityIndicator IsVisible="{Binding IsCatalogLoading}" IsRunning="{Binding IsCatalogLoading}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" />
+    </HorizontalStackLayout>
+    <ScrollView Grid.Row="1">
+      <VerticalStackLayout Spacing="16">
+        <local:ReadyToRideView />
+        <Border Style="{StaticResource PanelBorder}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="FTP RAMP TEST" FontAttributes="Bold" />
+            <Label Text="Five minutes easy, then one-minute steps. End the test when you can no longer sustain the step." TextColor="{StaticResource Muted}" FontSize="12" />
+            <HorizontalStackLayout Spacing="8">
+              <Button Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding StartRampTestCommand}" />
+              <Button Style="{StaticResource SecondaryActionButton}" Text="Finish test" Command="{Binding FinishRampTestCommand}" />
+              <Button Style="{StaticResource SecondaryActionButton}" Text="Accept FTP" Command="{Binding AcceptRampEstimateCommand}" />
+            </HorizontalStackLayout>
+            <Label Text="{Binding RampEstimateText}" TextColor="{StaticResource Muted}" />
+          </VerticalStackLayout>
+        </Border>
+      </VerticalStackLayout>
+    </ScrollView>
+  </Grid>
+</ContentPage>

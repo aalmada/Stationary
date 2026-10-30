@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<Application x:Class="Stationary.Ftms.Dashboard.App">
+<Application xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             x:Class="Stationary.Ftms.Dashboard.App">
   <Application.Resources>
-    <ResourceDictionary Source="Themes/LightTheme.xaml" />
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Themes/LightTheme.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <local:TrainingTargetHeightConverter x:Key="TrainingTargetHeightConverter" />
+      <local:TrainingDurationWeightConverter x:Key="TrainingDurationWeightConverter" />
+      <local:TrainingDurationWidthConverter x:Key="TrainingDurationWidthConverter" />
+      <local:TrainingDurationColorConverter x:Key="TrainingDurationColorConverter" />
+      <local:TrainingDurationTextConverter x:Key="TrainingDurationTextConverter" />
+      <local:TrainingTargetColorConverter x:Key="TrainingTargetColorConverter" />
+    </ResourceDictionary>
   </Application.Resources>
 </Application>

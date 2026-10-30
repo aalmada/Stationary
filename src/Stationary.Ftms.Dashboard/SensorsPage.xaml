@@ -11,12 +11,10 @@
       <Grid x:Name="ContentGrid" Padding="24" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
       <Grid x:Name="SensorsHeader" ColumnDefinitions="*,Auto">
         <VerticalStackLayout Spacing="4">
-          <Label Text="Fitness machine" FontAttributes="Bold" FontSize="30" />
           <Label Text="Smart trainers and bikes using the Bluetooth Fitness Machine Service (FTMS)." TextColor="{StaticResource Muted}" FontSize="14" />
         </VerticalStackLayout>
         <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="Center">
           <ActivityIndicator IsRunning="{Binding IsWorking}" IsVisible="{Binding IsWorking}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
-          <Button Style="{StaticResource ActionButton}" Text="Done" Command="{Binding CloseSheetCommand}" SemanticProperties.Description="Close fitness machine pairing" />
         </HorizontalStackLayout>
       </Grid>
 

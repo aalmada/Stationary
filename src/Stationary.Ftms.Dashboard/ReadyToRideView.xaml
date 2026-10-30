@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.ReadyToRideView"
+             x:DataType="viewModels:TrainingViewModel">
+  <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsCatalogLoaded}">
+    <VerticalStackLayout Spacing="10">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <VerticalStackLayout Spacing="2">
+          <Label Text="READY TO RIDE" FontSize="11" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding SelectedWorkout.Name}" FontAttributes="Bold" FontSize="20" />
+        </VerticalStackLayout>
+        <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+          <Label Text="DURATION" FontSize="11" TextColor="{StaticResource Muted}" HorizontalTextAlignment="End" />
+          <Label Text="{Binding SelectedWorkout.TotalDuration, Converter={StaticResource TrainingDurationTextConverter}}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+        </VerticalStackLayout>
+      </Grid>
+      <Label Text="{Binding SelectedWorkout.Description}" TextColor="{StaticResource Muted}" />
+      <local:TrainingProfileView Segments="{Binding SelectedWorkout.Segments}" HeightRequest="52" />
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+          <Label Text="{Binding Dashboard.WorkoutReadinessText}" FontAttributes="Bold" FontSize="12" />
+          <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
+        </VerticalStackLayout>
+        <ActivityIndicator Grid.Column="1" IsRunning="{Binding IsStarting}" IsVisible="{Binding IsStarting}" Color="{StaticResource Accent}" HeightRequest="20" WidthRequest="20" VerticalOptions="Center" />
+        <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Start training" Command="{Binding StartCommand}" />
+      </Grid>
+    </VerticalStackLayout>
+  </Border>
+</ContentView>

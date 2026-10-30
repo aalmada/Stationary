@@ -9,12 +9,10 @@
     <VerticalStackLayout Padding="24" Spacing="16">
       <Grid ColumnDefinitions="*,Auto">
         <VerticalStackLayout Spacing="4">
-          <Label Text="Heart-rate sensor" FontAttributes="Bold" FontSize="30" />
           <Label Text="Bluetooth Heart Rate Service straps and watches. Optional, independent of the fitness machine." TextColor="{StaticResource Muted}" FontSize="14" />
         </VerticalStackLayout>
         <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="Center">
           <ActivityIndicator IsRunning="{Binding IsHeartRateScanning}" IsVisible="{Binding IsHeartRateScanning}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
-          <Button Style="{StaticResource ActionButton}" Text="Done" Command="{Binding CloseSheetCommand}" SemanticProperties.Description="Close heart-rate sensor pairing" />
         </HorizontalStackLayout>
       </Grid>
 

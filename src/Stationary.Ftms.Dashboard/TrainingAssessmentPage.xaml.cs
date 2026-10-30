@@ -2,9 +2,9 @@ using Stationary.Ftms.Dashboard.ViewModels;
 
 namespace Stationary.Ftms.Dashboard;
 
-public partial class TrainingPage : ContentPage
+public partial class TrainingAssessmentPage : ContentPage
 {
-    public TrainingPage(DashboardViewModel dashboard)
+    public TrainingAssessmentPage(DashboardViewModel dashboard)
     {
         InitializeComponent();
         BindingContext = dashboard.Training;

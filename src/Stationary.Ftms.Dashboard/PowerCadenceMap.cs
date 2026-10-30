@@ -486,20 +486,20 @@ public sealed class PowerCadenceMap : GraphicsView
             canvas.FillRectangle(plot);
             canvas.FillColor = StarColor;
             canvas.StrokeColor = StarColor;
-            var trailDepth = WarpStarfield.DepthRatePerSecond(SpeedKilometersPerHour) * 0.12d;
+            // The horizontal field of view spans the plot width; the same scale keeps vertical perspective undistorted.
+            var scale = plot.Width / 2f;
             foreach (var star in Starfield.Stars)
             {
-                var x = plot.Center.X + (float)(star.X / star.Depth) * plot.Width / 2f;
-                var y = plot.Center.Y + (float)(star.Y / star.Depth) * plot.Height / 2f;
-                var tailDepth = double.Min(1d, star.Depth + trailDepth);
-                var tailX = plot.Center.X + (float)(star.X / tailDepth) * plot.Width / 2f;
-                var tailY = plot.Center.Y + (float)(star.Y / tailDepth) * plot.Height / 2f;
-                var proximity = (float)(1d - star.Depth);
+                var (headX, headY) = WarpStarfield.Project(star);
+                var x = plot.Center.X + ((float)headX * scale);
+                var y = plot.Center.Y - ((float)headY * scale);
+                var proximity = (float)((WarpStarfield.FarDepthMetres - star.Depth) / (WarpStarfield.FarDepthMetres - WarpStarfield.NearDepthMetres));
                 canvas.Alpha = (HighContrast ? 0.12f : 0.35f) + (proximity * 0.45f);
                 canvas.StrokeSize = 0.7f + proximity;
-                if (trailDepth > 0d)
+                if (WarpStarfield.StreakLength(star, SpeedKilometersPerHour) >= WarpStarfield.MinimumStreakLength)
                 {
-                    canvas.DrawLine(tailX, tailY, x, y);
+                    var (tailX, tailY) = WarpStarfield.Project(WarpStarfield.StreakTail(star, SpeedKilometersPerHour));
+                    canvas.DrawLine(plot.Center.X + ((float)tailX * scale), plot.Center.Y - ((float)tailY * scale), x, y);
                 }
 
                 canvas.FillCircle(x, y, 0.6f + proximity);

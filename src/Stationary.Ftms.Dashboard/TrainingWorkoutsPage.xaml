@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:core="clr-namespace:Stationary.Ftms.Dashboard.Core;assembly=Stationary.Ftms.Dashboard.Core"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             x:Class="Stationary.Ftms.Dashboard.TrainingWorkoutsPage"
+             x:DataType="viewModels:TrainingViewModel"
+             Title="Workouts"
+             BackgroundColor="{StaticResource Canvas}">
+  <Grid Padding="24" RowDefinitions="Auto,*" RowSpacing="16">
+    <HorizontalStackLayout Spacing="8">
+      <Label Text="Choose a structured ride. Starting opens the live dashboard." TextColor="{StaticResource Muted}" FontSize="14" VerticalOptions="Center" />
+      <ActivityIndicator IsVisible="{Binding IsCatalogLoading}" IsRunning="{Binding IsCatalogLoading}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" />
+    </HorizontalStackLayout>
+    <CollectionView Grid.Row="1" ItemsSource="{Binding Workouts}" SelectionMode="None">
+      <CollectionView.ItemsLayout>
+        <GridItemsLayout Orientation="Vertical" Span="5" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+      </CollectionView.ItemsLayout>
+      <CollectionView.Header>
+        <VerticalStackLayout Spacing="8" Margin="0,0,0,16">
+          <local:ReadyToRideView Margin="0,0,0,8" />
+          <Label Text="WORKOUT LIBRARY" FontAttributes="Bold" />
+          <Label Text="Choose a structured ride before starting." TextColor="{StaticResource Muted}" FontSize="12" />
+        </VerticalStackLayout>
+      </CollectionView.Header>
+      <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="core:TrainingWorkout">
+          <Border Style="{StaticResource PanelBorder}" Padding="10">
+            <VerticalStackLayout Spacing="6">
+              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding Name}" Command="{Binding SelectWorkoutCommand, Source={RelativeSource AncestorType={x:Type viewModels:TrainingViewModel}}}" CommandParameter="{Binding .}" />
+              <Label Text="{Binding Description}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
+              <Label Text="{Binding TotalDuration, Converter={StaticResource TrainingDurationTextConverter}, StringFormat='Duration: {0}'}" TextColor="{StaticResource Muted}" FontSize="10" />
+              <Border Background="{StaticResource SurfaceSubtleBrush}" StrokeThickness="0" StrokeShape="RoundRectangle 3" HeightRequest="6" WidthRequest="196" Padding="0" HorizontalOptions="Start">
+                <BoxView BackgroundColor="{Binding TotalDuration, Converter={StaticResource TrainingDurationColorConverter}}" WidthRequest="{Binding TotalDuration, Converter={StaticResource TrainingDurationWidthConverter}}" HorizontalOptions="Start" />
+              </Border>
+              <local:TrainingProfileView Segments="{Binding Segments}" HeightRequest="42" />
+            </VerticalStackLayout>
+          </Border>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+  </Grid>
+</ContentPage>
