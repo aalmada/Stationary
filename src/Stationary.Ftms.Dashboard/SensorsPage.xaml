@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard;assembly=Stationary.Ftms.Dashboard.ViewModels"
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
              xmlns:services="clr-namespace:Stationary.Ftms.Dashboard.Services;assembly=Stationary.Ftms.Dashboard.ViewModels"
              xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.SensorsPage"
@@ -35,7 +35,7 @@
 
           <VerticalStackLayout Spacing="12" IsVisible="{Binding IsDevicePickerVisible}">
             <Label Text="Nearby FTMS devices" FontAttributes="Bold" />
-            <CollectionView ItemsSource="{Binding DiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedDevice}" HeightRequest="168">
+            <CollectionView ItemsSource="{Binding DiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedDevice, Mode=OneWay}" local:ReactiveInput.SelectionChangedCommand="{Binding SelectDeviceCommand}" HeightRequest="168">
               <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:FtmsDiscoveredDevice">
                   <VerticalStackLayout Padding="8" Spacing="2">

@@ -3,6 +3,7 @@ using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 
 using ReactiveUI;
@@ -17,6 +18,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private const int CardBatchSize = 5;
     private readonly DashboardViewModel dashboard;
     private readonly CompositeDisposable disposables = [];
+    private readonly Subject<Func<CancellationToken, Task>> automaticOperations = new();
     private readonly IObservable<bool> canPause;
     private readonly IObservable<bool> canSelect;
     private readonly IObservable<bool> canStart;
@@ -103,7 +105,8 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             RetryCommand.ThrownExceptions,
             EndCommand.ThrownExceptions,
             FinishRampTestCommand.ThrownExceptions,
-            AcceptRampEstimateCommand.ThrownExceptions)
+            AcceptRampEstimateCommand.ThrownExceptions,
+            AdvanceCommand.ThrownExceptions)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(exception => StatusText = $"Training operation failed: {exception.Message}"));
         disposables.Add(LoadCatalogCommand.ThrownExceptions
@@ -126,10 +129,22 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.CadenceDirectionText, string.Empty);
         disposables.Add(_cadenceDirectionTextHelper);
-        disposables.Add(LoadCatalogCommand.Execute().Subscribe());
+        // ThrownExceptions above reports failures; Execute also needs its own error observer.
+        disposables.Add(LoadCatalogCommand.Execute().Subscribe(static _ => { }, static _ => { }));
+        disposables.Add(automaticOperations
+            .Select(operation => Observable.FromAsync(operation)
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Catch<Unit, Exception>(exception =>
+                {
+                    StatusText = $"Automatic training operation failed: {exception.Message}";
+                    return Observable.Empty<Unit>();
+                }))
+            .Merge()
+            .Subscribe(static _ => { }, exception => StatusText = $"Training updates failed: {exception.Message}"));
         disposables.Add(Observable.Interval(TimeSpan.FromSeconds(1), RxApp.TaskpoolScheduler)
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(_ => AdvanceIfDue()));
+            .Select(static _ => System.Reactive.Unit.Default)
+            .InvokeCommand(AdvanceCommand));
         disposables.Add(Observable.CombineLatest(
             dashboard.WhenAnyValue(viewModel => viewModel.IsConnected),
             dashboard.WhenAnyValue(viewModel => viewModel.SessionState),
@@ -377,6 +392,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     public void Dispose()
     {
         disposables.Dispose();
+        automaticOperations.Dispose();
         LoadCatalogCommand.Dispose();
         SelectWorkoutCommand.Dispose();
         SelectPlanCommand.Dispose();
@@ -389,6 +405,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         EndCommand.Dispose();
         FinishRampTestCommand.Dispose();
         AcceptRampEstimateCommand.Dispose();
+        AdvanceCommand.Dispose();
     }
 
     [ReactiveCommand]
@@ -654,7 +671,8 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         StatusText = $"FTP updated to {ftp} W.";
     }
 
-    private void AdvanceIfDue()
+    [ReactiveCommand]
+    private void Advance()
     {
         if (isPausePending || isEnding || isEndFailed || dashboard.SessionState != DashboardViewModel.WorkoutSessionState.Running)
         {
@@ -675,7 +693,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 dashboard.AddTrainingEvent(TrainingEventLabels.Pedalling(cadence));
                 isWaitingForPedalling = false;
                 requiresPedallingBeforeTarget = false;
-                _ = ApplyCurrentTargetAsync(CancellationToken.None, sessionGeneration);
+                automaticOperations.OnNext(cancellationToken => ApplyCurrentTargetAsync(cancellationToken, sessionGeneration));
             }
 
             return;
@@ -696,13 +714,13 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         NotifyRunnerChanged();
         if (runner.State == TrainingWorkoutState.Completed)
         {
-            _ = isRampTest
-                ? FinalizeRampTestAsync(CancellationToken.None, allStepsExhausted: true)
-                : CompleteWorkoutAsync();
+            automaticOperations.OnNext(cancellationToken => isRampTest
+                ? FinalizeRampTestAsync(cancellationToken, allStepsExhausted: true)
+                : CompleteWorkoutAsync(cancellationToken));
             return;
         }
 
-        _ = ApplyCurrentTargetAsync(CancellationToken.None, sessionGeneration);
+        automaticOperations.OnNext(cancellationToken => ApplyCurrentTargetAsync(cancellationToken, sessionGeneration));
     }
 
     private double? GetLiveCadenceRpm() => dashboard.Telemetry.IsStale ? null : dashboard.Telemetry.CurrentCadenceRpm;
@@ -908,7 +926,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 targetRevision++;
                 activeTargetRamp = default;
                 StatusText = StalledText;
-                _ = ApplyHeldTargetAsync(capabilities.MinimumWatts, sessionGeneration, targetRevision);
+                automaticOperations.OnNext(cancellationToken => ApplyHeldTargetAsync(capabilities.MinimumWatts, sessionGeneration, targetRevision, cancellationToken));
                 NotifyClockChanged();
                 break;
             case TrainingCadenceGuardTransition.Recovered:
@@ -925,7 +943,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                 StatusText = $"Cadence recovered. Ramping back to {segment.TargetWatts} W.";
                 if (activeTargetRamp.Duration <= TimeSpan.Zero)
                 {
-                    _ = ApplyHeldTargetAsync(segment.TargetWatts, sessionGeneration, targetRevision);
+                    automaticOperations.OnNext(cancellationToken => ApplyHeldTargetAsync(segment.TargetWatts, sessionGeneration, targetRevision, cancellationToken));
                 }
 
                 NotifyClockChanged();
@@ -933,9 +951,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private async Task ApplyHeldTargetAsync(int watts, long generation, long revision)
+    private async Task ApplyHeldTargetAsync(int watts, long generation, long revision, CancellationToken cancellationToken)
     {
-        if (!await dashboard.ApplyTrainingTargetAsync(watts, CancellationToken.None)
+        if (!await dashboard.ApplyTrainingTargetAsync(watts, cancellationToken)
             || generation != sessionGeneration
             || revision != targetRevision)
         {
@@ -965,16 +983,16 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         var watts = activeTargetRamp.GetTargetWatts(rampElapsed, capabilities);
         if (watts != lastAppliedTargetWatts)
         {
-            _ = ApplyTargetRampStepAsync(watts, sessionGeneration, targetRevision);
+            automaticOperations.OnNext(cancellationToken => ApplyTargetRampStepAsync(watts, sessionGeneration, targetRevision, cancellationToken));
         }
     }
 
-    private async Task ApplyTargetRampStepAsync(int watts, long generation, long revision)
+    private async Task ApplyTargetRampStepAsync(int watts, long generation, long revision, CancellationToken cancellationToken)
     {
         isTargetRampStepPending = true;
         try
         {
-            if (!await dashboard.ApplyTrainingTargetAsync(watts, CancellationToken.None)
+            if (!await dashboard.ApplyTrainingTargetAsync(watts, cancellationToken)
                 || generation != sessionGeneration
                 || revision != targetRevision)
             {
@@ -1002,11 +1020,11 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             ? TrainingCadenceGuidance.GetDirectionText(cadence, minimum, maximum)
             : string.Empty;
 
-    private async Task CompleteWorkoutAsync()
+    private async Task CompleteWorkoutAsync(CancellationToken cancellationToken)
     {
         if (isRampTest)
         {
-            await FinalizeRampTestAsync(CancellationToken.None, allStepsExhausted: true);
+            await FinalizeRampTestAsync(cancellationToken, allStepsExhausted: true);
             return;
         }
 
@@ -1015,7 +1033,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         isEndFailed = false;
         StatusText = "Workout complete. Waiting for the bike to stop...";
         NotifyRunnerChanged();
-        if (!await TryEndMachineSessionAsync(CancellationToken.None))
+        if (!await TryEndMachineSessionAsync(cancellationToken))
         {
             isEnding = false;
             isEndFailed = true;

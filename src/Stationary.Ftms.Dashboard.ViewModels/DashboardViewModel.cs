@@ -277,7 +277,8 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
                 PreviousSessionComparisonText = "Previous session data is unavailable.";
                 ConnectionStatus = $"Previous session data could not be loaded: {exception.Message}";
             }));
-        subscriptions.Add(LoadPreviousSessionCommand.Execute().Subscribe());
+        // ThrownExceptions above reports failures; Execute also needs its own error observer.
+        subscriptions.Add(LoadPreviousSessionCommand.Execute().Subscribe(static _ => { }, static _ => { }));
         var sessionTerminationExecuting = sessionTerminationIngress
             .ObserveOn(RxApp.MainThreadScheduler)
             .Select(termination => Observable
@@ -323,6 +324,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
                 ScanCommand.IsExecuting,
                 ConnectCommand.IsExecuting,
                 DisconnectCommand.IsExecuting,
+                ScanHeartRateCommand.IsExecuting,
+                ConnectHeartRateCommand.IsExecuting,
+                DisconnectHeartRateCommand.IsExecuting,
                 RequestControlCommand.IsExecuting,
                 StartCommand.IsExecuting,
                 StopCommand.IsExecuting,
@@ -346,6 +350,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
                 ScanCommand.IsExecuting.Select(executing => executing ? "Searching for FTMS fitness machines..." : null),
                 ConnectCommand.IsExecuting.Select(executing => executing ? "Connecting to the fitness machine..." : null),
                 DisconnectCommand.IsExecuting.Select(executing => executing ? "Disconnecting from the fitness machine..." : null),
+                ScanHeartRateCommand.IsExecuting.Select(executing => executing ? "Searching for heart-rate sensors..." : null),
+                ConnectHeartRateCommand.IsExecuting.Select(executing => executing ? "Connecting to the heart-rate sensor..." : null),
+                DisconnectHeartRateCommand.IsExecuting.Select(executing => executing ? "Disconnecting from the heart-rate sensor..." : null),
                 RequestControlCommand.IsExecuting.Select(executing => executing ? "Requesting control from the fitness machine..." : null),
                 StartCommand.IsExecuting.Select(executing => executing ? "Starting the fitness machine session..." : null),
                 StopCommand.IsExecuting.Select(executing => executing ? "Pausing the fitness machine session..." : null),
@@ -383,6 +390,17 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             (busy, scanning, heartRateScanning) => busy || scanning || heartRateScanning)
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsWorking);
+        subscriptions.Add(Observable.Merge(
+                ExportSessionCommand.ThrownExceptions,
+                ApplyHeartRateZonesCommand.ThrownExceptions,
+                Telemetry.SetMetricUnitsCommand.ThrownExceptions,
+                Telemetry.SetLargeTelemetryTextCommand.ThrownExceptions,
+                Telemetry.SetHighContrastTelemetryCommand.ThrownExceptions,
+                Telemetry.SetCompactChartsCommand.ThrownExceptions,
+                Telemetry.ApplyFunctionalThresholdPowerCommand.ThrownExceptions,
+                Telemetry.ApplyPreferredCadenceCommand.ThrownExceptions)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(ReportUiError, HandleTelemetryPipelineError));
         subscriptions.Add(Observable.Merge(
                 ScanCommand.ThrownExceptions,
                 ConnectCommand.ThrownExceptions,
@@ -545,6 +563,15 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     [Reactive]
     public partial DateTimeOffset? ChartHoverTimestamp { get; set; }
 
+    [ReactiveCommand]
+    private void SetChartHover(DateTimeOffset? timestamp) => ChartHoverTimestamp = timestamp;
+
+    [ReactiveCommand]
+    private void SetChartSelectionStart(DateTimeOffset? timestamp) => ChartSelectionStart = timestamp;
+
+    [ReactiveCommand]
+    private void SetChartSelectionEnd(DateTimeOffset? timestamp) => ChartSelectionEnd = timestamp;
+
     [Reactive]
     public partial IReadOnlyList<SessionEventMarker> SessionEvents { get; private set; } = [];
 
@@ -629,6 +656,21 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
 
     [Reactive]
     public partial HeartRateDiscoveredDevice? SelectedHeartRateDevice { get; set; }
+
+    [ReactiveCommand]
+    private void SelectDevice(FtmsDiscoveredDevice? device) => SelectedDevice = device;
+
+    [ReactiveCommand]
+    private void SelectHeartRateDevice(HeartRateDiscoveredDevice? device) => SelectedHeartRateDevice = device;
+
+    [Reactive]
+    public partial string ActionErrorText { get; private set; } = string.Empty;
+
+    public void ReportUiError(Exception exception)
+    {
+        ActionErrorText = $"The requested action failed: {exception.Message}";
+        ConnectionStatus = ActionErrorText;
+    }
 
     [Reactive]
     public partial bool IsDevicePickerVisible { get; private set; }
@@ -942,6 +984,7 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             return;
         }
 
+        Training.Dispose();
         DisposeCommands();
         await operationGate.WaitAsync();
         try
@@ -961,8 +1004,8 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         heartRateSessionSubscriptions.Dispose();
         heartRateScanSubscriptions.Dispose();
         subscriptions.Dispose();
-        Training.Dispose();
         HeartRate.Dispose();
+        Telemetry.Dispose();
         _isBusyHelper.Dispose();
         _operationStatusHelper.Dispose();
         _statusTextHelper.Dispose();
@@ -987,6 +1030,8 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         DisconnectCommand.Dispose();
         ScanHeartRateCommand.Dispose();
         ConnectHeartRateCommand.Dispose();
+        SelectDeviceCommand.Dispose();
+        SelectHeartRateDeviceCommand.Dispose();
         DisconnectHeartRateCommand.Dispose();
         RequestControlCommand.Dispose();
         StartCommand.Dispose();
@@ -997,6 +1042,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         AddLapCommand.Dispose();
         ZoomToSelectionCommand.Dispose();
         ResetChartZoomCommand.Dispose();
+        SetChartHoverCommand.Dispose();
+        SetChartSelectionStartCommand.Dispose();
+        SetChartSelectionEndCommand.Dispose();
         SetTargetInclinationCommand.Dispose();
         SetTargetPowerCommand.Dispose();
         SetTargetResistanceCommand.Dispose();

@@ -15,12 +15,15 @@ internal sealed class DashboardTestEnvironment : IAsyncDisposable
     {
         Platform = new TestDashboardPlatform();
         Session = new TestFtmsSession();
-        ViewModel = new(new TestFtmsDiscoveryService(Session), new TestHeartRateDiscoveryService(), Platform, new HistoricalScheduler());
+        HeartRateDiscovery = new TestHeartRateDiscoveryService();
+        ViewModel = new(new TestFtmsDiscoveryService(Session), HeartRateDiscovery, Platform, new HistoricalScheduler());
     }
 
     public TestDashboardPlatform Platform { get; }
 
     public TestFtmsSession Session { get; }
+
+    public TestHeartRateDiscoveryService HeartRateDiscovery { get; }
 
     public DashboardViewModel ViewModel { get; }
 
@@ -62,11 +65,21 @@ internal sealed class TestDashboardPlatform : IDashboardPlatform, IDisposable
 
     public int DispatchCount { get; private set; }
 
+    public Exception? PreferenceWriteException { get; set; }
+
     public bool GetPreference(string key, bool defaultValue) => booleanPreferences.GetValueOrDefault(key, defaultValue);
 
     public string GetPreference(string key, string defaultValue) => stringPreferences.GetValueOrDefault(key, defaultValue);
 
-    public void SetPreference(string key, bool value) => booleanPreferences[key] = value;
+    public void SetPreference(string key, bool value)
+    {
+        if (PreferenceWriteException is { } exception)
+        {
+            throw exception;
+        }
+
+        booleanPreferences[key] = value;
+    }
 
     public void SetPreference(string key, string value) => stringPreferences[key] = value;
 
@@ -101,11 +114,13 @@ internal sealed class TestFtmsDiscoveryService(TestFtmsSession session) : IFtmsD
 
 internal sealed class TestHeartRateDiscoveryService : IHeartRateDiscoveryService
 {
+    public Func<CancellationToken, ValueTask<IHeartRateSession?>>? Connect { get; set; }
+
     public ValueTask DiscoverAsync(Action<HeartRateDiscoveredDevice> deviceDiscovered, CancellationToken cancellationToken) =>
         ValueTask.CompletedTask;
 
     public ValueTask<IHeartRateSession?> ConnectAsync(HeartRateDiscoveredDevice device, CancellationToken cancellationToken) =>
-        ValueTask.FromResult<IHeartRateSession?>(null);
+        Connect is { } connect ? connect(cancellationToken) : ValueTask.FromResult<IHeartRateSession?>(null);
 }
 
 internal sealed class TestFtmsSession : IFtmsSession

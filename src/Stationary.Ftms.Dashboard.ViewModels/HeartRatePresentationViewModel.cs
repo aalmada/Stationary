@@ -43,6 +43,9 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
     [Reactive]
     public partial string LactateThresholdText { get; set; }
 
+    [ReactiveCommand]
+    private void EditLactateThreshold(string text) => LactateThresholdText = text;
+
     [Reactive]
     public partial string CurrentHeartRateText { get; private set; } = "-- bpm";
 
@@ -294,6 +297,7 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
 
     public void Dispose()
     {
+        EditLactateThresholdCommand.Dispose();
         chartRegionSubscription.Dispose();
         chartObservations.OnCompleted();
     }

@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reactive.Linq;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Stationary.Ftms.Dashboard.ViewModels;
@@ -20,17 +23,16 @@ public partial class App : Application
     protected override Window CreateWindow(IActivationState? activationState)
     {
         var window = new Window(appShell);
-        window.Destroying += OnWindowDestroying;
+        Observable.FromEventPattern(
+                handler => window.Destroying += handler,
+                handler => window.Destroying -= handler)
+            .Take(1)
+            .SelectMany(_ => Observable.FromAsync(async () =>
+            {
+                appShell.Dispose();
+                await viewModel.DisposeAsync();
+            }))
+            .Subscribe(static _ => { }, exception => Trace.TraceError("Dashboard shutdown failed: {0}", exception));
         return window;
-    }
-
-    private async void OnWindowDestroying(object? sender, EventArgs eventArgs)
-    {
-        if (sender is Window window)
-        {
-            window.Destroying -= OnWindowDestroying;
-        }
-
-        await viewModel.DisposeAsync();
     }
 }

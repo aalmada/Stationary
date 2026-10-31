@@ -179,7 +179,7 @@
           </Grid>
           <Grid Grid.Row="2" ColumnDefinitions="Auto,100,Auto,*" ColumnSpacing="8">
             <Label Text="Cycling FTP" FontAttributes="Bold" VerticalOptions="Center" />
-            <Entry Grid.Column="1" Text="{Binding Telemetry.FunctionalThresholdPowerText}" Keyboard="Numeric" Placeholder="watts" />
+            <Entry Grid.Column="1" Text="{Binding Telemetry.FunctionalThresholdPowerText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding Telemetry.EditFunctionalThresholdPowerCommand}" Keyboard="Numeric" Placeholder="watts" />
             <Button Grid.Column="2" Text="Apply" Command="{Binding Telemetry.ApplyFunctionalThresholdPowerCommand}" Padding="12,6" />
             <Label Grid.Column="3" Text="Enables power zones, intensity factor, and training stress score." FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
           </Grid>
@@ -262,17 +262,17 @@
                 <Label Text="Power (W)" TextColor="{Binding Telemetry.PowerChartColor}" />
                 <Label Text="{Binding Telemetry.CurrentPowerZoneText}" FontSize="11" TextColor="{StaticResource Muted}" />
               </VerticalStackLayout>
-              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.PowerChartSamples}" ComparisonPoints="{Binding PreviousPowerChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" HoverTimestamp="{Binding ChartHoverTimestamp, Mode=TwoWay}" SelectionStart="{Binding ChartSelectionStart, Mode=TwoWay}" SelectionEnd="{Binding ChartSelectionEnd, Mode=TwoWay}" EventMarkers="{Binding SessionEvents}" ReferenceValues="{Binding Telemetry.PowerZoneTransitionValues}" MinimumValue="0" StrokeColor="{Binding Telemetry.PowerChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.PowerChartSamples}" ComparisonPoints="{Binding PreviousPowerChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" EventMarkers="{Binding SessionEvents}" ReferenceValues="{Binding Telemetry.PowerZoneTransitionValues}" MinimumValue="0" StrokeColor="{Binding Telemetry.PowerChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
               <Label Grid.Column="2" Text="{Binding Telemetry.PowerChartSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
             <Grid Grid.Row="1" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
               <Label Text="Speed" TextColor="{Binding Telemetry.SpeedChartColor}" VerticalOptions="Center" />
-              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.SpeedChartSamples}" ComparisonPoints="{Binding PreviousSpeedChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" HoverTimestamp="{Binding ChartHoverTimestamp, Mode=TwoWay}" SelectionStart="{Binding ChartSelectionStart, Mode=TwoWay}" SelectionEnd="{Binding ChartSelectionEnd, Mode=TwoWay}" EventMarkers="{Binding SessionEvents}" MinimumValue="0" StrokeColor="{Binding Telemetry.SpeedChartColor}" ValueLabelFormat="F1" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.SpeedChartSamples}" ComparisonPoints="{Binding PreviousSpeedChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" EventMarkers="{Binding SessionEvents}" MinimumValue="0" StrokeColor="{Binding Telemetry.SpeedChartColor}" ValueLabelFormat="F1" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
               <Label Grid.Column="2" Text="{Binding Telemetry.SpeedChartSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
             <Grid Grid.Row="2" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
               <Label Text="Cadence (rpm)" TextColor="{Binding Telemetry.CadenceChartColor}" VerticalOptions="Center" />
-              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.CadenceChartSamples}" ComparisonPoints="{Binding PreviousCadenceChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" HoverTimestamp="{Binding ChartHoverTimestamp, Mode=TwoWay}" SelectionStart="{Binding ChartSelectionStart, Mode=TwoWay}" SelectionEnd="{Binding ChartSelectionEnd, Mode=TwoWay}" EventMarkers="{Binding SessionEvents}" MinimumValue="0" StrokeColor="{Binding Telemetry.CadenceChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
+              <local:TelemetryChart Grid.Column="1" Points="{Binding Telemetry.CadenceChartSamples}" ComparisonPoints="{Binding PreviousCadenceChartSamples}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" EventMarkers="{Binding SessionEvents}" MinimumValue="0" StrokeColor="{Binding Telemetry.CadenceChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" />
               <Label Grid.Column="2" Text="{Binding Telemetry.CadenceChartSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
             <Grid Grid.Row="3" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">
@@ -280,7 +280,7 @@
                 <Label Text="Heart rate" TextColor="{Binding HeartRate.ChartColor}" />
                 <Label Text="{Binding HeartRate.CurrentZoneText}" FontSize="11" TextColor="{StaticResource Muted}" />
               </VerticalStackLayout>
-              <local:TelemetryChart Grid.Column="1" Points="{Binding HeartRate.ChartSamples}" ComparisonPoints="{Binding PreviousHeartRateChartSamples}" BackgroundRegions="{Binding HeartRate.ChartBackgroundRegions}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" HoverTimestamp="{Binding ChartHoverTimestamp, Mode=TwoWay}" SelectionStart="{Binding ChartSelectionStart, Mode=TwoWay}" SelectionEnd="{Binding ChartSelectionEnd, Mode=TwoWay}" EventMarkers="{Binding SessionEvents}" ReferenceValues="{Binding HeartRate.ZoneTransitionValues}" MinimumValue="60" StrokeColor="{Binding HeartRate.ChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
+              <local:TelemetryChart Grid.Column="1" Points="{Binding HeartRate.ChartSamples}" ComparisonPoints="{Binding PreviousHeartRateChartSamples}" BackgroundRegions="{Binding HeartRate.ChartBackgroundRegions}" TimeRangeStart="{Binding ChartTimeRangeStart}" TimeRangeEnd="{Binding ChartTimeRangeEnd}" EventMarkers="{Binding SessionEvents}" ReferenceValues="{Binding HeartRate.ZoneTransitionValues}" MinimumValue="60" StrokeColor="{Binding HeartRate.ChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" />
               <Label Grid.Column="2" Text="{Binding HeartRate.ChartSummary}" IsVisible="{Binding Telemetry.ShowChartSummaries}" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
             <Grid Grid.Row="4" ColumnDefinitions="84,*,Auto" ColumnSpacing="8">

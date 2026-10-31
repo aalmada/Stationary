@@ -12,6 +12,14 @@
       <local:TrainingDurationColorConverter x:Key="TrainingDurationColorConverter" />
       <local:TrainingDurationTextConverter x:Key="TrainingDurationTextConverter" />
       <local:TrainingTargetColorConverter x:Key="TrainingTargetColorConverter" />
+      <Style TargetType="local:TelemetryChart">
+        <Setter Property="HoverTimestamp" Value="{Binding ChartHoverTimestamp, Mode=OneWay}" />
+        <Setter Property="SelectionStart" Value="{Binding ChartSelectionStart, Mode=OneWay}" />
+        <Setter Property="SelectionEnd" Value="{Binding ChartSelectionEnd, Mode=OneWay}" />
+        <Setter Property="HoverCommand" Value="{Binding SetChartHoverCommand}" />
+        <Setter Property="SelectionStartCommand" Value="{Binding SetChartSelectionStartCommand}" />
+        <Setter Property="SelectionEndCommand" Value="{Binding SetChartSelectionEndCommand}" />
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

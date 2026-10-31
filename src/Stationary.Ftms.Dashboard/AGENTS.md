@@ -15,7 +15,7 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Keep FTMS and heart-rate pairing in separate sheets; they are different Bluetooth profiles with independent connections.
 - Starting any ride (free ride, workout, ramp test, or a machine-reported start) navigates to Ride immediately, before awaiting BLE acknowledgements. Show pending, rejected, and timed-out starts on the Ride page with Retry and End.
 - Keep the Ride page charts visible in every mode without scrolling; put secondary panels in the side column.
-- Shell `MenuBarItems` do not currently appear on Mac Catalyst; keep every action reachable from page UI.
+- App menus live in Shell `MenuBarItems`. `AppDelegate.BuildMenu` applies them when MAUI finds no active window scene, then removes the system File, Format, View, and Help menus. Never reuse a system shortcut such as Cmd+H, Cmd+Q, or Cmd+W: UIKit rejects the conflicting menu and MAUI then drops every later app menu. Keep every action reachable from page UI too.
 
 ## Mac Catalyst Training Pages
 
@@ -38,6 +38,11 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Adapt service events with observables at the boundary; compose, schedule, and dispose subscriptions through ReactiveUI lifetimes.
 - Model writable state with `ReactiveObject`; derive display and availability state with observable pipelines and `ToProperty`.
 - Use `ReactiveCommand` for user operations. Derive `CanExecute` from observable state, bind `IsExecuting` to local progress feedback, and handle `ThrownExceptions` visibly.
+- Bind native entry, slider, and selection values one-way; use `ReactiveInput` command properties for edits. Its observable event subscriptions attach while loaded and detach when unloaded. `ReactiveSwitch` delegates to the same adapter.
+- Custom controls adapt platform, lifecycle, and timer events with `Observable.FromEventPattern` scoped by `ReactiveInput.WhileLoaded`; do not attach imperative `+=` handlers in UI code.
+- Serialize Shell presentation through `ReactiveOperationQueue`. Report navigation failures instead of swallowing exceptions; dispose the queue and navigation subscriptions at window teardown.
+- Run training ticks through `AdvanceCommand` with `InvokeCommand`; observe automatic target and completion tasks through owned Rx subscriptions. Keep cadence checks responsive while a device write awaits acknowledgement; do not start detached tasks from interval callbacks.
+- Recheck auto-apply target revisions when a queued write starts, not only when the slider emits. Reject non-finite targets and keep input errors visible.
 - Keep UI state declarative: bind loading, connected, control, telemetry, and error states. Do not use imperative busy counters or control event handlers for application logic.
 - Compose concurrent device, telemetry, and command streams into responsive status and availability state. Deduplicate in-flight commands, serialize conflicting operations, and transition persistent UI only after confirmed device outcomes.
 

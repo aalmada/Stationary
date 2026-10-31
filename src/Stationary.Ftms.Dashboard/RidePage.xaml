@@ -169,7 +169,7 @@
                       <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="14" WidthRequest="14" />
                     </HorizontalStackLayout>
                   </Grid>
-                  <Slider Grid.Row="1" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=TwoWay}" SemanticProperties.Description="Adjust and apply target power automatically" />
+                  <Slider Grid.Row="1" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=OneWay}" local:ReactiveInput.ValueChangedCommand="{Binding SelectValueCommand}" SemanticProperties.Description="Adjust and apply target power automatically" />
                 </Grid>
               </ContentView>
               <VerticalStackLayout Spacing="14" BindableLayout.ItemsSource="{Binding ManualTargetControls}" IsVisible="{Binding HasManualTargetControls}">
@@ -183,9 +183,9 @@
                           <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="14" WidthRequest="14" />
                         </HorizontalStackLayout>
                       </Grid>
-                      <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" />
+                      <Slider Grid.Row="1" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=OneWay}" local:ReactiveInput.ValueChangedCommand="{Binding SelectValueCommand}" />
                       <Grid Grid.Row="2" ColumnDefinitions="*,44,44,Auto" ColumnSpacing="6">
-                        <Entry Text="{Binding ValueText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="End" />
+                        <Entry Text="{Binding ValueText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditValueCommand}" Keyboard="Numeric" HorizontalTextAlignment="End" />
                         <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="-" Padding="0" Command="{Binding DecreaseCommand}" SemanticProperties.Description="Decrease target by one device increment" />
                         <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Text="+" Padding="0" Command="{Binding IncreaseCommand}" SemanticProperties.Description="Increase target by one device increment" />
                         <Button Grid.Column="3" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyCommand}" SemanticProperties.Description="Apply this target to the fitness machine" />

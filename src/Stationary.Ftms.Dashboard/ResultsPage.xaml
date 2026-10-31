@@ -19,6 +19,8 @@
       <Border Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8" IsVisible="{Binding IsSessionUnavailable}">
         <Label Text="Connect a fitness machine or heart-rate sensor to collect a session." TextColor="{StaticResource Muted}" />
       </Border>
+      <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
+      <Label Text="{Binding ActionErrorText}" TextColor="{StaticResource Muted}" FontSize="12" />
 
       <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
         <VerticalStackLayout Spacing="12">

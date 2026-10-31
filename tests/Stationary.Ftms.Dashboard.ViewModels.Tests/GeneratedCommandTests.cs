@@ -18,6 +18,159 @@ public sealed class GeneratedCommandTests
     }
 
     [Test]
+    public async Task InputCommands_UpdateDraftsSelectionsAndChartState()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        var dashboard = environment.ViewModel;
+        await dashboard.Telemetry.EditFunctionalThresholdPowerCommand.Execute("240").ToTask();
+        await dashboard.Telemetry.EditPreferredCadenceCommand.Execute("65").ToTask();
+        await dashboard.HeartRate.EditLactateThresholdCommand.Execute("165").ToTask();
+        var device = new Services.FtmsDiscoveredDevice("id", "Bike", "Indoor bike");
+        var heartRateDevice = new Services.HeartRateDiscoveredDevice("hr-id", "Heart rate");
+        await dashboard.SelectDeviceCommand.Execute(device).ToTask();
+        await dashboard.SelectHeartRateDeviceCommand.Execute(heartRateDevice).ToTask();
+        var start = DateTimeOffset.UnixEpoch;
+        await dashboard.SetChartHoverCommand.Execute(start).ToTask();
+        await dashboard.SetChartSelectionStartCommand.Execute(start).ToTask();
+        await dashboard.SetChartSelectionEndCommand.Execute(start.AddSeconds(10)).ToTask();
+
+        await Assert.That(dashboard.Telemetry.FunctionalThresholdPowerText).IsEqualTo("240");
+        await Assert.That(dashboard.Telemetry.PreferredCadenceText).IsEqualTo("65");
+        await Assert.That(dashboard.HeartRate.LactateThresholdText).IsEqualTo("165");
+        await Assert.That(dashboard.SelectedDevice).IsEqualTo(device);
+        await Assert.That(dashboard.SelectedHeartRateDevice).IsEqualTo(heartRateDevice);
+        await Assert.That(dashboard.ChartHoverTimestamp).IsEqualTo(start);
+        await Assert.That(dashboard.SelectedIntervalSummary.StartsWith("00:10", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(environment.Platform.GetPreference("FunctionalThresholdPower", "not-saved")).IsEqualTo("not-saved");
+        await dashboard.SetChartHoverCommand.Execute(null).ToTask();
+        await dashboard.SelectDeviceCommand.Execute(null).ToTask();
+        await Assert.That(dashboard.ChartHoverTimestamp).IsNull();
+        await Assert.That(dashboard.SelectedDevice).IsNull();
+    }
+
+    [Test]
+    public async Task TargetInputCommands_PreserveReportedStateOnBindingFeedback()
+    {
+        using var target = new TargetControlViewModel("Power", "W", 0, 400, 5,
+            FtmsMachineStatusOpcode.TargetPowerChanged, raw => raw,
+            (_, _) => Task.FromResult(true), Observable.Return(true));
+        target.SetRawValue(100);
+        await target.SelectValueCommand.Execute(100).ToTask();
+        await target.EditValueCommand.Execute(target.ValueText).ToTask();
+        await Assert.That(target.ValueStateText.StartsWith("Bike reported:", StringComparison.Ordinal)).IsTrue();
+        await target.SelectValueCommand.Execute(157).ToTask();
+        await Assert.That(target.Value).IsEqualTo(155d);
+        await target.EditValueCommand.Execute("200").ToTask();
+        await Assert.That(target.Value).IsEqualTo(200d);
+    }
+
+    [Test]
+    public async Task AutoApply_DropsSupersededTargetsWaitingBehindAnActiveWrite()
+    {
+        var scheduler = new HistoricalScheduler();
+        var firstFinished = new TaskCompletionSource<bool>();
+        var lastApplied = new TaskCompletionSource();
+        var applied = new List<double>();
+        using var target = new TargetControlViewModel("Power", "W", 0, 400, 5,
+            FtmsMachineStatusOpcode.TargetPowerChanged, raw => raw,
+            (value, _) =>
+            {
+                applied.Add(value);
+                if (value == 100)
+                {
+                    return firstFinished.Task;
+                }
+
+                lastApplied.SetResult();
+                return Task.FromResult(true);
+            }, Observable.Return(true), autoApplyOnValueChange: true, scheduler);
+
+        target.Value = 100;
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(250));
+        target.Value = 200;
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(250));
+        target.Value = 300;
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(250));
+        await Assert.That(applied.SequenceEqual([100d])).IsTrue();
+
+        firstFinished.SetResult(true);
+        await lastApplied.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(applied.SequenceEqual([100d, 300d])).IsTrue();
+    }
+
+    [Test]
+    public async Task TargetInputCommands_RejectInvalidAndNonFiniteValuesVisibly()
+    {
+        using var target = new TargetControlViewModel("Power", "W", 0, 400, 5,
+            FtmsMachineStatusOpcode.TargetPowerChanged, raw => raw,
+            (_, _) => Task.FromResult(true), Observable.Return(true));
+        target.SetRawValue(100);
+        await target.EditValueCommand.Execute("not a number").ToTask();
+        await Assert.That(target.Value).IsEqualTo(100d);
+        await Assert.That(target.ValueStateText).IsEqualTo("Enter a valid numeric target.");
+        await Assert.That(await target.ApplyCommand.CanExecute.FirstAsync()).IsFalse();
+        await target.SelectValueCommand.Execute(double.NaN).ToTask();
+        await Assert.That(target.Value).IsEqualTo(100d);
+        await Assert.That(target.ValueStateText).IsEqualTo("Enter a finite numeric target.");
+        await target.SelectValueCommand.Execute(double.PositiveInfinity).ToTask();
+        await Assert.That(target.Value).IsEqualTo(100d);
+        await target.SelectValueCommand.Execute(150).ToTask();
+        await Assert.That(target.ValueStateText.StartsWith("Selected:", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(await target.ApplyCommand.CanExecute.FirstAsync()).IsTrue();
+    }
+
+    [Test]
+    public async Task SettingsCommandFailure_IsSurfacedInDashboardStatus()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        var failure = new IOException("Preferences are not writable");
+        environment.Platform.PreferenceWriteException = failure;
+        Exception? observed = null;
+        await environment.ViewModel.Telemetry.SetMetricUnitsCommand.Execute(false)
+            .Catch<System.Reactive.Unit, Exception>(exception =>
+            {
+                observed = exception;
+                return Observable.Empty<System.Reactive.Unit>();
+            })
+            .DefaultIfEmpty()
+            .ToTask();
+
+        await Assert.That(observed).IsEqualTo(failure);
+        await Assert.That(environment.ViewModel.StatusText.Contains(failure.Message, StringComparison.Ordinal)).IsTrue();
+        await Assert.That(environment.ViewModel.ActionErrorText.Contains(failure.Message, StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task HeartRateConnection_DrivesBusyAvailabilityAndProgress()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        var connected = new TaskCompletionSource<Services.IHeartRateSession?>();
+        environment.HeartRateDiscovery.Connect = _ => new(connected.Task);
+        var dashboard = environment.ViewModel;
+        dashboard.SelectedHeartRateDevice = new("id", "Heart rate");
+
+        var connection = dashboard.ConnectHeartRateCommand.Execute().ToTask();
+        try
+        {
+            await Assert.That(dashboard.IsBusy).IsTrue();
+            await Assert.That(dashboard.IsWorking).IsTrue();
+            await Assert.That(dashboard.CanInitiateOperation).IsFalse();
+            await Assert.That(dashboard.OperationStatus).IsEqualTo("Connecting to the heart-rate sensor...");
+        }
+        finally
+        {
+            connected.SetResult(null);
+            await connection;
+        }
+
+        await Assert.That(dashboard.IsBusy).IsFalse();
+        await Assert.That(dashboard.CanInitiateOperation).IsTrue();
+    }
+
+    [Test]
     public async Task SettingsCommands_RestoreAndPersistThroughPlatform()
     {
         using var platform = new TestDashboardPlatform();

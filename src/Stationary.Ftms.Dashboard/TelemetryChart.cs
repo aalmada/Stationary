@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Reactive.Linq;
+using System.Windows.Input;
 
 using Stationary.Ftms.Dashboard.Core;
 
@@ -6,6 +9,28 @@ namespace Stationary.Ftms.Dashboard;
 
 public sealed class TelemetryChart : GraphicsView
 {
+    public static readonly BindableProperty HoverCommandProperty = BindableProperty.Create(nameof(HoverCommand), typeof(ICommand), typeof(TelemetryChart));
+    public static readonly BindableProperty SelectionStartCommandProperty = BindableProperty.Create(nameof(SelectionStartCommand), typeof(ICommand), typeof(TelemetryChart));
+    public static readonly BindableProperty SelectionEndCommandProperty = BindableProperty.Create(nameof(SelectionEndCommand), typeof(ICommand), typeof(TelemetryChart));
+
+    public ICommand? HoverCommand
+    {
+        get => (ICommand?)GetValue(HoverCommandProperty);
+        set => SetValue(HoverCommandProperty, value);
+    }
+
+    public ICommand? SelectionStartCommand
+    {
+        get => (ICommand?)GetValue(SelectionStartCommandProperty);
+        set => SetValue(SelectionStartCommandProperty, value);
+    }
+
+    public ICommand? SelectionEndCommand
+    {
+        get => (ICommand?)GetValue(SelectionEndCommandProperty);
+        set => SetValue(SelectionEndCommandProperty, value);
+    }
+
     public static readonly BindableProperty PointsProperty = BindableProperty.Create(
         nameof(Points),
         typeof(IReadOnlyList<TelemetrySample>),
@@ -231,10 +256,16 @@ public sealed class TelemetryChart : GraphicsView
     {
         Drawable = drawable;
         var pointer = new PointerGestureRecognizer();
-        pointer.PointerMoved += OnPointerMoved;
-        pointer.PointerExited += OnPointerExited;
-        pointer.PointerPressed += OnPointerPressed;
-        pointer.PointerReleased += OnPointerReleased;
+        ReactiveInput.WhileLoaded(this, () => Observable.Merge(
+                Observable.FromEventPattern<PointerEventArgs>(handler => pointer.PointerMoved += handler, handler => pointer.PointerMoved -= handler)
+                    .Do(change => OnPointerMoved(pointer, change.EventArgs)),
+                Observable.FromEventPattern<PointerEventArgs>(handler => pointer.PointerExited += handler, handler => pointer.PointerExited -= handler)
+                    .Do(change => OnPointerExited(pointer, change.EventArgs)),
+                Observable.FromEventPattern<PointerEventArgs>(handler => pointer.PointerPressed += handler, handler => pointer.PointerPressed -= handler)
+                    .Do(change => OnPointerPressed(pointer, change.EventArgs)),
+                Observable.FromEventPattern<PointerEventArgs>(handler => pointer.PointerReleased += handler, handler => pointer.PointerReleased -= handler)
+                    .Do(change => OnPointerReleased(pointer, change.EventArgs))))
+            .Subscribe(static _ => { }, exception => Trace.TraceError("Chart input failed: {0}", exception));
         GestureRecognizers.Add(pointer);
     }
 
@@ -354,13 +385,20 @@ public sealed class TelemetryChart : GraphicsView
         }
 
         HoverTimestamp = drawable.ToTimestamp((float)position.X, (float)Width);
+        Execute(HoverCommand, HoverTimestamp);
         if (isSelecting)
         {
             SelectionEnd = HoverTimestamp;
+            Execute(SelectionEndCommand, SelectionEnd);
         }
     }
 
-    private void OnPointerExited(object? sender, PointerEventArgs eventArgs) => HoverTimestamp = null;
+    private void OnPointerExited(object? sender, PointerEventArgs eventArgs)
+    {
+        HoverTimestamp = null;
+        Execute(HoverCommand, null);
+        isSelecting = false;
+    }
 
     private bool isSelecting;
 
@@ -374,6 +412,8 @@ public sealed class TelemetryChart : GraphicsView
         isSelecting = true;
         SelectionStart = drawable.ToTimestamp((float)position.X, (float)Width);
         SelectionEnd = SelectionStart;
+        Execute(SelectionStartCommand, SelectionStart);
+        Execute(SelectionEndCommand, SelectionEnd);
     }
 
     private void OnPointerReleased(object? sender, PointerEventArgs eventArgs)
@@ -381,9 +421,18 @@ public sealed class TelemetryChart : GraphicsView
         if (eventArgs.GetPosition(this) is { } position)
         {
             SelectionEnd = drawable.ToTimestamp((float)position.X, (float)Width);
+            Execute(SelectionEndCommand, SelectionEnd);
         }
 
         isSelecting = false;
+    }
+
+    private static void Execute(ICommand? command, DateTimeOffset? timestamp)
+    {
+        if (command?.CanExecute(timestamp) is true)
+        {
+            command.Execute(timestamp);
+        }
     }
 
     private sealed class TelemetryDrawable : IDrawable

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
              x:Class="Stationary.Ftms.Dashboard.ControlPage"
              x:DataType="viewModels:DashboardViewModel"
              Title="Control"
@@ -73,7 +74,7 @@
                       <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="16" WidthRequest="16" />
                     </HorizontalStackLayout>
                   </Grid>
-                  <Slider Grid.Row="1" HorizontalOptions="Fill" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=TwoWay}" SemanticProperties.Description="Adjust and apply target power automatically" />
+                  <Slider Grid.Row="1" HorizontalOptions="Fill" IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=OneWay}" local:ReactiveInput.ValueChangedCommand="{Binding SelectValueCommand}" SemanticProperties.Description="Adjust and apply target power automatically" />
               </Grid>
             </ContentView>
             <CollectionView ItemsSource="{Binding ManualTargetControls}" IsVisible="{Binding HasManualTargetControls}" SelectionMode="None" HeightRequest="240">
@@ -86,8 +87,8 @@
                       <ActivityIndicator IsRunning="{Binding IsApplying}" IsVisible="{Binding IsApplying}" Color="{StaticResource Accent}" HeightRequest="16" WidthRequest="16" />
                     </HorizontalStackLayout>
                     <Grid Grid.Row="1" ColumnDefinitions="*,72,44,44" ColumnSpacing="8">
-                      <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" />
-                      <Entry Grid.Column="1" Text="{Binding ValueText, Mode=TwoWay}" Keyboard="Numeric" HorizontalTextAlignment="End" />
+                      <Slider IsEnabled="{Binding CanApply}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value, Mode=OneWay}" local:ReactiveInput.ValueChangedCommand="{Binding SelectValueCommand}" />
+                      <Entry Grid.Column="1" Text="{Binding ValueText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditValueCommand}" Keyboard="Numeric" HorizontalTextAlignment="End" />
                       <Button Grid.Column="2" Text="-" Command="{Binding DecreaseCommand}" SemanticProperties.Description="Decrease target by one device increment" />
                       <Button Grid.Column="3" Text="+" Command="{Binding IncreaseCommand}" SemanticProperties.Description="Increase target by one device increment" />
                     </Grid>

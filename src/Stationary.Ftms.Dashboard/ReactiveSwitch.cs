@@ -7,12 +7,8 @@ public sealed class ReactiveSwitch : Switch
     public static readonly BindableProperty ToggledCommandProperty = BindableProperty.Create(
         nameof(ToggledCommand),
         typeof(ICommand),
-        typeof(ReactiveSwitch));
-
-    public ReactiveSwitch()
-    {
-        Toggled += HandleToggled;
-    }
+        typeof(ReactiveSwitch),
+        propertyChanged: static (bindable, _, value) => ReactiveInput.SetToggledCommand(bindable, (ICommand?)value));
 
     public ICommand? ToggledCommand
     {
@@ -20,11 +16,4 @@ public sealed class ReactiveSwitch : Switch
         set => SetValue(ToggledCommandProperty, value);
     }
 
-    private void HandleToggled(object? sender, ToggledEventArgs eventArgs)
-    {
-        if (ToggledCommand?.CanExecute(eventArgs.Value) == true)
-        {
-            ToggledCommand.Execute(eventArgs.Value);
-        }
-    }
 }

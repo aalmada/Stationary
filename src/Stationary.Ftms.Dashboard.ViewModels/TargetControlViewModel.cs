@@ -21,11 +21,13 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
     private readonly ISubject<AutoApplyRequest>? autoApplyRequests;
     private readonly IScheduler autoApplyScheduler;
     private readonly IObservable<bool> canApply;
+    private readonly IObservable<bool> canApplyValue;
     private readonly CompositeDisposable disposables = [];
     private readonly string valueFormat;
     private double value;
     private long valueRevision;
     private TargetValueState valueState;
+    private string? inputError;
 
     public TargetControlViewModel(string name, string unit, double minimum, double maximum, double increment, FtmsMachineStatusOpcode statusOpcode, Func<int, double> fromRawValue, Func<double, CancellationToken, Task<bool>> applyAsync, IObservable<bool> canApply, bool autoApplyOnValueChange = false, IScheduler? autoApplyScheduler = null)
     {
@@ -40,6 +42,9 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
         FromRawValue = fromRawValue;
         this.applyAsync = applyAsync;
         this.canApply = canApply;
+        canApplyValue = canApply.CombineLatest(
+            this.WhenAnyValue(viewModel => viewModel.IsInputValid),
+            static (available, valid) => available && valid);
         AutomaticallyAppliesValue = autoApplyOnValueChange;
         this.autoApplyScheduler = autoApplyScheduler ?? RxApp.TaskpoolScheduler;
         _canApplyHelper = canApply
@@ -55,9 +60,11 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
             disposables.Add(requests
                 .Throttle(AutoApplyDelay, this.autoApplyScheduler)
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Where(request => request.Revision == Interlocked.Read(ref valueRevision))
-                .Select(request => ApplyCommand.Execute(request.Value)
-                    .Catch<Unit, Exception>(static _ => Observable.Empty<Unit>()))
+                .Select(request => Observable.Defer(() =>
+                    request.Revision == Interlocked.Read(ref valueRevision) && IsInputValid
+                        ? ApplyCommand.Execute(request.Value)
+                            .Catch<Unit, Exception>(static _ => Observable.Empty<Unit>())
+                        : Observable.Empty<Unit>()))
                 .Concat()
                 .Subscribe());
         }
@@ -81,6 +88,8 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
 
     public bool RequiresExplicitApply => !AutomaticallyAppliesValue;
 
+    public bool IsInputValid => inputError is null;
+
     [ObservableAsProperty]
     public partial bool CanApply { get; }
 
@@ -92,7 +101,7 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
 
     public string RequestedValueText => $"{ValueText} {Unit}".TrimEnd();
 
-    public string ValueStateText => valueState switch
+    public string ValueStateText => inputError ?? valueState switch
     {
         TargetValueState.SelectedInDashboard => $"Selected: {RequestedValueText}",
         TargetValueState.AcceptedByBike => $"Accepted: {RequestedValueText}",
@@ -110,6 +119,36 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
             {
                 Value = parsed;
             }
+            else
+            {
+                SetInputError("Enter a valid numeric target.");
+            }
+        }
+    }
+
+    [ReactiveCommand(CanExecute = nameof(canApply))]
+    private void SelectValue(double requestedValue)
+    {
+        if (Value != requestedValue)
+        {
+            Value = requestedValue;
+        }
+        else
+        {
+            SetInputError(null);
+        }
+    }
+
+    [ReactiveCommand(CanExecute = nameof(canApply))]
+    private void EditValue(string text)
+    {
+        if (ValueText != text)
+        {
+            ValueText = text;
+        }
+        else
+        {
+            SetInputError(null);
         }
     }
 
@@ -162,11 +201,20 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
         DecreaseCommand.Dispose();
         IncreaseCommand.Dispose();
         ApplyPresetCommand.Dispose();
+        SelectValueCommand.Dispose();
+        EditValueCommand.Dispose();
         _isApplyingHelper.Dispose();
     }
 
     private void SetValue(double requestedValue, bool requestAutoApply, bool invalidatePendingAutoApply = false, TargetValueState? newValueState = null)
     {
+        if (!double.IsFinite(requestedValue))
+        {
+            SetInputError("Enter a finite numeric target.");
+            return;
+        }
+
+        SetInputError(null);
         var aligned = Minimum + double.Round((requestedValue - Minimum) / Increment) * Increment;
         var clamped = double.Clamp(aligned, Minimum, Maximum);
         if (value != clamped)
@@ -200,7 +248,7 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
         }
     }
 
-    [ReactiveCommand(CanExecute = nameof(canApply))]
+    [ReactiveCommand(CanExecute = nameof(canApplyValue))]
     private async Task ApplyAsync(object? requestedValue, CancellationToken cancellationToken)
     {
         var valueToApply = requestedValue is double value ? value : Value;
@@ -216,6 +264,16 @@ public sealed partial class TargetControlViewModel : ReactiveObject, IDisposable
         {
             valueState = state;
             this.RaisePropertyChanged(nameof(ValueStateText));
+        }
+    }
+
+    private void SetInputError(string? error)
+    {
+        if (inputError != error)
+        {
+            inputError = error;
+            this.RaisePropertyChanged(nameof(ValueStateText));
+            this.RaisePropertyChanged(nameof(IsInputValid));
         }
     }
 

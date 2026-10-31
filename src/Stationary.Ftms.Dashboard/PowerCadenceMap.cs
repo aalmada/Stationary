@@ -1,5 +1,9 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 using Stationary.Ftms.Dashboard.Core;
 
@@ -16,7 +20,7 @@ public sealed class PowerCadenceMap : GraphicsView
         {
             var map = (PowerCadenceMap)bindable;
             map.drawable.SpeedKilometersPerHour = value is double speed && double.IsFinite(speed) && speed > 0d ? speed : 0d;
-            map.UpdateAnimationState();
+            map.speeds.OnNext(map.drawable.SpeedKilometersPerHour);
             map.Invalidate();
         });
 
@@ -129,18 +133,16 @@ public sealed class PowerCadenceMap : GraphicsView
         });
 
     private readonly PowerCadenceDrawable drawable = new();
-    private IDispatcherTimer? animationTimer;
-    private Page? hostingPage;
-    private Window? hostingWindow;
-    private bool isPageVisible;
-    private bool isWindowRunning;
-    private long previousFrameTimestamp;
+    private readonly BehaviorSubject<double> speeds = new(0d);
 
     public PowerCadenceMap()
     {
         Drawable = drawable;
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
+        // The subscription lives with the control; WhileLoaded detaches page, window, and timer events while unloaded.
+        _ = AnimationActive()
+            .Select(active => active ? AnimationFrames() : Observable.Empty<TimeSpan>())
+            .Switch()
+            .Subscribe(AdvanceStarfield, exception => Trace.TraceError("Starfield animation failed: {0}", exception));
     }
 
     public double SpeedKilometersPerHour
@@ -203,122 +205,72 @@ public sealed class PowerCadenceMap : GraphicsView
         set => SetValue(AxisMaximumWattsProperty, value);
     }
 
-    protected override void OnPropertyChanged(string? propertyName = null)
-    {
-        base.OnPropertyChanged(propertyName);
-        if (propertyName == IsVisibleProperty.PropertyName)
-        {
-            UpdateAnimationState();
-        }
-    }
+    private IObservable<bool> AnimationActive() =>
+        ReactiveInput.WhileLoaded(this, () => Observable.CombineLatest(
+                PageVisibility(),
+                WindowRunning(),
+                Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                        handler => PropertyChanged += handler,
+                        handler => PropertyChanged -= handler)
+                    .Where(static change => change.EventArgs.PropertyName == IsVisibleProperty.PropertyName)
+                    .Select(_ => IsVisible)
+                    .StartWith(IsVisible),
+                speeds.Select(static speed => speed > 0d),
+                static (pageVisible, windowRunning, visible, moving) => pageVisible && windowRunning && visible && moving))
+            .DistinctUntilChanged();
 
-    private void OnLoaded(object? sender, EventArgs eventArgs)
+    private IObservable<bool> PageVisibility()
     {
-        if (animationTimer is not null)
-        {
-            return;
-        }
-
         for (var ancestor = Parent; ancestor is not null; ancestor = ancestor.Parent)
         {
             if (ancestor is Page page)
             {
-                hostingPage = page;
-                page.Appearing += OnPageAppearing;
-                page.Disappearing += OnPageDisappearing;
-                break;
+                return Observable.Merge(
+                        Observable.FromEventPattern(handler => page.Appearing += handler, handler => page.Appearing -= handler).Select(static _ => true),
+                        Observable.FromEventPattern(handler => page.Disappearing += handler, handler => page.Disappearing -= handler).Select(static _ => false))
+                    .StartWith(true);
             }
         }
 
-        hostingWindow = Window;
-        if (hostingWindow is not null)
-        {
-            hostingWindow.Stopped += OnWindowStopped;
-            hostingWindow.Resumed += OnWindowResumed;
-        }
-
-        isPageVisible = true;
-        isWindowRunning = true;
-        animationTimer = Dispatcher.CreateTimer();
-        animationTimer.Interval = TimeSpan.FromSeconds(1d / 30d);
-        animationTimer.Tick += OnAnimationFrame;
-        UpdateAnimationState();
+        return Observable.Return(true);
     }
 
-    private void OnUnloaded(object? sender, EventArgs eventArgs)
+    private IObservable<bool> WindowRunning()
     {
-        if (animationTimer is not null)
-        {
-            animationTimer.Stop();
-            animationTimer.Tick -= OnAnimationFrame;
-            animationTimer = null;
-        }
-
-        if (hostingPage is not null)
-        {
-            hostingPage.Appearing -= OnPageAppearing;
-            hostingPage.Disappearing -= OnPageDisappearing;
-            hostingPage = null;
-        }
-
-        if (hostingWindow is not null)
-        {
-            hostingWindow.Stopped -= OnWindowStopped;
-            hostingWindow.Resumed -= OnWindowResumed;
-            hostingWindow = null;
-        }
+        var window = Window;
+        return window is null
+            ? Observable.Return(true)
+            : Observable.Merge(
+                    Observable.FromEventPattern(handler => window.Stopped += handler, handler => window.Stopped -= handler).Select(static _ => false),
+                    Observable.FromEventPattern(handler => window.Resumed += handler, handler => window.Resumed -= handler).Select(static _ => true))
+                .StartWith(true);
     }
 
-    private void OnPageAppearing(object? sender, EventArgs eventArgs)
-    {
-        isPageVisible = true;
-        UpdateAnimationState();
-    }
-
-    private void OnPageDisappearing(object? sender, EventArgs eventArgs)
-    {
-        isPageVisible = false;
-        UpdateAnimationState();
-    }
-
-    private void OnWindowStopped(object? sender, EventArgs eventArgs)
-    {
-        isWindowRunning = false;
-        UpdateAnimationState();
-    }
-
-    private void OnWindowResumed(object? sender, EventArgs eventArgs)
-    {
-        isWindowRunning = true;
-        UpdateAnimationState();
-    }
-
-    private void UpdateAnimationState()
-    {
-        if (animationTimer is null)
+    private IObservable<TimeSpan> AnimationFrames() =>
+        Observable.Create<TimeSpan>(observer =>
         {
-            return;
-        }
-
-        if (isPageVisible && isWindowRunning && IsVisible && drawable.SpeedKilometersPerHour > 0d)
-        {
-            if (!animationTimer.IsRunning)
+            var timer = Dispatcher.CreateTimer();
+            timer.Interval = TimeSpan.FromSeconds(1d / 30d);
+            var previous = Stopwatch.GetTimestamp();
+            var ticks = Observable.FromEventPattern(handler => timer.Tick += handler, handler => timer.Tick -= handler)
+                .Select(_ =>
+                {
+                    var now = Stopwatch.GetTimestamp();
+                    var elapsed = Stopwatch.GetElapsedTime(previous, now);
+                    previous = now;
+                    return elapsed;
+                })
+                .Subscribe(observer);
+            timer.Start();
+            return Disposable.Create(() =>
             {
-                previousFrameTimestamp = Stopwatch.GetTimestamp();
-                animationTimer.Start();
-            }
-        }
-        else
-        {
-            animationTimer.Stop();
-        }
-    }
+                timer.Stop();
+                ticks.Dispose();
+            });
+        });
 
-    private void OnAnimationFrame(object? sender, EventArgs eventArgs)
+    private void AdvanceStarfield(TimeSpan elapsed)
     {
-        var now = Stopwatch.GetTimestamp();
-        var elapsed = Stopwatch.GetElapsedTime(previousFrameTimestamp, now);
-        previousFrameTimestamp = now;
         // A delayed UI frame should not turn into a large visual jump after navigation or suspension.
         drawable.Starfield.Advance(elapsed > TimeSpan.FromMilliseconds(100) ? TimeSpan.FromMilliseconds(100) : elapsed, drawable.SpeedKilometersPerHour);
         Invalidate();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Windows.Input;
@@ -12,9 +13,11 @@ using IosPresentationStyle = Microsoft.Maui.Controls.PlatformConfiguration.iOSSp
 
 namespace Stationary.Ftms.Dashboard;
 
-public sealed class AppShell : Shell
+public sealed class AppShell : Shell, IDisposable
 {
     private readonly CompositeDisposable navigationSubscriptions = [];
+    private readonly ReactiveOperationQueue navigationQueue;
+    private readonly Action<Exception> reportNavigationError;
 
     public const string TodayRoute = "today";
     public const string RideRoute = "ride";
@@ -24,12 +27,39 @@ public sealed class AppShell : Shell
     private readonly NavigationPage sensorsPage;
     private readonly NavigationPage heartRateSensorPage;
     private readonly NavigationPage settingsPage;
+    private readonly DashboardViewModel viewModel;
+    private readonly ICommand findFitnessMachineCommand;
+    private readonly ICommand findHeartRateSensorCommand;
+    private readonly ICommand toggleMetricUnitsCommand;
+    private readonly ICommand toggleLargeValuesCommand;
+    private readonly ICommand toggleHighContrastCommand;
 
     public AppShell(TodayPage todayPage, RidePage ridePage, ResultsPage resultsPage, SensorsPage sensorsPage, HeartRateSensorPage heartRateSensorPage, SettingsPage settingsPage, IServiceProvider services, DashboardViewModel viewModel)
     {
+        var showNavigationError = ReactiveCommand.CreateFromTask<Exception>(exception =>
+            DisplayAlertAsync("Navigation failed", exception.Message, "OK"));
+        navigationSubscriptions.Add(showNavigationError.ThrownExceptions.Subscribe(exception =>
+        {
+            viewModel.ReportUiError(exception);
+            Trace.TraceError("Navigation error notification failed: {0}", exception);
+        }));
+        navigationSubscriptions.Add(showNavigationError);
+        reportNavigationError = exception =>
+        {
+            viewModel.ReportUiError(exception);
+            Trace.TraceError("Navigation failed: {0}", exception);
+            ((ICommand)showNavigationError).Execute(exception);
+        };
+        navigationQueue = new(RxApp.MainThreadScheduler, reportNavigationError);
+        this.viewModel = viewModel;
         this.sensorsPage = CreateSheet(sensorsPage, viewModel.CloseSheetCommand);
         this.heartRateSensorPage = CreateSheet(heartRateSensorPage, viewModel.CloseSheetCommand);
         this.settingsPage = CreateSheet(settingsPage, viewModel.CloseSheetCommand);
+        findFitnessMachineCommand = CreateSensorScanCommand(this.sensorsPage, viewModel.ScanCommand);
+        findHeartRateSensorCommand = CreateSensorScanCommand(this.heartRateSensorPage, viewModel.ScanHeartRateCommand);
+        toggleMetricUnitsCommand = CreateToggleCommand(viewModel.Telemetry.SetMetricUnitsCommand, () => viewModel.Telemetry.UseMetricUnits);
+        toggleLargeValuesCommand = CreateToggleCommand(viewModel.Telemetry.SetLargeTelemetryTextCommand, () => viewModel.Telemetry.UseLargeTelemetryText);
+        toggleHighContrastCommand = CreateToggleCommand(viewModel.Telemetry.SetHighContrastTelemetryCommand, () => viewModel.Telemetry.UseHighContrastTelemetry);
 
         FlyoutBehavior = FlyoutBehavior.Disabled;
         SetBackgroundColor(this, (Color)Application.Current!.Resources["Canvas"]);
@@ -47,22 +77,28 @@ public sealed class AppShell : Shell
             ("Assessment", "assessment", () => WithBackNavigation(services.GetRequiredService<TrainingAssessmentPage>(), viewModel.ShowTodayCommand, "Back to home"))));
         Items.Add(CreateItem("Results", ResultsRoute, WithBackNavigation(resultsPage, viewModel.ShowTodayCommand, "Back to home")));
 
-        MenuBarItems.Add(CreateDeviceMenu(viewModel));
-        MenuBarItems.Add(CreateViewMenu(viewModel));
-        MenuBarItems.Add(CreateDisplayMenu(viewModel));
+        MenuBarItems.Add(CreateDeviceMenu());
+        MenuBarItems.Add(CreateGoMenu());
+        MenuBarItems.Add(CreateDisplayMenu());
 
         navigationSubscriptions.Add(Observable.Merge(
                 viewModel.WhenAnyValue(viewModel => viewModel.IsWorkoutActive).Skip(1),
                 viewModel.Training.WhenAnyValue(training => training.IsActive).Skip(1))
             .Where(static started => started)
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(started => { _ = NavigateToDestinationAsync(DashboardDestination.Ride); }));
+            .Subscribe(_ => navigationQueue.Enqueue(_ => NavigateToDestinationAsync(DashboardDestination.Ride)), viewModel.ReportUiError));
         navigationSubscriptions.Add(viewModel.NavigationRequests
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(destination => { _ = NavigateToDestinationAsync(destination); }));
+            .Subscribe(destination => navigationQueue.Enqueue(_ => NavigateToDestinationAsync(destination)), viewModel.ReportUiError));
         navigationSubscriptions.Add(viewModel.SheetDismissRequests
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(dismiss => { _ = CloseSheetAsync(); }));
+            .Subscribe(_ => navigationQueue.Enqueue(_ => CloseSheetAsync()), viewModel.ReportUiError));
+    }
+
+    public void Dispose()
+    {
+        navigationSubscriptions.Dispose();
+        navigationQueue.Dispose();
     }
 
     private static NavigationPage CreateSheet(ContentPage page, ICommand command)
@@ -145,28 +181,21 @@ public sealed class AppShell : Shell
         return item;
     }
 
-    private MenuBarItem CreateDeviceMenu(DashboardViewModel viewModel)
+    private MenuBarItem CreateDeviceMenu()
     {
         var menu = new MenuBarItem { Text = "Device" };
-        menu.Add(CreateSensorScanItem("Find Fitness Machine", sensorsPage, viewModel.ScanCommand));
-        menu.Add(CreateSensorScanItem("Find Heart-Rate Sensor", heartRateSensorPage, viewModel.ScanHeartRateCommand));
+        menu.Add(new MenuFlyoutItem { Text = "Find Fitness Machine", Command = findFitnessMachineCommand });
+        menu.Add(new MenuFlyoutItem { Text = "Find Heart-Rate Sensor", Command = findHeartRateSensorCommand });
         menu.Add(CreateNavigationItem("Fitness Machine", viewModel.ShowSensorsCommand, "D"));
-        menu.Add(CreateNavigationItem("Heart-Rate Sensor", viewModel.ShowHeartRateSensorCommand, "H"));
+        // Cmd+H is reserved for Hide; UIKit drops the whole menu bar when a menu duplicates a system shortcut.
+        menu.Add(CreateNavigationItem("Heart-Rate Sensor", viewModel.ShowHeartRateSensorCommand, "H", KeyboardAcceleratorModifiers.Cmd | KeyboardAcceleratorModifiers.Shift));
         menu.Add(new MenuFlyoutSeparator());
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Disconnect Fitness Machine",
-            Command = viewModel.DisconnectCommand,
-        });
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Disconnect Heart-Rate Sensor",
-            Command = viewModel.DisconnectHeartRateCommand,
-        });
+        menu.Add(new MenuFlyoutItem { Text = "Disconnect Fitness Machine", Command = viewModel.DisconnectCommand });
+        menu.Add(new MenuFlyoutItem { Text = "Disconnect Heart-Rate Sensor", Command = viewModel.DisconnectHeartRateCommand });
         return menu;
     }
 
-    private static MenuBarItem CreateViewMenu(DashboardViewModel viewModel)
+    private MenuBarItem CreateGoMenu()
     {
         var menu = new MenuBarItem { Text = "Go" };
         menu.Add(CreateNavigationItem("Home", viewModel.ShowTodayCommand, "1"));
@@ -178,46 +207,48 @@ public sealed class AppShell : Shell
         return menu;
     }
 
-    private static MenuBarItem CreateDisplayMenu(DashboardViewModel viewModel)
+    private MenuBarItem CreateDisplayMenu()
     {
         var menu = new MenuBarItem { Text = "Display" };
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Toggle Metric Units",
-            Command = CreateToggleCommand(viewModel.Telemetry.SetMetricUnitsCommand, () => viewModel.Telemetry.UseMetricUnits),
-        });
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Toggle Large Values",
-            Command = CreateToggleCommand(viewModel.Telemetry.SetLargeTelemetryTextCommand, () => viewModel.Telemetry.UseLargeTelemetryText),
-        });
-        menu.Add(new MenuFlyoutItem
-        {
-            Text = "Toggle High Contrast",
-            Command = CreateToggleCommand(viewModel.Telemetry.SetHighContrastTelemetryCommand, () => viewModel.Telemetry.UseHighContrastTelemetry),
-        });
+        menu.Add(new MenuFlyoutItem { Text = "Toggle Metric Units", Command = toggleMetricUnitsCommand });
+        menu.Add(new MenuFlyoutItem { Text = "Toggle Large Values", Command = toggleLargeValuesCommand });
+        menu.Add(new MenuFlyoutItem { Text = "Toggle High Contrast", Command = toggleHighContrastCommand });
         return menu;
     }
 
-    private static ICommand CreateToggleCommand(ICommand setValueCommand, Func<bool> getCurrentValue) =>
-        new Command(() => setValueCommand.Execute(!getCurrentValue()));
+    private ICommand CreateToggleCommand(ICommand setValueCommand, Func<bool> getCurrentValue)
+    {
+        var command = ReactiveCommand.Create(() =>
+        {
+            var value = !getCurrentValue();
+            if (setValueCommand.CanExecute(value))
+            {
+                setValueCommand.Execute(value);
+            }
+        });
+        navigationSubscriptions.Add(command);
+        navigationSubscriptions.Add(command.ThrownExceptions.Subscribe(reportNavigationError));
+        return command;
+    }
 
-    private static MenuFlyoutItem CreateNavigationItem(string text, ICommand command, string key)
+    private static MenuFlyoutItem CreateNavigationItem(string text, ICommand command, string key, KeyboardAcceleratorModifiers modifiers = KeyboardAcceleratorModifiers.Cmd)
     {
         var item = new MenuFlyoutItem
         {
             Text = text,
             Command = command,
         };
-        item.KeyboardAccelerators.Add(new KeyboardAccelerator { Modifiers = KeyboardAcceleratorModifiers.Cmd, Key = key });
+        item.KeyboardAccelerators.Add(new KeyboardAccelerator { Modifiers = modifiers, Key = key });
         return item;
     }
 
-    private MenuFlyoutItem CreateSensorScanItem(string text, NavigationPage sheet, ICommand command) => new()
+    private ICommand CreateSensorScanCommand(NavigationPage sheet, ICommand command)
     {
-        Text = text,
-        Command = new Command(async () => await ShowSheetAndExecuteAsync(sheet, command)),
-    };
+        var scan = ReactiveCommand.Create(() => navigationQueue.Enqueue(_ => ShowSheetAndExecuteAsync(sheet, command)));
+        navigationSubscriptions.Add(scan);
+        navigationSubscriptions.Add(scan.ThrownExceptions.Subscribe(reportNavigationError));
+        return scan;
+    }
 
     private async Task ShowSheetAndExecuteAsync(NavigationPage sheet, ICommand command)
     {
@@ -257,14 +288,7 @@ public sealed class AppShell : Shell
             return;
         }
 
-        try
-        {
-            await GoToAsync(GetAbsoluteRoute(route));
-        }
-        catch (Exception)
-        {
-            // A newer route request can supersede this fire-and-forget navigation.
-        }
+        await GoToAsync(GetAbsoluteRoute(route));
     }
 
     private async Task ShowSheetAsync(NavigationPage sheet)
@@ -275,15 +299,8 @@ public sealed class AppShell : Shell
             return;
         }
 
-        try
-        {
-            await CloseSheetAsync();
-            await Navigation.PushModalAsync(sheet);
-        }
-        catch (Exception)
-        {
-            // A newer sheet request can supersede this fire-and-forget presentation.
-        }
+        await CloseSheetAsync();
+        await Navigation.PushModalAsync(sheet);
     }
 
     private async Task CloseSheetAsync()
@@ -293,14 +310,7 @@ public sealed class AppShell : Shell
             return;
         }
 
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch (Exception)
-        {
-            // The sheet may already be dismissing.
-        }
+        await Navigation.PopModalAsync();
     }
 
     private static string GetAbsoluteRoute(string route) => $"//{route}/{GetContentRoute(route)}";

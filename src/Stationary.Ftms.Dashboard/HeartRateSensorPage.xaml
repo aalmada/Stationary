@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns:services="clr-namespace:Stationary.Ftms.Dashboard.Services;assembly=Stationary.Ftms.Dashboard.ViewModels"
+             xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
              xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.HeartRateSensorPage"
              x:DataType="viewModels:DashboardViewModel"
@@ -12,12 +13,15 @@
           <Label Text="Bluetooth Heart Rate Service straps and watches. Optional, independent of the fitness machine." TextColor="{StaticResource Muted}" FontSize="14" />
         </VerticalStackLayout>
         <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="Center">
-          <ActivityIndicator IsRunning="{Binding IsHeartRateScanning}" IsVisible="{Binding IsHeartRateScanning}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
+          <ActivityIndicator IsRunning="{Binding IsWorking}" IsVisible="{Binding IsWorking}" Color="{StaticResource Accent}" HeightRequest="18" WidthRequest="18" VerticalOptions="Center" />
         </HorizontalStackLayout>
       </Grid>
 
       <Border Background="{StaticResource SurfaceSubtle}" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="12,8">
-        <Label Text="{Binding HeartRateConnectionStatus}" TextColor="{StaticResource Muted}" />
+        <VerticalStackLayout Spacing="4">
+          <Label Text="{Binding HeartRateConnectionStatus}" TextColor="{StaticResource Muted}" />
+          <Label Text="{Binding OperationStatus}" TextColor="{StaticResource Muted}" />
+        </VerticalStackLayout>
       </Border>
 
       <Border Style="{StaticResource PanelBorder}">
@@ -33,7 +37,7 @@
 
           <VerticalStackLayout Spacing="8" IsVisible="{Binding IsHeartRateDevicePickerVisible}">
             <Label Text="Nearby heart-rate sensors" FontAttributes="Bold" />
-            <CollectionView ItemsSource="{Binding HeartRateDiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedHeartRateDevice}" HeightRequest="160">
+            <CollectionView ItemsSource="{Binding HeartRateDiscoveredDevices}" SelectionMode="Single" SelectedItem="{Binding SelectedHeartRateDevice, Mode=OneWay}" local:ReactiveInput.SelectionChangedCommand="{Binding SelectHeartRateDeviceCommand}" HeightRequest="160">
               <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:HeartRateDiscoveredDevice">
                   <Label Text="{Binding Name}" Padding="8" FontAttributes="Bold" />
@@ -55,7 +59,7 @@
           <Grid ColumnDefinitions="Auto,96,Auto" ColumnSpacing="10">
             <Label Text="CYCLING LTHR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
-              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=TwoWay}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
+              <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditLactateThresholdCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="LTHR bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
             </Border>
             <Button Grid.Column="2" Style="{StaticResource ActionButton}" Text="Apply" Command="{Binding ApplyHeartRateZonesCommand}" SemanticProperties.Description="Apply cycling lactate threshold heart-rate zones" />
           </Grid>

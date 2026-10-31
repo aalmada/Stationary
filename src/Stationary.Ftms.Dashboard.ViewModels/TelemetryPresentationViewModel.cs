@@ -13,7 +13,7 @@ internal sealed record TelemetryChartWindow(
     IReadOnlyList<TelemetrySample> Speed,
     IReadOnlyList<TelemetrySample> Cadence);
 
-public sealed partial class TelemetryPresentationViewModel : ReactiveObject
+public sealed partial class TelemetryPresentationViewModel : ReactiveObject, IDisposable
 {
     private const string MetricUnitsPreferenceKey = "MetricUnits";
     private const string LargeTelemetryTextPreferenceKey = "LargeTelemetryText";
@@ -48,6 +48,10 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         useHighContrastTelemetry = platform.GetPreference(HighContrastTelemetryPreferenceKey, false);
         useCompactCharts = platform.GetPreference(CompactChartsPreferenceKey, false);
         FunctionalThresholdPowerText = platform.GetPreference(FunctionalThresholdPowerPreferenceKey, string.Empty);
+        if (ushort.TryParse(FunctionalThresholdPowerText, out var savedFtp) && savedFtp > 0)
+        {
+            FunctionalThresholdPowerStatusText = $"FTP: {savedFtp} W.";
+        }
         var savedPreferredCadence = platform.GetPreference(PreferredCadencePreferenceKey, string.Empty);
         if (savedPreferredCadence.Length == 0
             && int.TryParse(platform.GetPreference(LegacyCadenceTargetOffsetPreferenceKey, "0"), out var legacyOffset)
@@ -106,7 +110,28 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
     public partial string FunctionalThresholdPowerText { get; set; }
 
     [Reactive]
+    public partial string FunctionalThresholdPowerStatusText { get; private set; } = "Set FTP to enable power zones and training targets.";
+
+    [Reactive]
     public partial string PreferredCadenceText { get; set; } = string.Empty;
+
+    [ReactiveCommand]
+    private void EditFunctionalThresholdPower(string text) => FunctionalThresholdPowerText = text;
+
+    [ReactiveCommand]
+    private void EditPreferredCadence(string text) => PreferredCadenceText = text;
+
+    public void Dispose()
+    {
+        SetMetricUnitsCommand.Dispose();
+        SetLargeTelemetryTextCommand.Dispose();
+        SetHighContrastTelemetryCommand.Dispose();
+        SetCompactChartsCommand.Dispose();
+        EditFunctionalThresholdPowerCommand.Dispose();
+        EditPreferredCadenceCommand.Dispose();
+        ApplyFunctionalThresholdPowerCommand.Dispose();
+        ApplyPreferredCadenceCommand.Dispose();
+    }
 
     [Reactive]
     public partial int PreferredCadenceRpm { get; private set; } = TrainingWorkoutCompiler.ReferenceCadenceRpm;
@@ -599,10 +624,12 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject
         if (ushort.TryParse(FunctionalThresholdPowerText, out var watts) && watts > 0)
         {
             platform.SetPreference(FunctionalThresholdPowerPreferenceKey, FunctionalThresholdPowerText);
+            FunctionalThresholdPowerStatusText = $"FTP saved: {watts} W.";
         }
         else
         {
             platform.RemovePreference(FunctionalThresholdPowerPreferenceKey);
+            FunctionalThresholdPowerStatusText = "FTP cleared. Enter a positive whole number of watts to enable power zones and training targets.";
         }
 
         this.RaisePropertyChanged(nameof(PowerZoneTransitionValues));
