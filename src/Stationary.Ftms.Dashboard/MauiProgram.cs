@@ -24,8 +24,9 @@ public static class MauiProgram
             .UseMauiApp<App>();
 
 #if MACCATALYST
-        ButtonHandler.Mapper.AppendToMapping(nameof(IView.Background), ApplyMacCatalystButtonBackground);
-        ButtonHandler.Mapper.AppendToMapping(nameof(IView.IsEnabled), ApplyMacCatalystButtonBackground);
+        ButtonHandler.Mapper.AppendToMapping(nameof(IView.Background), ApplyMacCatalystButtonAppearance);
+        ButtonHandler.Mapper.AppendToMapping(nameof(IView.IsEnabled), ApplyMacCatalystButtonAppearance);
+        ButtonHandler.Mapper.AppendToMapping(nameof(ITextStyle.TextColor), ApplyMacCatalystButtonAppearance);
 #endif
 
         builder.Services.AddSingleton<IFtmsDiscoveryService, PluginBleFtmsDiscoveryService>();
@@ -47,10 +48,13 @@ public static class MauiProgram
     }
 
 #if MACCATALYST
-    private static void ApplyMacCatalystButtonBackground(IButtonHandler handler, IButton button)
+    // A disabled native Catalyst button draws its title in the system disabled color, ignoring the configured
+    // color, so disabled titles became unreadable once the window was active. Keep the native control enabled,
+    // block its input, and let the style's disabled colors show the state.
+    private static void ApplyMacCatalystButtonAppearance(IButtonHandler handler, IButton button)
     {
+        var platformButton = handler.PlatformView;
         var configuration = UIButtonConfiguration.FilledButtonConfiguration;
-
         if (button.Background is SolidPaint { Color: not null } background)
         {
             var backgroundColor = background.Color.ToPlatform();
@@ -60,7 +64,17 @@ public static class MauiProgram
             configuration.Background = backgroundConfiguration;
         }
 
-        handler.PlatformView.Configuration = configuration;
+        if (button is ITextStyle { TextColor: { } textColor })
+        {
+            configuration.BaseForegroundColor = textColor.ToPlatform();
+        }
+
+        platformButton.Configuration = configuration;
+        platformButton.Enabled = true;
+        platformButton.UserInteractionEnabled = button.IsEnabled;
+        platformButton.AccessibilityTraits = button.IsEnabled
+            ? platformButton.AccessibilityTraits & ~UIAccessibilityTrait.NotEnabled
+            : platformButton.AccessibilityTraits | UIAccessibilityTrait.NotEnabled;
     }
 #endif
 }
