@@ -16,7 +16,8 @@
         <local:ReadyToRideView />
         <VerticalStackLayout Spacing="8">
           <Label Text="TRAINING PLANS" FontAttributes="Bold" />
-          <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks." TextColor="{StaticResource Muted}" FontSize="12" />
+          <Label Text="Eight-week progressions with foundation, build, recovery, and reassessment weeks. Easy-volume progress counts measured heart-rate Zones 1-2, not power targets alone." TextColor="{StaticResource Muted}" FontSize="12" />
+          <Label Text="{Binding WeeklyLowIntensityText}" TextColor="{StaticResource Muted}" FontSize="12" />
           <FlexLayout BindableLayout.ItemsSource="{Binding Plans}" Direction="Row" Wrap="Wrap" AlignItems="Start">
             <BindableLayout.ItemTemplate>
               <DataTemplate x:DataType="core:TrainingPlan">
@@ -47,7 +48,7 @@
                 <Label Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
               </VerticalStackLayout>
               <VerticalStackLayout Grid.Column="1" Spacing="2">
-                <Label Text="EASY VOLUME" FontSize="11" TextColor="{StaticResource Muted}" />
+                <Label Text="EASY VOLUME GOAL (HR Z1-Z2)" FontSize="11" TextColor="{StaticResource Muted}" />
                 <Label Text="{Binding SelectedPlanWeek.LowIntensityMinutes, StringFormat='{}{0} min'}" FontAttributes="Bold" />
               </VerticalStackLayout>
               <VerticalStackLayout Grid.Column="2" Spacing="2">

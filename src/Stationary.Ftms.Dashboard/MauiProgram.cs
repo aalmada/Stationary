@@ -27,6 +27,7 @@ public static class MauiProgram
         ButtonHandler.Mapper.AppendToMapping(nameof(IView.Background), ApplyMacCatalystButtonAppearance);
         ButtonHandler.Mapper.AppendToMapping(nameof(IView.IsEnabled), ApplyMacCatalystButtonAppearance);
         ButtonHandler.Mapper.AppendToMapping(nameof(ITextStyle.TextColor), ApplyMacCatalystButtonAppearance);
+        ButtonHandler.Mapper.AppendToMapping(nameof(IText.Text), ApplyMacCatalystButtonAppearance);
 #endif
 
         builder.Services.AddSingleton<IFtmsDiscoveryService, PluginBleFtmsDiscoveryService>();
@@ -69,6 +70,8 @@ public static class MauiProgram
             configuration.BaseForegroundColor = textColor.ToPlatform();
         }
 
+        // A configured UIButton draws the configuration title and ignores SetTitle, so carry the text over.
+        configuration.Title = button is IText { Text: { } text } ? text : platformButton.CurrentTitle;
         platformButton.Configuration = configuration;
         platformButton.Enabled = true;
         platformButton.UserInteractionEnabled = button.IsEnabled;

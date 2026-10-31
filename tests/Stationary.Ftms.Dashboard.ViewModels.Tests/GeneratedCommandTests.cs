@@ -329,6 +329,82 @@ public sealed class GeneratedCommandTests
     }
 
     [Test]
+    public async Task HeartRateReserveProfile_UsesAndPersistsTheSelectedInputs()
+    {
+        using var platform = new TestDashboardPlatform();
+        using var viewModel = new HeartRatePresentationViewModel(platform);
+
+        await viewModel.EditMaximumHeartRateCommand.Execute("190").ToTask();
+        await viewModel.EditRestingHeartRateCommand.Execute("60").ToTask();
+        await viewModel.EditSafetyCeilingCommand.Execute("165").ToTask();
+        await viewModel.SelectZoneMethodCommand.Execute(HeartRateZoneMethod.HeartRateReserve).ToTask();
+
+        await Assert.That(viewModel.TryApplyZoneProfile(out var error)).IsTrue();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(error).IsEqualTo(string.Empty);
+            await Assert.That(viewModel.ZoneProfile?.Name).IsEqualTo("Heart-rate reserve");
+            await Assert.That(viewModel.ZoneProfile?.GetZone(112).Code).IsEqualTo("Z2");
+            await Assert.That(viewModel.SafetyCeilingHeartRate).IsEqualTo((ushort)165);
+            await Assert.That(platform.GetPreference("HeartRateMaximum", string.Empty)).IsEqualTo("190");
+            await Assert.That(platform.GetPreference("HeartRateResting", string.Empty)).IsEqualTo("60");
+            await Assert.That(platform.GetPreference("HeartRateZoneMethod", string.Empty)).IsEqualTo(nameof(HeartRateZoneMethod.HeartRateReserve));
+            await Assert.That(platform.GetPreference("HeartRateSafetyCeiling", string.Empty)).IsEqualTo("165");
+        }
+    }
+
+    [Test]
+    public async Task AgeMaximumHeartRateEstimate_UsesTanakaEquation()
+    {
+        using var platform = new TestDashboardPlatform();
+        using var viewModel = new HeartRatePresentationViewModel(platform);
+
+        await viewModel.EditAgeCommand.Execute("40").ToTask();
+        await viewModel.EstimateMaximumHeartRateCommand.Execute().ToTask();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(viewModel.MaximumHeartRateText).IsEqualTo("180");
+            await Assert.That(viewModel.MaximumHeartRateEstimateText)
+                .IsEqualTo("Age-based estimate only; individual maximum heart rate varies widely.");
+        }
+    }
+
+    [Test]
+    public async Task CompletedHeartRateRide_PersistsMeasuredZoneOneAndTwoMinutes()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        environment.ViewModel.HeartRate.LactateThresholdText = "170";
+        await Assert.That(environment.ViewModel.HeartRate.TryApplyZoneProfile(out _)).IsTrue();
+
+        var start = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var samples = Enumerable.Range(0, 121)
+            .Select(index => new RecordedTelemetrySample(
+                start.AddSeconds(index),
+                100,
+                null,
+                null,
+                index == 120 ? 140 : 120))
+            .ToArray();
+        var recorded = environment.ViewModel.TryRecordHeartRateTrainingProgress(
+            samples,
+            start,
+            start.AddMinutes(2),
+            out var easyDuration,
+            out var error);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(recorded).IsTrue();
+            await Assert.That(error).IsEqualTo(string.Empty);
+            await Assert.That(easyDuration).IsEqualTo(TimeSpan.FromMinutes(2));
+            await Assert.That(environment.ViewModel.WeeklyHeartRateZoneMinutes).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task TargetCommands_PreserveParametersAvailabilityAndExecutionFeedback()
     {
         using var canApply = new BehaviorSubject<bool>(false);
@@ -424,6 +500,50 @@ public sealed class GeneratedCommandTests
         await dashboard.ShowTrainingCommand.Execute().ToTask();
         await Assert.That(destinations.SequenceEqual([DashboardDestination.Today, DashboardDestination.Training])).IsTrue();
     }
+
+    [Test]
+    public async Task TrainingSession_FeedsEffectResultsBackThroughTheEngine()
+    {
+        await using var environment = new DashboardTestEnvironment(new TestFtmsSession
+        {
+            Features = new FitnessMachineFeature(0, 1u << 3),
+            SupportedRanges = new(null, null, null, new FtmsUInt16Range(50, 500, 5), null),
+        });
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var training = environment.ViewModel.Training;
+        var destinations = new List<DashboardDestination>();
+        using var subscription = environment.ViewModel.NavigationRequests.Subscribe(destinations.Add);
+
+        await training.StartRampTestCommand.Execute().ToTask();
+        await WaitForSessionAsync(training, static session => session.IsWaitingForPedalling);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(training.IsActive).IsTrue();
+            await Assert.That(training.CurrentTargetWatts).IsEqualTo(50);
+            await Assert.That(training.StatusText).IsEqualTo(TrainingSessionText.WaitingForPedalling);
+            await Assert.That(environment.Session.Operations).Contains(FtmsControlPointOpcode.StartOrResume);
+            await Assert.That(environment.Session.Operations).Contains(FtmsControlPointOpcode.SetTargetPower);
+        }
+
+        await training.EndCommand.Execute().ToTask();
+        await WaitForSessionAsync(training, static session => !session.IsActive);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(training.RunnerState).IsEqualTo(TrainingWorkoutState.Aborted);
+            await Assert.That(environment.Session.Operations).Contains(FtmsControlPointOpcode.StopOrPause);
+            await Assert.That(destinations.SequenceEqual([DashboardDestination.Ride, DashboardDestination.Results])).IsTrue();
+        }
+    }
+
+    private static Task WaitForSessionAsync(TrainingViewModel training, Func<TrainingSession, bool> predicate) =>
+        training.WhenAnyValue(viewModel => viewModel.Session)
+            .Where(predicate)
+            .FirstAsync()
+            .ToTask()
+            .WaitAsync(TimeSpan.FromSeconds(10));
 
     [Test]
     public async Task ScanCommand_UsesInjectedMainThreadDispatch()

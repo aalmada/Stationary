@@ -29,6 +29,7 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Apply `ActionButton` or `SecondaryActionButton` to every dashboard button. Both styles use opaque command fills (`Accent` and `SecondaryAccent`); do not create page-local button fills or low-contrast surface buttons.
 - Preserve both `ButtonHandler` mappings in `MauiProgram` for `IView.Background` and `IView.IsEnabled`.
 - In the shared handler, set `UIButtonConfiguration.BaseBackgroundColor`, copy the value-style `Background` configuration, set its `BackgroundColor`, and assign it back. Mutating `configuration.Background.BackgroundColor` without reassignment does not reliably update native fills.
+- Copy the MAUI button text into `UIButtonConfiguration.Title` and keep the `IText.Text` mapping. A configured `UIButton` ignores `SetTitle`, so a configuration without a title blanks the button whenever `IsEnabled` re-maps.
 - Verify new button work in the running Mac Catalyst app. Check at least one `ActionButton`, one `SecondaryActionButton`, and a disabled button; all must render a full opaque fill.
 - Known issue: disabled button titles currently render almost invisible. Pair every command whose `CanExecute` can be false with visible text explaining why.
 
@@ -38,6 +39,7 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Adapt service events with observables at the boundary; compose, schedule, and dispose subscriptions through ReactiveUI lifetimes.
 - Model writable state with `ReactiveObject`; derive display and availability state with observable pipelines and `ToProperty`.
 - Use `ReactiveCommand` for user operations. Derive `CanExecute` from observable state, bind `IsExecuting` to local progress feedback, and handle `ThrownExceptions` visibly.
+- Workout execution is a pure reducer: `TrainingSessionEngine.Reduce(TrainingSession, TrainingSessionEvent)` in Core returns the next immutable state and `TrainingSessionEffect`s. `TrainingViewModel` folds events with `Scan`, interprets effects (BLE, navigation, persistence), and feeds results back as events. Add workout behavior to the engine and cover it with `TrainingSessionEngineTests`; do not add mutable session fields to the view model.
 - Bind native entry, slider, and selection values one-way; use `ReactiveInput` command properties for edits. Its observable event subscriptions attach while loaded and detach when unloaded. `ReactiveSwitch` delegates to the same adapter.
 - Custom controls adapt platform, lifecycle, and timer events with `Observable.FromEventPattern` scoped by `ReactiveInput.WhileLoaded`; do not attach imperative `+=` handlers in UI code.
 - Serialize Shell presentation through `ReactiveOperationQueue`. Report navigation failures instead of swallowing exceptions; dispose the queue and navigation subscriptions at window teardown.

@@ -62,9 +62,13 @@ public sealed class TrainingProfileView : GraphicsView
             foreach (var segment in segments)
             {
                 var segmentWidth = (float)(segment.Duration.TotalSeconds / totalSeconds * dirtyRect.Width);
-                var relativeHeight = float.Clamp((float)(segment.FunctionalThresholdPowerPercentage / 120d), 0.14f, 1f);
+                var targetPowerPercentage = segment.HeartRateTarget?.MaximumFunctionalThresholdPowerPercentage
+                    ?? segment.FunctionalThresholdPowerPercentage;
+                var relativeHeight = float.Clamp((float)(targetPowerPercentage / 120d), 0.14f, 1f);
                 var barHeight = dirtyRect.Height * relativeHeight;
-                canvas.FillColor = GetTargetColor(segment.FunctionalThresholdPowerPercentage);
+                canvas.FillColor = segment.HeartRateTarget is null
+                    ? GetTargetColor(segment.FunctionalThresholdPowerPercentage)
+                    : Color.FromArgb("#B42318");
                 canvas.FillRectangle(horizontalOffset, dirtyRect.Bottom - barHeight, segmentWidth, barHeight);
                 horizontalOffset += segmentWidth;
             }

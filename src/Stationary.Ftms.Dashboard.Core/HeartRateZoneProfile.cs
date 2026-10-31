@@ -1,5 +1,12 @@
 namespace Stationary.Ftms.Dashboard.Core;
 
+public enum HeartRateZoneMethod
+{
+    CyclingLactateThreshold,
+    HeartRateReserve,
+    MaximumHeartRate,
+}
+
 public sealed class HeartRateZoneProfile
 {
     private readonly HeartRateZone[] zones;
@@ -95,7 +102,110 @@ public sealed class HeartRateZoneProfile
         ]);
     }
 
+    public static HeartRateZoneProfile CreateHeartRateReserve(ushort maximumBeatsPerMinute, ushort restingBeatsPerMinute)
+    {
+        if (maximumBeatsPerMinute is < 80 or > 250)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBeatsPerMinute));
+        }
+
+        if (restingBeatsPerMinute is < 30 or > 200
+            || maximumBeatsPerMinute - restingBeatsPerMinute < 20)
+        {
+            throw new ArgumentOutOfRangeException(nameof(restingBeatsPerMinute));
+        }
+
+        return CreatePercentageProfile(
+            "Heart-rate reserve",
+            maximumBeatsPerMinute,
+            restingBeatsPerMinute,
+            [40, 60, 70, 90],
+            ["Recovery", "Moderate", "Vigorous", "Hard", "Near maximum"]);
+    }
+
+    public static HeartRateZoneProfile CreateMaximumHeartRate(ushort maximumBeatsPerMinute)
+    {
+        if (maximumBeatsPerMinute is < 80 or > 250)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBeatsPerMinute));
+        }
+
+        return CreatePercentageProfile(
+            "Maximum heart rate",
+            maximumBeatsPerMinute,
+            0,
+            [60, 70, 80, 90],
+            ["Recovery", "Endurance", "Tempo", "Threshold", "Near maximum"]);
+    }
+
+    public static ushort EstimateMaximumHeartRateFromAge(int ageYears)
+    {
+        if (ageYears is < 18 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ageYears));
+        }
+
+        return checked((ushort)double.Round(208d - 0.7d * ageYears, MidpointRounding.AwayFromZero));
+    }
+
+    public static (ushort Minimum, ushort Maximum) GetHeartRateReserveRange(
+        ushort maximumBeatsPerMinute,
+        ushort restingBeatsPerMinute,
+        int minimumReservePercentage,
+        int maximumReservePercentage)
+    {
+        if (maximumBeatsPerMinute is < 80 or > 250)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBeatsPerMinute));
+        }
+
+        if (restingBeatsPerMinute is < 30 or > 200
+            || maximumBeatsPerMinute - restingBeatsPerMinute < 20)
+        {
+            throw new ArgumentOutOfRangeException(nameof(restingBeatsPerMinute));
+        }
+
+        if (minimumReservePercentage is < 0 or > 100
+            || maximumReservePercentage < minimumReservePercentage
+            || maximumReservePercentage > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumReservePercentage));
+        }
+
+        var reserve = maximumBeatsPerMinute - restingBeatsPerMinute;
+        var minimum = restingBeatsPerMinute + (int)double.Ceiling(reserve * minimumReservePercentage / 100d);
+        var maximum = restingBeatsPerMinute + (int)double.Floor(reserve * maximumReservePercentage / 100d);
+        return (checked((ushort)minimum), checked((ushort)maximum));
+    }
+
     private static ushort GetMinimum(ushort threshold, int percentage) => (ushort)((threshold * percentage + 99) / 100);
 
     private static ushort GetExclusiveMinimum(ushort threshold, int percentage) => (ushort)((threshold * percentage / 100) + 1);
+
+    private static HeartRateZoneProfile CreatePercentageProfile(
+        string name,
+        ushort maximumHeartRate,
+        ushort restingHeartRate,
+        IReadOnlyList<int> boundaries,
+        IReadOnlyList<string> names)
+    {
+        var reserve = maximumHeartRate - restingHeartRate;
+        var zones = new HeartRateZone[names.Count];
+        ushort minimum = 0;
+        for (var index = 0; index < names.Count; index++)
+        {
+            ushort? maximum = index == names.Count - 1
+                ? null
+                : checked((ushort)(restingHeartRate
+                    + (int)double.Ceiling(reserve * boundaries[index] / 100d)
+                    - 1));
+            zones[index] = new($"Z{index + 1}", names[index], minimum, maximum);
+            if (maximum is ushort upper)
+            {
+                minimum = checked((ushort)(upper + 1));
+            }
+        }
+
+        return new(name, zones);
+    }
 }

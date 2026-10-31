@@ -9,13 +9,17 @@ public sealed class TrainingCadenceGuardTests
     [Test]
     public async Task Update_StallsAfterStallDurationBelowThreshold()
     {
-        var guard = new TrainingCadenceGuard();
+        var (guard, transitions) = Run(
+            (Start, 30d),
+            (Start.AddSeconds(1), 30d),
+            (Start.Add(TrainingCadenceGuard.StallDuration), 8d));
 
         using (Assert.Multiple())
         {
-            await Assert.That(guard.Update(Start, 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.Update(Start.AddSeconds(1), 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.Update(Start.Add(TrainingCadenceGuard.StallDuration), 8d)).IsEqualTo(TrainingCadenceGuardTransition.Stalled);
+            await Assert.That(transitions.SequenceEqual([
+                TrainingCadenceGuardTransition.None,
+                TrainingCadenceGuardTransition.None,
+                TrainingCadenceGuardTransition.Stalled])).IsTrue();
             await Assert.That(guard.IsStalled).IsTrue();
         }
     }
@@ -23,14 +27,11 @@ public sealed class TrainingCadenceGuardTests
     [Test]
     public async Task Update_BriefDipDoesNotStall()
     {
-        var guard = new TrainingCadenceGuard();
-
-        guard.Update(Start, 30d);
-        guard.Update(Start.AddSeconds(2), 40d);
+        var (guard, transitions) = Run((Start, 30d), (Start.AddSeconds(2), 40d), (Start.AddSeconds(4), 30d));
 
         using (Assert.Multiple())
         {
-            await Assert.That(guard.Update(Start.AddSeconds(4), 30d)).IsEqualTo(TrainingCadenceGuardTransition.None);
+            await Assert.That(transitions[^1]).IsEqualTo(TrainingCadenceGuardTransition.None);
             await Assert.That(guard.IsStalled).IsFalse();
         }
     }
@@ -38,28 +39,25 @@ public sealed class TrainingCadenceGuardTests
     [Test]
     public async Task Update_RecoversOnFirstPedallingSample()
     {
-        var guard = new TrainingCadenceGuard();
-        guard.Update(Start, 20d);
-        guard.Update(Start.AddSeconds(3), 20d);
+        var (stalled, _) = Run((Start, 20d), (Start.AddSeconds(3), 20d), (Start.AddSeconds(4), 26d), (Start.AddSeconds(5), 40d));
+        var (recovered, recovery) = stalled.Update(Start.AddSeconds(6), 46d);
+        var (_, afterRecovery) = recovered.Update(Start.AddSeconds(7), 70d);
 
         using (Assert.Multiple())
         {
-            await Assert.That(guard.Update(Start.AddSeconds(4), 26d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.Update(Start.AddSeconds(5), 40d)).IsEqualTo(TrainingCadenceGuardTransition.None);
-            await Assert.That(guard.IsStalled).IsTrue();
-            await Assert.That(guard.Update(Start.AddSeconds(6), 46d)).IsEqualTo(TrainingCadenceGuardTransition.Recovered);
-            await Assert.That(guard.IsStalled).IsFalse();
-            await Assert.That(guard.Update(Start.AddSeconds(7), 70d)).IsEqualTo(TrainingCadenceGuardTransition.None);
+            await Assert.That(stalled.IsStalled).IsTrue();
+            await Assert.That(recovery).IsEqualTo(TrainingCadenceGuardTransition.Recovered);
+            await Assert.That(recovered.IsStalled).IsFalse();
+            await Assert.That(afterRecovery).IsEqualTo(TrainingCadenceGuardTransition.None);
         }
     }
 
     [Test]
     public async Task Update_IgnoresMissingCadence()
     {
-        var guard = new TrainingCadenceGuard();
-        guard.Update(Start, 20d);
+        var (guard, _) = default(TrainingCadenceGuard).Update(Start, 20d);
 
-        await Assert.That(guard.Update(Start.AddSeconds(5), null)).IsEqualTo(TrainingCadenceGuardTransition.None);
+        await Assert.That(guard.Update(Start.AddSeconds(5), null).Transition).IsEqualTo(TrainingCadenceGuardTransition.None);
     }
 
     [Test]
@@ -70,4 +68,11 @@ public sealed class TrainingCadenceGuardTests
     {
         await Assert.That(TrainingCadenceGuard.IsPedalling(cadence)).IsEqualTo(expected);
     }
+
+    private static (TrainingCadenceGuard Guard, TrainingCadenceGuardTransition[] Transitions) Run(params (DateTimeOffset At, double? Cadence)[] samples) =>
+        samples.Aggregate(
+            (Guard: default(TrainingCadenceGuard), Transitions: Array.Empty<TrainingCadenceGuardTransition>()),
+            static (state, sample) => state.Guard.Update(sample.At, sample.Cadence) is var (guard, transition)
+                ? (guard, [.. state.Transitions, transition])
+                : state);
 }

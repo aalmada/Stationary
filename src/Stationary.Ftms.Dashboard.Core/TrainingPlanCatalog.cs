@@ -12,7 +12,7 @@ internal static class TrainingPlanCatalog
 
         return [..
             Enum.GetValues<TrainingObjective>()
-                .Where(static objective => objective != TrainingObjective.Diagnostics)
+                .Where(static objective => objective is not TrainingObjective.Diagnostics and not TrainingObjective.HeartRate)
                 .SelectMany(objective => Enum.GetValues<TrainingExperienceLevel>()
                     .Select(level => CreatePlan(objective, level, workoutIds)))];
     }

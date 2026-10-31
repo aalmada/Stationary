@@ -42,6 +42,7 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     private const byte PauseControlInformation = 0x02;
     private const int SessionArchiveFormatVersion = 1;
     private const int MaximumRecordedSamples = 86_400;
+    private const string HeartRateTrainingProgressPreferenceKey = "HeartRateTrainingProgress";
     private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan RecordedValueFreshness = TimeSpan.FromSeconds(5);
 
@@ -950,6 +951,89 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     public IReadOnlyList<RecordedTelemetrySample> GetRecordedSamplesSince(DateTimeOffset timestamp) =>
         [.. recordedSamples.Where(sample => sample.CapturedAt >= timestamp)];
 
+    public bool TryGetWeeklyHeartRateZoneMinutes(out int minutes, out string error)
+    {
+        minutes = 0;
+        if (!TryReadHeartRateTrainingProgress(out var progress, out error))
+        {
+            return false;
+        }
+
+        minutes = HeartRateTrainingProgress.GetMinutesWithinLastSevenDays(progress.Rides, DateTimeOffset.UtcNow);
+        return true;
+    }
+
+    public bool TryRecordHeartRateTrainingProgress(
+        IReadOnlyList<RecordedTelemetrySample> samples,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        out TimeSpan zoneOneAndTwoDuration,
+        out string error)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        zoneOneAndTwoDuration = TimeSpan.Zero;
+        if (HeartRate.ZoneProfile is not { } profile)
+        {
+            error = "Heart-rate zone progress was not recorded because no heart-rate zones are configured.";
+            return false;
+        }
+
+        zoneOneAndTwoDuration = HeartRateTrainingProgress.CalculateZoneOneAndTwoDuration(
+            samples,
+            profile,
+            start,
+            end,
+            RecordedValueFreshness);
+        if (!TryReadHeartRateTrainingProgress(out var progress, out error))
+        {
+            return false;
+        }
+
+        var completedAt = DateTimeOffset.UtcNow;
+        var rides = progress.Rides
+            .Where(ride => ride.CompletedAt >= completedAt - TimeSpan.FromDays(90))
+            .Append(new HeartRateTrainingRide(completedAt, zoneOneAndTwoDuration.Ticks))
+            .ToArray();
+        var document = new HeartRateTrainingProgressDocument(rides);
+        platform.SetPreference(
+            HeartRateTrainingProgressPreferenceKey,
+            JsonSerializer.Serialize(document, RecordedSessionJsonContext.Default.HeartRateTrainingProgressDocument));
+        this.RaisePropertyChanged(nameof(WeeklyHeartRateZoneMinutes));
+        error = string.Empty;
+        return true;
+    }
+
+    public int? WeeklyHeartRateZoneMinutes => TryGetWeeklyHeartRateZoneMinutes(out var minutes, out _)
+        ? minutes
+        : null;
+
+    private bool TryReadHeartRateTrainingProgress(out HeartRateTrainingProgressDocument progress, out string error)
+    {
+        var stored = platform.GetPreference(HeartRateTrainingProgressPreferenceKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            progress = new([]);
+            error = string.Empty;
+            return true;
+        }
+
+        try
+        {
+            progress = JsonSerializer.Deserialize(
+                stored,
+                RecordedSessionJsonContext.Default.HeartRateTrainingProgressDocument)
+                ?? new([]);
+            error = string.Empty;
+            return true;
+        }
+        catch (JsonException exception)
+        {
+            progress = new([]);
+            error = $"Saved heart-rate progress could not be read: {exception.Message}";
+            return false;
+        }
+    }
+
     [ReactiveCommand]
     private void CloseSheet() => sheetDismissRequests.OnNext(Unit.Default);
 
@@ -1342,11 +1426,11 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     [ReactiveCommand]
     private void ApplyHeartRateZones()
     {
-        if (HeartRate.TryApplyCyclingLactateThreshold(out var error))
+        if (HeartRate.TryApplyZoneProfile(out var error))
         {
             HeartRateConnectionStatus = IsHeartRateConnected
-                ? "Cycling LTHR profile updated. Time in zones restarted."
-                : "Cycling LTHR profile saved.";
+                ? $"{HeartRate.ZoneProfile?.Name} profile updated. Time in zones restarted."
+                : $"{HeartRate.ZoneProfile?.Name} profile saved.";
             return;
         }
 

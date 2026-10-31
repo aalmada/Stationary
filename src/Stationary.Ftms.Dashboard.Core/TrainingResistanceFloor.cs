@@ -2,7 +2,7 @@ namespace Stationary.Ftms.Dashboard.Core;
 
 // ERG trainers have a lightest resistance level, so at a given cadence power cannot fall below it.
 // The floor is learned when power stays well above a settled target; afterwards any lower settled ratio lowers it.
-public sealed class TrainingResistanceFloor
+public readonly record struct TrainingResistanceFloor(double? WattsPerRpm, DateTimeOffset? AboveTargetSince, double? WindowMinimumWattsPerRpm)
 {
     // Some trainers switch to lighter resistance levels at low cadence, so the floor is only learned and applied above this.
     public const double MinimumCadenceRpm = 70d;
@@ -12,13 +12,8 @@ public sealed class TrainingResistanceFloor
     // Power and cadence are reported in whole units, so the ratio jitters by about 1% between samples at the same level.
     public const double MinimumImprovement = 0.99d;
 
-    private DateTimeOffset? aboveTargetSince;
-    private double windowMinimumWattsPerRpm = double.PositiveInfinity;
-
-    public double? WattsPerRpm { get; private set; }
-
-    // Returns true when the estimate changes.
-    public bool Observe(DateTimeOffset timestamp, double? powerWatts, double? cadenceRpm, int targetWatts, bool settled)
+    // Changed is true when the estimate changes.
+    public (TrainingResistanceFloor Floor, bool Changed) Observe(DateTimeOffset timestamp, double? powerWatts, double? cadenceRpm, int targetWatts, bool settled)
     {
         if (!settled
             || powerWatts is not double power
@@ -26,38 +21,27 @@ public sealed class TrainingResistanceFloor
             || cadence < MinimumCadenceRpm
             || power <= 0d)
         {
-            ResetWindow();
-            return false;
+            return (ResetWindow(), false);
         }
 
         var ratio = power / cadence;
         if (WattsPerRpm is double floor)
         {
-            if (ratio >= floor * MinimumImprovement)
-            {
-                return false;
-            }
-
-            WattsPerRpm = ratio;
-            return true;
+            return ratio >= floor * MinimumImprovement
+                ? (this, false)
+                : (this with { WattsPerRpm = ratio }, true);
         }
 
         if (power <= targetWatts * AboveTargetTolerance)
         {
-            ResetWindow();
-            return false;
+            return (ResetWindow(), false);
         }
 
-        aboveTargetSince ??= timestamp;
-        windowMinimumWattsPerRpm = double.Min(windowMinimumWattsPerRpm, ratio);
-        if (timestamp - aboveTargetSince < PersistenceDuration)
-        {
-            return false;
-        }
-
-        WattsPerRpm = windowMinimumWattsPerRpm;
-        ResetWindow();
-        return true;
+        var since = AboveTargetSince ?? timestamp;
+        var windowMinimum = double.Min(WindowMinimumWattsPerRpm ?? double.PositiveInfinity, ratio);
+        return timestamp - since < PersistenceDuration
+            ? (this with { AboveTargetSince = since, WindowMinimumWattsPerRpm = windowMinimum }, false)
+            : (new(windowMinimum, null, null), true);
     }
 
     public int? EstimateMinimumWatts(double cadenceRpm) =>
@@ -69,26 +53,10 @@ public sealed class TrainingResistanceFloor
         EstimateMinimumWatts(cadenceRpm) is int minimum && minimum > targetWatts * AboveTargetTolerance;
 
     // The lowest cadence, not below the band minimum, at which the floor still lets power approach the target.
-    public int? GetClosestCadence(int targetWatts, int? minimumCadenceRpm)
-    {
-        if (WattsPerRpm is not double floor)
-        {
-            return null;
-        }
+    public int? GetClosestCadence(int targetWatts, int? minimumCadenceRpm) =>
+        WattsPerRpm is double floor
+            ? (int)double.Ceiling(double.Max(targetWatts / floor, double.Max(minimumCadenceRpm ?? MinimumCadenceRpm, MinimumCadenceRpm)))
+            : null;
 
-        var lowest = double.Max(minimumCadenceRpm ?? MinimumCadenceRpm, MinimumCadenceRpm);
-        return (int)double.Ceiling(double.Max(targetWatts / floor, lowest));
-    }
-
-    public void Reset()
-    {
-        WattsPerRpm = null;
-        ResetWindow();
-    }
-
-    private void ResetWindow()
-    {
-        aboveTargetSince = null;
-        windowMinimumWattsPerRpm = double.PositiveInfinity;
-    }
+    private TrainingResistanceFloor ResetWindow() => this with { AboveTargetSince = null, WindowMinimumWattsPerRpm = null };
 }

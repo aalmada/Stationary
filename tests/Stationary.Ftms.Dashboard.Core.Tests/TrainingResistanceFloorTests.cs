@@ -7,13 +7,12 @@ public sealed class TrainingResistanceFloorTests
     [Test]
     public async Task Observe_LearnsFloorWhenPowerStaysAboveSettledTarget()
     {
-        var floor = new TrainingResistanceFloor();
         var start = DateTimeOffset.UnixEpoch;
-        var changed = false;
-        for (var second = 0; second <= 12; second += 2)
-        {
-            changed |= floor.Observe(start.AddSeconds(second), 112d, 80d, 90, settled: true);
-        }
+        var (floor, changed) = Enumerable.Range(0, 7).Aggregate(
+            (Floor: default(TrainingResistanceFloor), Changed: false),
+            (state, step) => state.Floor.Observe(start.AddSeconds(step * 2), 112d, 80d, 90, settled: true) is var (next, changedNow)
+                ? (next, state.Changed || changedNow)
+                : state);
 
         using (Assert.Multiple())
         {
@@ -28,18 +27,22 @@ public sealed class TrainingResistanceFloorTests
     [Test]
     public async Task Observe_IgnoresShortSurgesUnsettledTargetsAndLowCadence()
     {
-        var floor = new TrainingResistanceFloor();
         var start = DateTimeOffset.UnixEpoch;
-
-        floor.Observe(start, 141d, 87d, 120, settled: true);
-        floor.Observe(start.AddSeconds(4), 141d, 87d, 120, settled: true);
-        floor.Observe(start.AddSeconds(6), 120d, 80d, 120, settled: true);
-        floor.Observe(start.AddSeconds(20), 141d, 87d, 120, settled: true);
-        for (var second = 30; second <= 50; second += 2)
-        {
-            floor.Observe(start.AddSeconds(second), 178d, 81d, 90, settled: false);
-            floor.Observe(start.AddSeconds(second + 1), 84d, 64d, 40, settled: true);
-        }
+        (double Power, double Cadence, int Target, bool Settled, int Second)[] samples =
+        [
+            (141d, 87d, 120, true, 0),
+            (141d, 87d, 120, true, 4),
+            (120d, 80d, 120, true, 6),
+            (141d, 87d, 120, true, 20),
+            .. Enumerable.Range(0, 11).SelectMany(static step => new[]
+            {
+                (178d, 81d, 90, false, 30 + (step * 2)),
+                (84d, 64d, 40, true, 31 + (step * 2)),
+            }),
+        ];
+        var floor = samples.Aggregate(
+            default(TrainingResistanceFloor),
+            (current, sample) => current.Observe(start.AddSeconds(sample.Second), sample.Power, sample.Cadence, sample.Target, sample.Settled).Floor);
 
         await Assert.That(floor.WattsPerRpm).IsNull();
     }
@@ -47,15 +50,10 @@ public sealed class TrainingResistanceFloorTests
     [Test]
     public async Task Observe_LowersFloorWithLaterLighterSettledSamples()
     {
-        var floor = new TrainingResistanceFloor();
         var start = DateTimeOffset.UnixEpoch;
-        for (var second = 0; second <= 10; second += 2)
-        {
-            floor.Observe(start.AddSeconds(second), 120d, 80d, 90, settled: true);
-        }
-
-        var lowered = floor.Observe(start.AddSeconds(20), 112d, 80d, 170, settled: true);
-        var lowCadence = floor.Observe(start.AddSeconds(22), 69d, 64d, 80, settled: true);
+        var learned = Learned(120d, 80d, targetWatts: 90);
+        var (floor, lowered) = learned.Observe(start.AddSeconds(20), 112d, 80d, 170, settled: true);
+        var (_, lowCadence) = floor.Observe(start.AddSeconds(22), 69d, 64d, 80, settled: true);
 
         using (Assert.Multiple())
         {
@@ -71,7 +69,7 @@ public sealed class TrainingResistanceFloorTests
     {
         var floor = Learned(102d, 73d);
 
-        var changed = floor.Observe(DateTimeOffset.UnixEpoch.AddSeconds(30), 100d, 72d, 90, settled: true);
+        var (_, changed) = floor.Observe(DateTimeOffset.UnixEpoch.AddSeconds(30), 100d, 72d, 90, settled: true);
 
         await Assert.That(changed).IsFalse();
     }
@@ -91,17 +89,11 @@ public sealed class TrainingResistanceFloorTests
     [Test]
     public async Task GetClosestCadence_IsNullBeforeLearning()
     {
-        await Assert.That(new TrainingResistanceFloor().GetClosestCadence(100, 75)).IsNull();
+        await Assert.That(default(TrainingResistanceFloor).GetClosestCadence(100, 75)).IsNull();
     }
 
-    private static TrainingResistanceFloor Learned(double power, double cadence)
-    {
-        var floor = new TrainingResistanceFloor();
-        for (var second = 0; second <= 10; second += 2)
-        {
-            floor.Observe(DateTimeOffset.UnixEpoch.AddSeconds(second), power, cadence, 80, settled: true);
-        }
-
-        return floor;
-    }
+    private static TrainingResistanceFloor Learned(double power, double cadence, int targetWatts = 80) =>
+        Enumerable.Range(0, 6).Aggregate(
+            default(TrainingResistanceFloor),
+            (floor, step) => floor.Observe(DateTimeOffset.UnixEpoch.AddSeconds(step * 2), power, cadence, targetWatts, settled: true).Floor);
 }

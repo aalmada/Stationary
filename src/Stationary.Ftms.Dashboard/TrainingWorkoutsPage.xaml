@@ -17,6 +17,57 @@
       </CollectionView.ItemsLayout>
       <CollectionView.Header>
         <VerticalStackLayout Spacing="8" Margin="0,0,0,16">
+          <Label Text="Power targets suit short intervals; heart rate guides steady endurance and recovery work." TextColor="{StaticResource Muted}" FontSize="12" />
+          <Border Style="{StaticResource PanelBorder}" Padding="12" IsVisible="{Binding Dashboard.IsHeartRateConnected}">
+            <VerticalStackLayout Spacing="8">
+              <Label Text="GENERAL HEALTH CARDIO" FontAttributes="Bold" />
+              <Label Text="For apparently healthy adults only. These are general intensity ranges, not a medical prescription. If you have known heart disease, concerning symptoms, or medication that changes heart rate, seek medical advice before using heart-rate targets. Stop for chest pain, dizziness, or severe breathlessness." TextColor="{StaticResource Muted}" FontSize="11" />
+              <Grid ColumnDefinitions="Auto,90,Auto,90,Auto,90" ColumnSpacing="8">
+                <Label Text="MAX HR" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Label Grid.Column="1" Text="{Binding Dashboard.HeartRate.MaximumHeartRateText}" FontAttributes="Bold" VerticalOptions="Center" />
+                <Label Grid.Column="2" Text="REST HR" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="3" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="6,0">
+                  <Entry Text="{Binding HeartRateReserveRestingText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditHeartRateReserveRestingCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Resting heart rate for general health workout targets" />
+                </Border>
+                <Label Grid.Column="4" Text="DURATION" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="5" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="6,0">
+                  <Entry Text="{Binding HealthWorkoutDurationText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditHealthWorkoutDurationCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="min" HorizontalTextAlignment="Center" SemanticProperties.Description="General health cardio duration in minutes" />
+                </Border>
+              </Grid>
+              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding HealthScreeningAcknowledgementText}" Command="{Binding AcknowledgeHealthScreeningCommand}" />
+              <FlexLayout Direction="Row" Wrap="Wrap">
+                <Button Style="{StaticResource ActionButton}" Text="Create moderate 40-59% HRR ride" Command="{Binding CreateModerateHealthWorkoutCommand}" />
+                <Button Style="{StaticResource ActionButton}" Text="Create vigorous 60-89% HRR ride" Command="{Binding CreateVigorousHealthWorkoutCommand}" />
+              </FlexLayout>
+            </VerticalStackLayout>
+          </Border>
+          <Border Style="{StaticResource PanelBorder}" Padding="12" IsVisible="{Binding Dashboard.IsHeartRateConnected}">
+            <VerticalStackLayout Spacing="8">
+              <Label Text="CLINICIAN-PRESCRIBED SESSION" FontAttributes="Bold" />
+              <Label Text="Only enter limits given to you by your clinician. Stationary power control is not a substitute for medical supervision." TextColor="{StaticResource Muted}" FontSize="11" />
+              <Grid ColumnDefinitions="Auto,76,Auto,76,Auto,76,Auto,76" ColumnSpacing="6">
+                <Label Text="HR MIN" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="5,0">
+                  <Entry Text="{Binding ClinicianMinimumHeartRateText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditClinicianMinimumHeartRateCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Clinician-prescribed minimum heart rate" />
+                </Border>
+                <Label Grid.Column="2" Text="HR MAX" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="3" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="5,0">
+                  <Entry Text="{Binding ClinicianMaximumHeartRateText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditClinicianMaximumHeartRateCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Clinician-prescribed maximum heart rate" />
+                </Border>
+                <Label Grid.Column="4" Text="POWER CAP" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="5" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="5,0">
+                  <Entry Text="{Binding ClinicianMaximumPowerText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditClinicianMaximumPowerCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="W" HorizontalTextAlignment="Center" SemanticProperties.Description="Clinician-prescribed maximum trainer power" />
+                </Border>
+                <Label Grid.Column="6" Text="DURATION" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                <Border Grid.Column="7" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="5,0">
+                  <Entry Text="{Binding ClinicianDurationText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding EditClinicianDurationCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="min" HorizontalTextAlignment="Center" SemanticProperties.Description="Clinician-prescribed workout duration in minutes" />
+                </Border>
+              </Grid>
+              <Button Style="{StaticResource SecondaryActionButton}" Text="{Binding ClinicianPrescriptionAcknowledgementText}" Command="{Binding AcknowledgeClinicianPrescriptionCommand}" />
+              <Button Style="{StaticResource ActionButton}" Text="Create prescribed session" Command="{Binding CreateClinicianPrescribedWorkoutCommand}" />
+            </VerticalStackLayout>
+          </Border>
+          <Label Text="{Binding WeeklyLowIntensityText}" TextColor="{StaticResource Muted}" FontSize="12" />
           <local:ReadyToRideView Margin="0,0,0,8" />
           <Label Text="WORKOUT LIBRARY" FontAttributes="Bold" />
           <Label Text="Choose a structured ride before starting." TextColor="{StaticResource Muted}" FontSize="12" />

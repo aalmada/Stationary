@@ -8,22 +8,18 @@ public sealed class TrainingWorkoutRunnerTests
     public async Task Runner_DoesNotStartOrAdvanceUntilTheBikeAcceptsTheTarget()
     {
         var start = DateTimeOffset.UnixEpoch;
-        var runner = new TrainingWorkoutRunner(CreateWorkout());
-
-        runner.Start();
-        var advancedWhileApplying = runner.Advance(start.AddMinutes(2));
-        runner.RejectTarget();
-        runner.RetryTarget();
-        runner.ConfirmTargetApplied(start.AddMinutes(2));
-        var advancedBeforeDuration = runner.Advance(start.AddMinutes(2).AddSeconds(59));
-        var advancedAtDuration = runner.Advance(start.AddMinutes(3));
+        var applying = new TrainingWorkoutRunner(CreateWorkout()).Start();
+        var advancedWhileApplying = applying.Advance(start.AddMinutes(2));
+        var running = applying.RejectTarget().RetryTarget().ConfirmTargetApplied(start.AddMinutes(2));
+        var beforeDuration = running.Advance(start.AddMinutes(2).AddSeconds(59));
+        var atDuration = running.Advance(start.AddMinutes(3));
 
         using (Assert.Multiple())
         {
-            await Assert.That(advancedWhileApplying).IsFalse();
-            await Assert.That(advancedBeforeDuration).IsFalse();
-            await Assert.That(advancedAtDuration).IsTrue();
-            await Assert.That(runner.State).IsEqualTo(TrainingWorkoutState.Completed);
+            await Assert.That(advancedWhileApplying).IsSameReferenceAs(applying);
+            await Assert.That(beforeDuration).IsSameReferenceAs(running);
+            await Assert.That(atDuration.State).IsEqualTo(TrainingWorkoutState.Completed);
+            await Assert.That(running.State).IsEqualTo(TrainingWorkoutState.Running);
         }
     }
 
@@ -95,32 +91,26 @@ public sealed class TrainingWorkoutRunnerTests
     public async Task Runner_PauseAndResumeExcludePausedTime()
     {
         var start = DateTimeOffset.UnixEpoch;
-        var runner = new TrainingWorkoutRunner(CreateWorkout());
+        var runner = new TrainingWorkoutRunner(CreateWorkout())
+            .Start()
+            .ConfirmTargetApplied(start)
+            .Pause(start.AddSeconds(30))
+            .Resume(start.AddMinutes(1).AddSeconds(30));
+        var advanced = runner.Advance(start.AddMinutes(2));
 
-        runner.Start();
-        runner.ConfirmTargetApplied(start);
-        runner.Pause(start.AddSeconds(30));
-        runner.Resume(start.AddMinutes(1).AddSeconds(30));
-        var advancedAtOneMinuteOfActiveTime = runner.Advance(start.AddMinutes(2));
-
-        using (Assert.Multiple())
-        {
-            await Assert.That(advancedAtOneMinuteOfActiveTime).IsTrue();
-            await Assert.That(runner.State).IsEqualTo(TrainingWorkoutState.Completed);
-        }
+        await Assert.That(advanced.State).IsEqualTo(TrainingWorkoutState.Completed);
     }
 
     [Test]
     public async Task Runner_ReportsRemainingIntervalTimeAcrossPause()
     {
         var start = DateTimeOffset.UnixEpoch;
-        var runner = new TrainingWorkoutRunner(CreateWorkout());
-
-        runner.Start();
-        runner.ConfirmTargetApplied(start);
-        runner.Pause(start.AddSeconds(30));
-        var remainingWhilePaused = runner.GetCurrentSegmentRemaining(start.AddMinutes(2));
-        runner.Resume(start.AddMinutes(2));
+        var paused = new TrainingWorkoutRunner(CreateWorkout())
+            .Start()
+            .ConfirmTargetApplied(start)
+            .Pause(start.AddSeconds(30));
+        var remainingWhilePaused = paused.GetCurrentSegmentRemaining(start.AddMinutes(2));
+        var runner = paused.Resume(start.AddMinutes(2));
         var remainingAfterResuming = runner.GetCurrentSegmentRemaining(start.AddMinutes(2).AddSeconds(15));
 
         using (Assert.Multiple())

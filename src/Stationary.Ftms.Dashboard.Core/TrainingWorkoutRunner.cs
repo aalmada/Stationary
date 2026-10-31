@@ -11,27 +11,27 @@ public enum TrainingWorkoutState
     Aborted,
 }
 
-public sealed class TrainingWorkoutRunner
+// Immutable segment sequencer: each transition returns a new runner, so session state can be reduced without shared mutation.
+public sealed record TrainingWorkoutRunner
 {
-    private CompiledTrainingWorkout workout;
-    private readonly WorkoutSessionClock segmentClock = new();
-    private int segmentIndex;
-    private TrainingWorkoutState state = TrainingWorkoutState.Selected;
-
     public TrainingWorkoutRunner(CompiledTrainingWorkout workout)
     {
-        this.workout = workout ?? throw new ArgumentNullException(nameof(workout));
+        Workout = workout ?? throw new ArgumentNullException(nameof(workout));
     }
 
-    public TrainingWorkoutState State => state;
+    public CompiledTrainingWorkout Workout { get; private init; }
 
-    public int SegmentIndex => segmentIndex;
+    public TrainingWorkoutState State { get; private init; } = TrainingWorkoutState.Selected;
 
-    public int SegmentCount => workout.Segments.Count;
+    public int SegmentIndex { get; private init; }
 
-    public CompiledTrainingSegment? CurrentSegment => state is TrainingWorkoutState.Completed or TrainingWorkoutState.Aborted
+    public TrainingSegmentClock SegmentClock { get; private init; }
+
+    public int SegmentCount => Workout.Segments.Count;
+
+    public CompiledTrainingSegment? CurrentSegment => State is TrainingWorkoutState.Completed or TrainingWorkoutState.Aborted
         ? null
-        : workout.Segments[segmentIndex];
+        : Workout.Segments[SegmentIndex];
 
     public TimeSpan? GetCurrentSegmentRemaining(DateTimeOffset timestamp)
     {
@@ -40,95 +40,63 @@ public sealed class TrainingWorkoutRunner
             return null;
         }
 
-        var elapsed = segmentClock.GetElapsed(timestamp) ?? TimeSpan.Zero;
-        var remaining = segment.Definition.Duration - elapsed;
+        var remaining = segment.Definition.Duration - (SegmentClock.GetElapsed(timestamp) ?? TimeSpan.Zero);
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    public void Start()
-    {
-        if (state == TrainingWorkoutState.Selected)
-        {
-            state = TrainingWorkoutState.ApplyingTarget;
-        }
-    }
+    public TrainingWorkoutRunner Start() => State == TrainingWorkoutState.Selected
+        ? this with { State = TrainingWorkoutState.ApplyingTarget }
+        : this;
 
-    public void ConfirmTargetApplied(DateTimeOffset timestamp)
-    {
-        if (state != TrainingWorkoutState.ApplyingTarget)
-        {
-            return;
-        }
+    public TrainingWorkoutRunner ConfirmTargetApplied(DateTimeOffset timestamp) => State == TrainingWorkoutState.ApplyingTarget
+        ? this with { State = TrainingWorkoutState.Running, SegmentClock = SegmentClock.Start(timestamp) }
+        : this;
 
-        segmentClock.Start(timestamp);
-        state = TrainingWorkoutState.Running;
-    }
+    public TrainingWorkoutRunner RejectTarget() => State == TrainingWorkoutState.ApplyingTarget
+        ? this with { State = TrainingWorkoutState.TargetFailed }
+        : this;
 
-    public void RejectTarget()
-    {
-        if (state == TrainingWorkoutState.ApplyingTarget)
-        {
-            state = TrainingWorkoutState.TargetFailed;
-        }
-    }
+    public TrainingWorkoutRunner RetryTarget() => State == TrainingWorkoutState.TargetFailed
+        ? this with { State = TrainingWorkoutState.ApplyingTarget }
+        : this;
 
-    public void RetryTarget()
-    {
-        if (state == TrainingWorkoutState.TargetFailed)
-        {
-            state = TrainingWorkoutState.ApplyingTarget;
-        }
-    }
+    public TrainingWorkoutRunner Pause(DateTimeOffset timestamp) => State == TrainingWorkoutState.Running
+        ? this with { State = TrainingWorkoutState.Paused, SegmentClock = SegmentClock.Pause(timestamp) }
+        : this;
 
-    public void Pause(DateTimeOffset timestamp)
-    {
-        if (state == TrainingWorkoutState.Running)
-        {
-            segmentClock.Pause(timestamp);
-            state = TrainingWorkoutState.Paused;
-        }
-    }
+    public TrainingWorkoutRunner Resume(DateTimeOffset timestamp) => State == TrainingWorkoutState.Paused
+        ? this with { State = TrainingWorkoutState.Running, SegmentClock = SegmentClock.Resume(timestamp) }
+        : this;
 
-    public void Resume(DateTimeOffset timestamp)
+    // Returns the same instance when the current segment has not finished.
+    public TrainingWorkoutRunner Advance(DateTimeOffset timestamp)
     {
-        if (state == TrainingWorkoutState.Paused)
+        if (State != TrainingWorkoutState.Running
+            || SegmentClock.GetElapsed(timestamp) is not { } elapsed
+            || elapsed < Workout.Segments[SegmentIndex].Definition.Duration)
         {
-            segmentClock.Resume(timestamp);
-            state = TrainingWorkoutState.Running;
-        }
-    }
-
-    public bool Advance(DateTimeOffset timestamp)
-    {
-        if (state != TrainingWorkoutState.Running || segmentClock.GetElapsed(timestamp) is not { } elapsed || elapsed < workout.Segments[segmentIndex].Definition.Duration)
-        {
-            return false;
+            return this;
         }
 
-        segmentIndex++;
-        segmentClock.Reset();
-        state = segmentIndex == workout.Segments.Count ? TrainingWorkoutState.Completed : TrainingWorkoutState.ApplyingTarget;
-        return true;
+        var next = SegmentIndex + 1;
+        return this with
+        {
+            SegmentIndex = next,
+            SegmentClock = TrainingSegmentClock.Stopped,
+            State = next == Workout.Segments.Count ? TrainingWorkoutState.Completed : TrainingWorkoutState.ApplyingTarget,
+        };
     }
 
     // Swaps in revised segment metadata, such as recalibrated cadence ranges, without disturbing progress.
-    public void ReplaceWorkout(CompiledTrainingWorkout updated)
+    public TrainingWorkoutRunner ReplaceWorkout(CompiledTrainingWorkout updated)
     {
         ArgumentNullException.ThrowIfNull(updated);
-        if (updated.Segments.Count != workout.Segments.Count)
-        {
-            throw new ArgumentException("A replacement workout must keep the same segments.", nameof(updated));
-        }
-
-        workout = updated;
+        return updated.Segments.Count == Workout.Segments.Count
+            ? this with { Workout = updated }
+            : throw new ArgumentException("A replacement workout must keep the same segments.", nameof(updated));
     }
 
-    public void Abort()
-    {
-        if (state is not TrainingWorkoutState.Completed and not TrainingWorkoutState.Aborted)
-        {
-            segmentClock.Reset();
-            state = TrainingWorkoutState.Aborted;
-        }
-    }
+    public TrainingWorkoutRunner Abort() => State is TrainingWorkoutState.Completed or TrainingWorkoutState.Aborted
+        ? this
+        : this with { State = TrainingWorkoutState.Aborted, SegmentClock = TrainingSegmentClock.Stopped };
 }

@@ -19,6 +19,15 @@ public enum TrainingObjective
     CadenceSkills,
     Anaerobic,
     Diagnostics,
+    HeartRate,
+}
+
+public enum TrainingWorkoutKind
+{
+    Structured,
+    HeartRateZone,
+    GeneralHealth,
+    ClinicianPrescribed,
 }
 
 public sealed record TrainingSegment(
@@ -28,7 +37,34 @@ public sealed record TrainingSegment(
     int? MinimumCadenceRpm,
     int? MaximumCadenceRpm,
     string Cue,
-    bool CountsTowardAdherence);
+    bool CountsTowardAdherence,
+    HeartRateTrainingTarget? HeartRateTarget = null);
+
+public sealed record HeartRateTrainingTarget(
+    ushort? MinimumBeatsPerMinute,
+    ushort? MaximumBeatsPerMinute,
+    string? ZoneCode,
+    double MinimumFunctionalThresholdPowerPercentage,
+    double MaximumFunctionalThresholdPowerPercentage,
+    int? MaximumPowerWatts = null)
+{
+    public static HeartRateTrainingTarget ForZone(
+        string zoneCode,
+        double minimumFunctionalThresholdPowerPercentage,
+        double maximumFunctionalThresholdPowerPercentage)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(zoneCode);
+        return new(null, null, zoneCode, minimumFunctionalThresholdPowerPercentage, maximumFunctionalThresholdPowerPercentage);
+    }
+
+    public static HeartRateTrainingTarget ForRange(
+        ushort minimumBeatsPerMinute,
+        ushort maximumBeatsPerMinute,
+        double minimumFunctionalThresholdPowerPercentage,
+        double maximumFunctionalThresholdPowerPercentage,
+        int? maximumPowerWatts = null) =>
+        new(minimumBeatsPerMinute, maximumBeatsPerMinute, null, minimumFunctionalThresholdPowerPercentage, maximumFunctionalThresholdPowerPercentage, maximumPowerWatts);
+}
 
 public sealed record TrainingWorkout(
     string Id,
@@ -38,6 +74,8 @@ public sealed record TrainingWorkout(
     TrainingExperienceLevel ExperienceLevel,
     IReadOnlyList<TrainingSegment> Segments)
 {
+    public TrainingWorkoutKind Kind { get; init; }
+
     public TimeSpan TotalDuration
     {
         get
@@ -58,7 +96,19 @@ public readonly record struct TrainingPowerCapabilities(int MinimumWatts, int Ma
     public bool IsValid => MinimumWatts >= 0 && MaximumWatts >= MinimumWatts && IncrementWatts > 0;
 }
 
-public sealed record CompiledTrainingSegment(TrainingSegment Definition, int TargetWatts);
+public sealed record CompiledTrainingSegment(
+    TrainingSegment Definition,
+    int TargetWatts,
+    int MinimumTargetWatts,
+    int MaximumTargetWatts,
+    ushort? TargetMinimumHeartRate,
+    ushort? TargetMaximumHeartRate)
+{
+    public CompiledTrainingSegment(TrainingSegment definition, int targetWatts)
+        : this(definition, targetWatts, targetWatts, targetWatts, null, null)
+    {
+    }
+}
 
 public sealed record CompiledTrainingWorkout(TrainingWorkout Definition, IReadOnlyList<CompiledTrainingSegment> Segments);
 
@@ -75,7 +125,8 @@ public static class TrainingWorkoutCompiler
         TrainingWorkout workout,
         ushort functionalThresholdPowerWatts,
         TrainingPowerCapabilities capabilities,
-        int preferredCadenceRpm = ReferenceCadenceRpm)
+        int preferredCadenceRpm = ReferenceCadenceRpm,
+        HeartRateZoneProfile? heartRateZones = null)
     {
         ArgumentNullException.ThrowIfNull(workout);
         if (functionalThresholdPowerWatts == 0)
@@ -100,22 +151,51 @@ public static class TrainingWorkoutCompiler
         {
             var segment = workout.Segments[index];
             ValidateSegment(segment);
-            var requestedWatts = functionalThresholdPowerWatts * segment.FunctionalThresholdPowerPercentage / 100d;
-            if (requestedWatts < capabilities.MinimumWatts || requestedWatts > capabilities.MaximumWatts)
-            {
-                throw new InvalidOperationException($"Segment '{segment.Name}' requires {requestedWatts:F0} W, outside the bike range.");
-            }
-
             var adjustedSegment = ScaleCadence(segment, preferredCadenceRpm);
             ValidateSegment(adjustedSegment);
 
-            var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
-            var nearestStep = (int)double.Round(
-                (requestedWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts,
-                MidpointRounding.AwayFromZero);
-            var target = capabilities.MinimumWatts + int.Clamp(nearestStep, 0, maximumStep) * capabilities.IncrementWatts;
+            if (segment.HeartRateTarget is { } heartRateTarget)
+            {
+                var (minimumHeartRate, maximumHeartRate) = ResolveHeartRateRange(segment, heartRateTarget, heartRateZones);
+                var minimumWatts = GetBoundedTargetWatts(
+                    functionalThresholdPowerWatts * heartRateTarget.MinimumFunctionalThresholdPowerPercentage / 100d,
+                    capabilities,
+                    segment.Name,
+                    roundUp: true);
+                var maximumRequestedWatts = functionalThresholdPowerWatts * heartRateTarget.MaximumFunctionalThresholdPowerPercentage / 100d;
+                if (heartRateTarget.MaximumPowerWatts is int absoluteMaximum)
+                {
+                    if (absoluteMaximum < capabilities.MinimumWatts)
+                    {
+                        throw new InvalidOperationException($"Segment '{segment.Name}' has a prescribed power cap below the bike's minimum target.");
+                    }
 
-            segments[index] = new(adjustedSegment, target);
+                    maximumRequestedWatts = double.Min(maximumRequestedWatts, absoluteMaximum);
+                }
+
+                var maximumWatts = GetBoundedTargetWatts(
+                    maximumRequestedWatts,
+                    capabilities,
+                    segment.Name,
+                    clampToDeviceMaximum: true,
+                    roundDown: true);
+                if (maximumWatts < minimumWatts)
+                {
+                    throw new InvalidOperationException($"Segment '{segment.Name}' has no usable power range on this bike.");
+                }
+
+                var requestedWatts = functionalThresholdPowerWatts * segment.FunctionalThresholdPowerPercentage / 100d;
+                var targetWatts = GetBoundedTargetWatts(double.Clamp(requestedWatts, minimumWatts, maximumWatts), capabilities, segment.Name);
+                segments[index] = new(adjustedSegment, targetWatts, minimumWatts, maximumWatts, minimumHeartRate, maximumHeartRate);
+                continue;
+            }
+
+            var powerTargetWatts = GetBoundedTargetWatts(
+                functionalThresholdPowerWatts * segment.FunctionalThresholdPowerPercentage / 100d,
+                capabilities,
+                segment.Name);
+
+            segments[index] = new(adjustedSegment, powerTargetWatts, powerTargetWatts, powerTargetWatts, null, null);
         }
 
         return new(workout, segments);
@@ -200,5 +280,81 @@ public static class TrainingWorkoutCompiler
         {
             throw new ArgumentException("Cadence targets must be between 20 and 150 rpm.", nameof(segment));
         }
+
+        if (segment.HeartRateTarget is { } target)
+        {
+            var hasZone = !string.IsNullOrWhiteSpace(target.ZoneCode);
+            var hasRange = target.MinimumBeatsPerMinute is not null || target.MaximumBeatsPerMinute is not null;
+            if (hasZone == hasRange
+                || hasRange && (target.MinimumBeatsPerMinute is not ushort minimum
+                    || target.MaximumBeatsPerMinute is not ushort maximum
+                    || minimum is < 30 or > 250
+                    || maximum is < 30 or > 250
+                    || maximum < minimum)
+                || !double.IsFinite(target.MinimumFunctionalThresholdPowerPercentage)
+                || !double.IsFinite(target.MaximumFunctionalThresholdPowerPercentage)
+                || target.MinimumFunctionalThresholdPowerPercentage < 0d
+                || target.MaximumFunctionalThresholdPowerPercentage <= 0d
+                || target.MaximumFunctionalThresholdPowerPercentage < target.MinimumFunctionalThresholdPowerPercentage
+                || target.MaximumPowerWatts is <= 0)
+            {
+                throw new ArgumentException("Heart-rate targets require either a valid zone or bpm range and a valid power safety range.", nameof(segment));
+            }
+        }
+    }
+
+    private static (ushort Minimum, ushort Maximum) ResolveHeartRateRange(
+        TrainingSegment segment,
+        HeartRateTrainingTarget target,
+        HeartRateZoneProfile? profile)
+    {
+        if (!string.IsNullOrWhiteSpace(target.ZoneCode))
+        {
+            if (profile is null)
+            {
+                throw new InvalidOperationException($"Segment '{segment.Name}' needs a configured heart-rate zone profile.");
+            }
+
+            var zone = profile.Zones.FirstOrDefault(zone => string.Equals(zone.Code, target.ZoneCode, StringComparison.OrdinalIgnoreCase));
+            if (zone is null || zone.MaximumBeatsPerMinute is not ushort maximum)
+            {
+                throw new InvalidOperationException($"Segment '{segment.Name}' refers to an unavailable or unbounded heart-rate zone.");
+            }
+
+            if (zone.MinimumBeatsPerMinute is < 30 or > 250 || maximum is < 30 or > 250)
+            {
+                throw new InvalidOperationException($"Segment '{segment.Name}' uses a zone outside the supported heart-rate range.");
+            }
+
+            return (zone.MinimumBeatsPerMinute, maximum);
+        }
+
+        return (target.MinimumBeatsPerMinute!.Value, target.MaximumBeatsPerMinute!.Value);
+    }
+
+    private static int GetBoundedTargetWatts(
+        double requestedWatts,
+        TrainingPowerCapabilities capabilities,
+        string segmentName,
+        bool clampToDeviceMaximum = false,
+        bool roundUp = false,
+        bool roundDown = false)
+    {
+        if (!double.IsFinite(requestedWatts)
+            || requestedWatts < capabilities.MinimumWatts && !roundUp
+            || requestedWatts > capabilities.MaximumWatts && !clampToDeviceMaximum)
+        {
+            throw new InvalidOperationException($"Segment '{segmentName}' requires {requestedWatts:F0} W, outside the bike range.");
+        }
+
+        var boundedWatts = double.Clamp(requestedWatts, capabilities.MinimumWatts, capabilities.MaximumWatts);
+        var maximumStep = (capabilities.MaximumWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
+        var exactStep = (boundedWatts - capabilities.MinimumWatts) / capabilities.IncrementWatts;
+        var nearestStep = roundUp
+            ? (int)double.Ceiling(exactStep)
+            : roundDown
+                ? (int)double.Floor(exactStep)
+                : (int)double.Round(exactStep, MidpointRounding.AwayFromZero);
+        return capabilities.MinimumWatts + int.Clamp(nearestStep, 0, maximumStep) * capabilities.IncrementWatts;
     }
 }

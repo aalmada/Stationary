@@ -60,13 +60,12 @@ public sealed class TrainingCadenceCalibrationTests
     {
         var catalog = await TrainingCatalog.LoadAsync();
         var workout = TrainingWorkoutCompiler.Compile(catalog.Workouts[0], 200, new(0, 500, 1));
-        var runner = new TrainingWorkoutRunner(workout);
         var start = DateTimeOffset.UnixEpoch;
-        runner.Start();
-        runner.ConfirmTargetApplied(start);
-        _ = runner.Advance(start + workout.Segments[0].Definition.Duration);
-
-        runner.ReplaceWorkout(TrainingWorkoutCompiler.RescaleCadence(workout, 50, 1));
+        var runner = new TrainingWorkoutRunner(workout)
+            .Start()
+            .ConfirmTargetApplied(start)
+            .Advance(start + workout.Segments[0].Definition.Duration)
+            .ReplaceWorkout(TrainingWorkoutCompiler.RescaleCadence(workout, 50, 1));
 
         using (Assert.Multiple())
         {

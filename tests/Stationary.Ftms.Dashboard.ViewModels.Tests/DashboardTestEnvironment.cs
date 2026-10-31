@@ -11,10 +11,10 @@ namespace Stationary.Ftms.Dashboard.ViewModels.Tests;
 
 internal sealed class DashboardTestEnvironment : IAsyncDisposable
 {
-    public DashboardTestEnvironment()
+    public DashboardTestEnvironment(TestFtmsSession? session = null)
     {
         Platform = new TestDashboardPlatform();
-        Session = new TestFtmsSession();
+        Session = session ?? new TestFtmsSession();
         HeartRateDiscovery = new TestHeartRateDiscoveryService();
         ViewModel = new(new TestFtmsDiscoveryService(Session), HeartRateDiscovery, Platform, new HistoricalScheduler());
     }
@@ -133,9 +133,9 @@ internal sealed class TestFtmsSession : IFtmsSession
 
     public long TelemetryPacketsReceived => 0;
 
-    public FitnessMachineFeature? Features => null;
+    public FitnessMachineFeature? Features { get; init; }
 
-    public FtmsSupportedRanges SupportedRanges => default;
+    public FtmsSupportedRanges SupportedRanges { get; init; }
 
     public bool CanControl => true;
 
