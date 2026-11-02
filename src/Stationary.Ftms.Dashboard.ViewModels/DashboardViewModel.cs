@@ -575,6 +575,90 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
                     : new RideTrendReport(error, [], []))
             .ToProperty(this, viewModel => viewModel.RideTrend, scheduler: ImmediateScheduler.Instance);
         subscriptions.Add(_rideTrendHelper);
+
+        var rideInProgress = this.WhenAnyValue(static viewModel => viewModel.SessionState)
+            .Select(static state => state is WorkoutSessionState.Running or WorkoutSessionState.Paused)
+            .DistinctUntilChanged();
+        subscriptions.Add(rideInProgress
+            .Select(active => active
+                ? Observable.Using(() => platform.KeepAwake("Stationary ride session in progress"), static _ => Observable.Never<Unit>())
+                : Observable.Empty<Unit>())
+            .Switch()
+            .Subscribe(static _ => { }, exception => Trace.TraceError("Keeping the computer awake failed: {0}", exception)));
+        var latestTelemetry = telemetrySessionReset
+            .StartWith(Unit.Default)
+            .Select(_ => currentSessionTelemetry.Select<TelemetrySnapshot, TelemetrySnapshot?>(static snapshot => snapshot).StartWith((TelemetrySnapshot?)null))
+            .Switch();
+        var latestHeartRate = heartRateSessionReset
+            .StartWith(Unit.Default)
+            .Select(_ => currentHeartRateTelemetry.Select<HeartRateObservation, HeartRateObservation?>(static observation => observation).StartWith((HeartRateObservation?)null))
+            .Switch();
+        var rideContext = Observable.CombineLatest(
+            latestTelemetry,
+            latestHeartRate,
+            Training.WhenAnyValue(static training => training.Session),
+            this.WhenAnyValue(static viewModel => viewModel.SessionState),
+            HeartRate.WhenAnyValue(static heartRate => heartRate.ZoneProfile),
+            static (telemetry, heartRate, training, state, zones) => (telemetry, heartRate, training, state, zones));
+        var sceneSamples = Observable.Interval(TimeSpan.FromSeconds(1), timerScheduler)
+            .WithLatestFrom(rideContext, (_, context) => CreateRideSceneSample(
+                timerScheduler.Now,
+                context.telemetry,
+                context.heartRate,
+                context.training,
+                context.state,
+                context.zones));
+        Scene = new(rideInProgress, sceneSamples, platform, timerScheduler);
+        subscriptions.Add(Scene);
+    }
+
+    public RideSceneViewModel Scene { get; }
+
+    private static RideSceneSample CreateRideSceneSample(
+        DateTimeOffset timestamp,
+        TelemetrySnapshot? telemetry,
+        HeartRateObservation? heartRateObservation,
+        TrainingSession training,
+        WorkoutSessionState state,
+        HeartRateZoneProfile? zones)
+    {
+        var snapshot = telemetry is { } current ? VirtualSpeed.Apply(current) : (TelemetrySnapshot?)null;
+        ushort? heartRate = heartRateObservation is { } observation && timestamp - observation.CapturedAt < TimeSpan.FromSeconds(5)
+            ? observation.BeatsPerMinute
+            : snapshot?.HeartRateBeatsPerMinute;
+        var runner = training.IsActive ? training.Runner : null;
+        var segment = runner?.CurrentSegment;
+        RideGameTarget? target = segment is null ? null : CreateRideGameTarget(segment, training.CurrentTargetWatts);
+        var input = new RideGameInput(
+            timestamp,
+            state == WorkoutSessionState.Running,
+            snapshot?.PowerWatts,
+            snapshot?.CadenceRpm,
+            heartRate,
+            snapshot?.SpeedKilometersPerHour ?? 0d,
+            target,
+            runner is null ? -1 : runner.SegmentIndex,
+            training.Runner?.State == TrainingWorkoutState.Completed);
+        return new(
+            input,
+            heartRate is { } beats && zones is not null ? zones.GetZoneIndex(beats) : -1,
+            zones?.Zones ?? [],
+            runner?.GetCurrentSegmentRemaining(timestamp)?.TotalSeconds);
+    }
+
+    // Heart-rate-led intervals let power float within the controller's range; power intervals follow the live target.
+    private static RideGameTarget CreateRideGameTarget(CompiledTrainingSegment segment, int currentTargetWatts)
+    {
+        var targetWatts = currentTargetWatts > 0 ? currentTargetWatts : segment.TargetWatts;
+        var heartRateLed = segment.TargetMinimumHeartRate is not null;
+        return new(
+            segment.Definition.Name,
+            heartRateLed || segment.CeilingHeartRate is not null ? segment.MinimumTargetWatts : targetWatts,
+            heartRateLed ? segment.MaximumTargetWatts : targetWatts,
+            segment.TargetMinimumHeartRate,
+            segment.TargetMaximumHeartRate ?? segment.CeilingHeartRate,
+            segment.Definition.MinimumCadenceRpm,
+            segment.Definition.MaximumCadenceRpm);
     }
 
     // Saved automatically when a ride ends; the trend on Results is derived from this compact index.

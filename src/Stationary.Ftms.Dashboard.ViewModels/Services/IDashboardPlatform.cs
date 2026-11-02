@@ -17,4 +17,10 @@ public interface IDashboardPlatform
     void RemovePreference(string key);
 
     Task InvokeOnMainThreadAsync(Action action);
+
+    // Number of connected displays; emits the current count on subscription and again whenever it changes.
+    IObservable<int> DisplayCount { get; }
+
+    // Keeps the display and system awake until the returned handle is disposed.
+    IDisposable KeepAwake(string reason);
 }

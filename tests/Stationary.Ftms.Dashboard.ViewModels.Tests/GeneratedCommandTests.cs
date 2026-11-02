@@ -730,6 +730,76 @@ public sealed class GeneratedCommandTests
         }
     }
 
+    [Test]
+    public async Task RideInProgress_KeepsTheDisplayAwakeTracksTheRideAndOpensTheSceneOnASecondDisplay()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var dashboard = environment.ViewModel;
+        var scene = dashboard.Scene;
+        environment.Platform.Displays.OnNext(2);
+        await Assert.That(scene.ShouldShowWindow).IsFalse();
+        await Assert.That(environment.Platform.ActiveKeepAwakeCount).IsEqualTo(0);
+
+        await dashboard.StartCommand.Execute().ToTask();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (scene.Game.LastTimestamp is null || scene.Game.RideSeconds == 0d)
+        {
+            environment.Session.Telemetry.TryPublish(CreatePowerBikeSample(DateTimeOffset.UtcNow, 10));
+            await Task.Delay(20, timeout.Token);
+            environment.Scheduler.AdvanceBy(TimeSpan.FromSeconds(1));
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(environment.Platform.ActiveKeepAwakeCount).IsEqualTo(1);
+            await Assert.That(scene.IsRideInProgress).IsTrue();
+            await Assert.That(scene.ShouldShowWindow).IsTrue();
+            await Assert.That(scene.StatusKind).IsEqualTo(RideGameTargetStatus.Riding);
+            await Assert.That(scene.ElapsedText).IsNotEqualTo("0:00");
+            await Assert.That(scene.MetricsText).Contains(" W");
+            await Assert.That(scene.NextDistanceText).StartsWith("Next 1 km");
+        }
+
+        await scene.CloseWindowCommand.Execute().ToTask();
+        await Assert.That(scene.ShouldShowWindow).IsFalse();
+        await scene.OpenWindowCommand.Execute().ToTask();
+        await Assert.That(scene.ShouldShowWindow).IsTrue();
+
+        await dashboard.EndFreeRideCommand.Execute().ToTask();
+        await Assert.That(environment.Platform.ActiveKeepAwakeCount).IsEqualTo(0);
+        await Assert.That(scene.IsRideInProgress).IsFalse();
+        await Assert.That(scene.ShouldShowWindow).IsTrue();
+        await scene.CloseWindowCommand.Execute().ToTask();
+        await Assert.That(scene.ShouldShowWindow).IsFalse();
+    }
+
+    [Test]
+    public async Task SceneCommands_OpenOnDemandAndPersistTheAutoOpenPreference()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        var scene = environment.ViewModel.Scene;
+        await Assert.That(scene.AutoOpenOnSecondDisplay).IsTrue();
+        await Assert.That(scene.HasSecondDisplay).IsFalse();
+
+        await scene.OpenWindowCommand.Execute().ToTask();
+        await Assert.That(scene.ShouldShowWindow).IsTrue();
+        await scene.CloseWindowCommand.Execute().ToTask();
+        await Assert.That(scene.ShouldShowWindow).IsFalse();
+        await Assert.That(scene.IsDismissedForRide).IsFalse();
+
+        await scene.SetAutoOpenOnSecondDisplayCommand.Execute(false).ToTask();
+        environment.Platform.Displays.OnNext(2);
+        using (Assert.Multiple())
+        {
+            await Assert.That(scene.AutoOpenOnSecondDisplay).IsFalse();
+            await Assert.That(scene.HasSecondDisplay).IsTrue();
+            await Assert.That(environment.Platform.GetPreference("RideSceneAutoOpenOnSecondDisplay", true)).IsFalse();
+        }
+    }
+
     private static TelemetrySnapshot CreatePowerBikeSample(DateTimeOffset capturedAt, uint totalDistanceMeters) =>
         VirtualSpeed.Apply(new(
             capturedAt,

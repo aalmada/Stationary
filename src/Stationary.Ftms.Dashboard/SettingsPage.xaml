@@ -35,7 +35,7 @@
       <Border Style="{StaticResource PanelBorder}">
         <VerticalStackLayout Spacing="12">
           <Label Text="DISPLAY" FontAttributes="Bold" />
-          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="20">
+          <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="20">
             <VerticalStackLayout Spacing="4">
               <Label Text="Metric units" FontAttributes="Bold" />
               <Label Text="Speed and distance" TextColor="{StaticResource Muted}" FontSize="12" />
@@ -55,6 +55,11 @@
               <Label Text="Compact charts" FontAttributes="Bold" />
               <Label Text="Hide side summaries" TextColor="{StaticResource Muted}" FontSize="12" />
               <local:ReactiveSwitch IsToggled="{Binding Telemetry.UseCompactCharts, Mode=OneWay}" ToggledCommand="{Binding Telemetry.SetCompactChartsCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="4" Spacing="4">
+              <Label Text="3D ride scene" FontAttributes="Bold" />
+              <Label Text="Open on a second display during rides" TextColor="{StaticResource Muted}" FontSize="12" />
+              <local:ReactiveSwitch IsToggled="{Binding Scene.AutoOpenOnSecondDisplay, Mode=OneWay}" ToggledCommand="{Binding Scene.SetAutoOpenOnSecondDisplayCommand}" OnColor="{StaticResource Accent}" HorizontalOptions="Start" />
             </VerticalStackLayout>
           </Grid>
         </VerticalStackLayout>

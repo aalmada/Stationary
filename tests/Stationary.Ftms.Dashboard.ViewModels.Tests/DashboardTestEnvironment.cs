@@ -85,6 +85,18 @@ internal sealed class TestDashboardPlatform : IDashboardPlatform, IDisposable
 
     public void SetPreference(string key, string value) => stringPreferences[key] = value;
 
+    public System.Reactive.Subjects.BehaviorSubject<int> Displays { get; } = new(1);
+
+    public IObservable<int> DisplayCount => Displays;
+
+    public int ActiveKeepAwakeCount { get; private set; }
+
+    public IDisposable KeepAwake(string reason)
+    {
+        ActiveKeepAwakeCount++;
+        return System.Reactive.Disposables.Disposable.Create(() => ActiveKeepAwakeCount--);
+    }
+
     public void RemovePreference(string key)
     {
         booleanPreferences.Remove(key);
@@ -98,7 +110,11 @@ internal sealed class TestDashboardPlatform : IDashboardPlatform, IDisposable
         return Task.CompletedTask;
     }
 
-    public void Dispose() => Directory.Delete(root, recursive: true);
+    public void Dispose()
+    {
+        Displays.Dispose();
+        Directory.Delete(root, recursive: true);
+    }
 }
 
 internal sealed class TestFtmsDiscoveryService(TestFtmsSession session) : IFtmsDiscoveryService

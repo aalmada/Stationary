@@ -29,6 +29,19 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 
 - In-page tabs (such as the heart-rate zone method) use `SegmentedTabs`, which renders a native `UISegmentedControl` through `Platforms/MacCatalyst/SegmentedTabsHandler.cs`. Bind `Titles` and `SelectedIndex` one-way from the view model and route selection through `SelectionChangedCommand` (an `int` index). Do not restyle buttons or labels as tabs.
 
+## 3D Ride Scene And Multi-Window
+
+- Game rules stay pure in Core `RideGame`; `RideSceneViewModel` exposes the latest `RideSceneFrame`, window visibility (`ShouldShowWindow`), and the keep-awake state through ReactiveUI.
+- `VulkanSceneRenderer` owns a dedicated render thread and reads only the latest frame; `Update` and `Resize` must never block the UI thread. MoltenVK configures the `CAMetalLayer` from that thread, so `MetalHostView` hosts it as a sublayer, never as the view's backing layer; UIKit asserts on off-main-thread changes to a backing layer.
+- Shaders live in `Shaders/`. After editing one, recompile its committed SPIR-V in that folder: `glslangValidator -V <shader> -o <shader>.spv`.
+- Frames render in passes: HDR scene (opaque, then mirrored reflections below the floor, then additive `Glow`/`Streak`), a bloom chain (`bloom_down.frag` then `bloom_up.frag` per level), and `composite.frag` (tone mapping and grading) into the sRGB swapchain.
+- MoltenVK quirks: Metal3 argument buffers corrupt reads between the back-to-back bloom passes, so `VulkanSceneRenderer` sets `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=0` through libc `setenv` before `Vk.GetApi()` (`Environment.SetEnvironmentVariable` does not reach native `getenv`). Fast-math folds `isnan`/`isinf`, so test float bits instead; `pow` with a negative base returns NaN.
+- DEBUG builds: `STATIONARY_SCENE_DEMO=1` drives the scene with simulated telemetry, and `STATIONARY_SCENE_CAPTURE=<folder>` also writes periodic PNG frames there (`Scene/SceneDemo.cs`).
+- Each `SceneDraw` has a `SceneMaterial` whose value is the `effects.x` material constant in `scene.frag`; keep the enum and the shader constants in sync. `Glow` and `Streak` draw in a second, additive pass without depth writes. Keep push constants (`ScenePushConstants`) matching the shader `Push` block.
+- `SceneWindowCoordinator` opens and closes the scene `Window` and moves it to a secondary display through `AppKitInterop` (Objective-C runtime calls on `NSWindow`/`NSScreen`). `Application.OpenWindow` does not call `App.CreateWindow`; a restored scene session does, and `App` closes that extra window.
+- Multi-window requires `UIApplicationSceneManifest` in `Platforms/MacCatalyst/Info.plist`. Incremental builds can keep a stale bundle `Info.plist`; after editing the manifest, delete `obj/**/AppManifest.plist` and the bundle `Info.plist`, then rebuild.
+- Scene menu items in the Display menu have no accelerators; Cmd+Shift+3 and similar are system shortcuts.
+
 ## Mac Catalyst Button Rendering
 
 - Apply `ActionButton` or `SecondaryActionButton` to every dashboard button. Both styles use opaque command fills (`Accent` and `SecondaryAccent`); do not create page-local button fills or low-contrast surface buttons.

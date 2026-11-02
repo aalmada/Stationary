@@ -32,6 +32,7 @@
             <Label Text="{Binding HeartRateChipDetail}" Style="{StaticResource TileDetail}" FontSize="10" />
           </VerticalStackLayout>
         </Border>
+        <Button Style="{StaticResource SecondaryActionButton}" Text="3D scene" Command="{Binding Scene.OpenWindowCommand}" SemanticProperties.Description="Open the gamified 3D ride scene in its own window" />
       </HorizontalStackLayout>
       <Grid Grid.Column="2" VerticalOptions="Center">
         <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsOpenRide}">

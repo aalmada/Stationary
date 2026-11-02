@@ -12,6 +12,7 @@
 - Linux CI (excludes the Mac Catalyst dashboard): `dotnet restore Stationary.CI.slnf`, `dotnet build Stationary.CI.slnf --no-restore`, then `dotnet test --solution Stationary.CI.slnf --no-build`. Keep the filter updated when adding portable projects.
 - Build benchmarks: `dotnet build benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-restore`
 - Run benchmarks: `dotnet run --project benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-build -- --filter '*FtmsCodecBenchmarks*' --join`
+- Recompile dashboard shaders after editing them (requires `glslangValidator`, e.g. `brew install glslang`): in `src/Stationary.Ftms.Dashboard/Shaders`, run `glslangValidator -V <shader> -o <shader>.spv` for each edited shader (`scene.vert`, `scene.frag`, `post.vert`, `bloom_down.frag`, `bloom_up.frag`, `composite.frag`)
 
 ## Conventions
 

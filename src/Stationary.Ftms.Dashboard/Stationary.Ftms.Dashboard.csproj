@@ -11,6 +11,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
     <CodesignEntitlements>Platforms/MacCatalyst/Entitlements.plist</CodesignEntitlements>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Stationary.Ble/Stationary.Ble.csproj" />
@@ -21,5 +22,15 @@
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="Plugin.BLE" />
     <PackageReference Include="ReactiveUI" />
+    <PackageReference Include="Silk.NET.MoltenVK.Native" />
+    <PackageReference Include="Silk.NET.Vulkan" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SPIR-V compiled from Shaders/scene.vert and scene.frag with glslangValidator; see AGENTS.md. -->
+    <EmbeddedResource Include="Shaders/*.spv" LogicalName="%(Filename)%(Extension)" />
+    <!-- Bind Silk.NET Vulkan calls to the statically linked MoltenVK instead of probing for a dynamic loader. -->
+    <RuntimeHostConfigurationOption Include="SILK_NET_VULKAN_VK_ENABLE_PINVOKE_OVERRIDE_0" Value="true" Trim="true" />
   </ItemGroup>
 </Project>

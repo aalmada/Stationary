@@ -24,7 +24,9 @@ public static class MauiProgram
             .UseMauiApp<App>();
 
 #if MACCATALYST
-        builder.ConfigureMauiHandlers(static handlers => handlers.AddHandler<SegmentedTabs, SegmentedTabsHandler>());
+        builder.ConfigureMauiHandlers(static handlers => handlers
+            .AddHandler<SegmentedTabs, SegmentedTabsHandler>()
+            .AddHandler<RideSceneView, RideSceneViewHandler>());
         ButtonHandler.Mapper.AppendToMapping(nameof(IView.Background), ApplyMacCatalystButtonAppearance);
         ButtonHandler.Mapper.AppendToMapping(nameof(IView.IsEnabled), ApplyMacCatalystButtonAppearance);
         ButtonHandler.Mapper.AppendToMapping(nameof(ITextStyle.TextColor), ApplyMacCatalystButtonAppearance);

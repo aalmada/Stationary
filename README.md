@@ -1,6 +1,6 @@
 # Stationary
 
-Stationary is a .NET 11 toolkit for Bluetooth Fitness Machine Service (FTMS) equipment. It provides high-performance, transport-neutral codecs together with BLE connectivity, serialized Control Point coordination, telemetry presentation, heart-rate support, and a .NET MAUI dashboard for multiplatform app delivery. The dashboard uses ReactiveUI and Reactive Extensions for reactive MVVM and real-time event processing.
+Stationary is a .NET 11 toolkit for Bluetooth Fitness Machine Service (FTMS) equipment. It provides high-performance, transport-neutral codecs together with BLE connectivity, serialized Control Point coordination, telemetry presentation, heart-rate support, and a .NET MAUI dashboard for multiplatform app delivery. The dashboard supports free rides, FTP ramp tests, power- and heart-rate-guided workouts, automatic ride recording and analysis, and an achievement-based 3D ride scene. It uses ReactiveUI and Reactive Extensions for reactive MVVM and real-time event processing.
 
 ## Screenshots
 
@@ -15,6 +15,12 @@ Choose a free ride, a structured workout, or the FTP ramp test, and check that t
 The live dashboard during a workout: power with the ERG target and heart-rate cap, heart rate and zone, cadence target, interval progress, five-minute charts, ride totals, and the power-versus-cadence map.
 
 ![Ride page during the Aerobic Ladder workout with live metrics, interval timeline, charts, and power-versus-cadence map](assets/screenshots/ride.png)
+
+### Ride Scene
+
+The optional second-screen scene turns a ride into a neon-lit track, with progress and achievement HUDs, heart-rate zones, and live ride metrics.
+
+![3D ride scene with milestone progress, heart-rate zone ladder, and live power, cadence, and speed HUD](assets/screenshots/ride-scene.png)
 
 ### Results
 
@@ -109,6 +115,15 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 - Workouts use ERG's power-torque trade-off: at the same power target, a lower cadence means more resistance (torque) and a higher cadence means less. Between scored intervals, either power or the cadence range changes, never both. Recovery adds quick-feet spin-ups at the same easy power. Endurance adds seated-climb (lower cadence) and high-cadence sections at Zone 2 power. Tempo and sweet spot add low-cadence torque blocks. Threshold keeps over-unders at a steady cadence and closes each set with a seated climb. VO2 efforts use a high cadence to limit torque. Cadence skills run ladders, pyramids, and torque-spin contrasts at fixed power. Scored work with ranges starting below 75 rpm (as authored) stays at or below 95% FTP to avoid grinding into a stall.
 - Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.
 - Workout targets are generic FTP-relative prescriptions. Set FTP accurately and adjust or stop an interval if the effort is unsuitable.
+
+### 3D Ride Scene
+
+- A 3D scene of the ride renders with Vulkan through [Silk.NET](https://github.com/dotnet/Silk.NET) on MoltenVK into a `CAMetalLayer`, on its own render thread. The neon, Tron-style scene puts the camera on the centre line of a glossy light track that moves at the corrected bike speed, past neon towers under a synthwave sun. Rendering is HDR, with multi-level bloom, ACES tone mapping, and mirrored reflections on the wet grid floor and track.
+- The scene keeps two rhythms. Cadence drives the grid beat, the track scanlines, and the tower pulses. Heart rate drives the lub-dub rings coloured by heart-rate zone, the ECG trace across the sky, and the breathing horizon. The track edges follow the target status: cyan on target, amber too low, red too high.
+- A HUD over the scene shows elapsed time, distance, and progress to the next milestones; the current streak; medals and recent achievements; a heart panel with bpm, the zone name, and a zone ladder that highlights the current and target zones; the active interval; and power, cadence, and speed.
+- When a second display is connected and a ride starts, the scene opens in its own window on that display, full screen. Disable this with **Settings → 3D ride scene**. Open or close it any time with the Ride page's **3D scene** button or the **Display** menu.
+- Gamification rewards real achievements, not points. The active interval target decides whether the rider is on target: heart rate leads when the interval targets heart rate (±2 bpm), then power (±10%), then cadence (±3 rpm). A streak survives up to 5 s off target. Each interval earns gold, silver, or bronze for 90%, 75%, or 50% of its time on target. Milestone achievements unlock for distance (every 1 km up to 5 km, then every 5 km), ride time (every 5 min up to 30 min, then every 15 min), time on target (every 5 min up to 30 min, then every 10 min), streaks (2 min, every 2 min up to 10 min, then every 5 min), gold intervals (1, 3, 5, 10), and completing the workout. Each milestone passes under a light arch and shows a toast; medals and achievements launch fireworks.
+- While a ride is in progress, the app holds two macOS power assertions, `PreventUserIdleDisplaySleep` and `PreventUserIdleSystemSleep`, so neither the display nor the computer sleeps when idle. It releases both when the ride ends or the app closes. Closing a laptop lid still sleeps the computer unless an external display and power are connected, as macOS requires.
 
 ## Prerequisites
 

@@ -213,6 +213,9 @@ public sealed class AppShell : Shell, IDisposable
         menu.Add(new MenuFlyoutItem { Text = "Toggle Metric Units", Command = toggleMetricUnitsCommand });
         menu.Add(new MenuFlyoutItem { Text = "Toggle Large Values", Command = toggleLargeValuesCommand });
         menu.Add(new MenuFlyoutItem { Text = "Toggle High Contrast", Command = toggleHighContrastCommand });
+        menu.Add(new MenuFlyoutSeparator());
+        menu.Add(new MenuFlyoutItem { Text = "Show 3D Ride Scene", Command = viewModel.Scene.OpenWindowCommand });
+        menu.Add(new MenuFlyoutItem { Text = "Close 3D Ride Scene", Command = viewModel.Scene.CloseWindowCommand });
         return menu;
     }
 
