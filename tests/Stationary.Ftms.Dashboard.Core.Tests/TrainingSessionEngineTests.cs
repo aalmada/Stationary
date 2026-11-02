@@ -62,6 +62,8 @@ public sealed class TrainingSessionEngineTests
             await Assert.That(stillWaiting.State).IsSameReferenceAs(holding.State);
             await Assert.That(target.Purpose).IsEqualTo(TrainingTargetPurpose.SegmentTarget);
             await Assert.That(target.SegmentIndex).IsEqualTo(0);
+            await Assert.That(Single<RecordTrainingSegment>(pedalling).SegmentIndex).IsEqualTo(0);
+            await Assert.That(started.Effects.OfType<RecordTrainingSegment>()).IsEmpty();
             await Assert.That(applied.State.RunnerState).IsEqualTo(TrainingWorkoutState.Running);
             await Assert.That(applied.State.SegmentStartedAt).IsEqualTo(Start.AddSeconds(3));
             await Assert.That(applied.State.TargetPowerSamples).Count().IsEqualTo(1);
@@ -206,7 +208,7 @@ public sealed class TrainingSessionEngineTests
     }
 
     [Test]
-    public async Task RampTestFinish_EstimatesFtpAndReturnsToTraining()
+    public async Task RampTestFinish_EstimatesFtpAndOpensResults()
     {
         var samples = Enumerable.Range(0, 120)
             .Select(static second => new RecordedTelemetrySample(Start.AddSeconds(second), 250, null, 90, null))
@@ -227,8 +229,144 @@ public sealed class TrainingSessionEngineTests
             await Assert.That(finished.State.RampEstimate).IsNotNull();
             await Assert.That(finished.State.IsRampTest).IsFalse();
             await Assert.That(finished.State.IsActive).IsFalse();
-            await Assert.That(finished.Effects).Contains(new NavigateTo(TrainingDestination.Training));
+            await Assert.That(finished.Effects).Contains(new NavigateTo(TrainingDestination.Results));
         }
+    }
+
+    [Test]
+    public async Task RampTestStop_EstimatesFtpInsteadOfDiscardingTheTest()
+    {
+        var samples = Enumerable.Range(0, 120)
+            .Select(static second => new RecordedTelemetrySample(Start.AddSeconds(second), 300, null, 90, second < 60 ? 150 : 172.4))
+            .ToArray();
+        var rampEngine = new TrainingSessionEngine(_ => samples);
+        var begun = rampEngine.Reduce(
+            TrainingSession.Idle with { Machine = Running },
+            Begun(RampFtpProtocol.Create(Capabilities), isRampTest: true));
+        var started = rampEngine.Reduce(begun.State, new MachineSessionStarted(Start, Single<StartMachineSession>(begun), true, "Connected"));
+
+        var stopping = rampEngine.Reduce(started.State, new EndRequested(Start.AddMinutes(2)));
+        var finished = rampEngine.Reduce(stopping.State, new MachineSessionEnded(Start.AddMinutes(2), Single<EndMachineSession>(stopping), true));
+        var reviewed = rampEngine.Reduce(finished.State, new RampEstimateReviewed(Start.AddMinutes(3)));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(Single<EndMachineSession>(stopping).Purpose).IsEqualTo(TrainingEndPurpose.RampTestFinished);
+            await Assert.That(finished.State.RampEstimate is RampFtpEstimateReady { BestRollingMinutePowerWatts: 300, EstimatedFtpWatts: 225 }).IsTrue();
+            await Assert.That(finished.Effects).Contains(new NavigateTo(TrainingDestination.Results));
+            await Assert.That(finished.State.RampPeakHeartRate).IsEqualTo((ushort)172);
+            await Assert.That(reviewed.State.RampEstimate).IsNull();
+            await Assert.That(reviewed.State.RampPeakHeartRate).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task PowerCadenceAxis_GrowsWithTheRampInsteadOfTheDeviceMaximum()
+    {
+        var ramp = RampFtpProtocol.Create(Capabilities);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(PowerCadenceAxis.MaximumWatts(ramp, 0)).IsEqualTo(100d);
+            await Assert.That(PowerCadenceAxis.MaximumWatts(ramp, 3)).IsEqualTo(160d);
+            await Assert.That(PowerCadenceAxis.MaximumWatts(ramp, ramp.Segments.Count - 1)).IsEqualTo(500d);
+            await Assert.That(PowerCadenceAxis.MaximumWatts(ramp, -1)).IsNull();
+            await Assert.That(PowerCadenceAxis.MaximumWatts(null, 0)).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task RampReview_ComparesTheEstimateWithTheCurrentFtpAndOnlyAcceptsConclusiveTests()
+    {
+        var ready = TrainingSessionText.Review(new RampFtpEstimateReady(300, 225), 200)!;
+        var large = TrainingSessionText.Review(new RampFtpEstimateReady(320, 240), 200)!;
+        var first = TrainingSessionText.Review(new RampFtpEstimateReady(300, 225), null)!;
+        var inconclusive = TrainingSessionText.Review(new RampFtpEstimateDeviceMaximumReached(), 200)!;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ready.Headline).IsEqualTo("Estimated FTP: 225 W");
+            await Assert.That(ready.Detail).Contains("Current FTP 200 W (+13%)");
+            await Assert.That(ready.CanAccept).IsTrue();
+            await Assert.That(large.Detail).Contains("large change");
+            await Assert.That(first.Detail).Contains("first FTP");
+            await Assert.That(inconclusive.CanAccept).IsFalse();
+            await Assert.That(TrainingSessionText.Review(null, 200)).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task ZoneCeiling_EasesPowerAboveTheCeilingAndRestoresItOnceHeartRateSettles()
+    {
+        var workout = CreateCeilingWorkout(targetWatts: 60);
+        var running = StartRunning(workout, out var startedAt, HeartRateAt(Start, 120));
+
+        var easing = engine.Reduce(running, new ClockTicked(startedAt.AddSeconds(10), HeartRateAt(startedAt.AddSeconds(10), 150)));
+        var eased = Single<ApplyPowerTarget>(easing);
+        var lowered = engine.Reduce(easing.State, new PowerTargetCompleted(startedAt.AddSeconds(11), eased, true));
+        var holding = engine.Reduce(lowered.State, new ClockTicked(startedAt.AddSeconds(20), HeartRateAt(startedAt.AddSeconds(20), 137)));
+        var restoring = engine.Reduce(lowered.State, new ClockTicked(startedAt.AddSeconds(20), HeartRateAt(startedAt.AddSeconds(20), 130)));
+        var restored = Single<ApplyPowerTarget>(restoring);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(eased.Purpose).IsEqualTo(TrainingTargetPurpose.HeartRateAdjustment);
+            await Assert.That(eased.Watts).IsEqualTo(50);
+            await Assert.That(eased.AcceptedNotice).IsEqualTo("Heart rate above the 140 bpm ceiling; easing power to 50 W.");
+            await Assert.That(lowered.State.CurrentTargetWatts).IsEqualTo(50);
+            await Assert.That(holding.Effects.OfType<ApplyPowerTarget>()).IsEmpty();
+            await Assert.That(restored.Watts).IsEqualTo(60);
+            await Assert.That(restored.AcceptedNotice).IsEqualTo("Heart rate settled below the 140 bpm ceiling; restoring power to 60 W.");
+        }
+    }
+
+    [Test]
+    public async Task ZoneCeiling_WaitsForTheRampAndNeverPausesOnHeartRateLoss()
+    {
+        var running = StartRunning(CreateCeilingWorkout(targetWatts: 150), out var startedAt, HeartRateAt(Start, 120));
+
+        var ramping = engine.Reduce(running, new ClockTicked(startedAt.AddSeconds(10), HeartRateAt(startedAt.AddSeconds(10), 160)));
+        var stale = engine.Reduce(running, new ClockTicked(startedAt.AddSeconds(30), HeartRateAt(Start, 160)));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ramping.Effects.OfType<ApplyPowerTarget>().Select(static target => target.Purpose)).IsEquivalentTo([TrainingTargetPurpose.RampStep]);
+            await Assert.That(stale.Effects.OfType<ApplyPowerTarget>().Any(static target => target.Purpose is TrainingTargetPurpose.HeartRateSafeTarget or TrainingTargetPurpose.HeartRateAdjustment)).IsFalse();
+            await Assert.That(stale.Effects.OfType<PauseMachineSession>()).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task AerobicCapacityWorkout_ReportsTimeNearMaximumHeartRate()
+    {
+        var samples = Enumerable.Range(0, 61)
+            .Select(static second => new RecordedTelemetrySample(Start.AddSeconds(second), 250, null, 90, second < 30 ? 170 : 185))
+            .ToArray();
+        var recordingEngine = new TrainingSessionEngine(_ => samples);
+        var workout = CreateWorkout(segmentCount: 1) with { NearMaximumHeartRate = 180 };
+        var begun = recordingEngine.Reduce(TrainingSession.Idle with { Machine = Running }, Begun(workout));
+        var started = recordingEngine.Reduce(begun.State, new MachineSessionStarted(Start, Single<StartMachineSession>(begun), true, "Connected"));
+        var holding = recordingEngine.Reduce(started.State, new PowerTargetCompleted(Start, Single<ApplyPowerTarget>(started), true));
+        var pedalling = recordingEngine.Reduce(holding.State, new ClockTicked(Start, Pedalling));
+        var applied = recordingEngine.Reduce(pedalling.State, new PowerTargetCompleted(Start, Single<ApplyPowerTarget>(pedalling), true));
+
+        var completed = recordingEngine.Reduce(applied.State, new ClockTicked(Start.AddMinutes(1), Pedalling));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(completed.State.TimeNearMaximumHeartRate).IsEqualTo(TimeSpan.FromSeconds(30));
+            await Assert.That(completed.Effects).Contains(new AddTrainingEvent("Time near maximum heart rate (at or above 180 bpm): 0:30"));
+        }
+    }
+
+    private static TrainingTelemetry HeartRateAt(DateTimeOffset capturedAt, ushort beatsPerMinute) =>
+        new(90, 150, new HeartRateObservation(capturedAt, beatsPerMinute), null);
+
+    private static CompiledTrainingWorkout CreateCeilingWorkout(int targetWatts)
+    {
+        var segment = new TrainingSegment("Aerobic", TimeSpan.FromMinutes(10), 70d, null, null, "Ride easy", true, HeartRateCeiling: new(HeartRateCeilingIntensity.Endurance, 25d));
+        var definition = new TrainingWorkout("ceiling", "Ceiling", "Ceiling workout", TrainingObjective.Endurance, TrainingExperienceLevel.Beginner, [segment]);
+        return new CompiledTrainingWorkout(definition, [new CompiledTrainingSegment(segment, targetWatts, 50, targetWatts, null, null, 140)]);
     }
 
     private TrainingSession StartRunning(CompiledTrainingWorkout workout, out DateTimeOffset startedAt, TrainingTelemetry? telemetry = null)

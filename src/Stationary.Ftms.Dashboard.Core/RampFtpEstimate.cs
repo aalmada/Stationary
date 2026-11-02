@@ -4,6 +4,8 @@ public sealed record RampFtpEstimateReady(int BestRollingMinutePowerWatts, ushor
 
 public sealed record RampFtpEstimateInsufficientTelemetry;
 
+public sealed record RampFtpReview(string Headline, string Detail, bool CanAccept);
+
 public sealed record RampFtpEstimateDeviceMaximumReached;
 
 public union RampFtpEstimate(RampFtpEstimateReady, RampFtpEstimateInsufficientTelemetry, RampFtpEstimateDeviceMaximumReached);
@@ -53,6 +55,15 @@ public static class RampFtpEstimator
         var bestWatts = checked((int)double.Round(best, MidpointRounding.AwayFromZero));
         var estimate = checked((ushort)double.Round(best * 0.75d, MidpointRounding.AwayFromZero));
         return new RampFtpEstimateReady(bestWatts, estimate);
+    }
+
+    public static ushort? PeakHeartRate(IReadOnlyList<RecordedTelemetrySample> samples)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        var peak = samples.Max(static sample => sample.HeartRateBeatsPerMinute);
+        return peak is double beats and > 0d and <= ushort.MaxValue
+            ? (ushort)double.Round(beats, MidpointRounding.AwayFromZero)
+            : null;
     }
 
     private static double? GetRollingMinuteAverage(IReadOnlyList<RecordedTelemetrySample> samples, int startIndex)

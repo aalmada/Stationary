@@ -38,7 +38,12 @@ public sealed record TrainingSegment(
     int? MaximumCadenceRpm,
     string Cue,
     bool CountsTowardAdherence,
-    HeartRateTrainingTarget? HeartRateTarget = null);
+    HeartRateTrainingTarget? HeartRateTarget = null,
+    HeartRateTrainingCeiling? HeartRateCeiling = null);
+
+// Power stays the target; when heart rate rises above the profile's ceiling for this intensity, power eases toward the floor
+// and returns once heart rate settles.
+public sealed record HeartRateTrainingCeiling(HeartRateCeilingIntensity Intensity, double MinimumFunctionalThresholdPowerPercentage);
 
 public sealed record HeartRateTrainingTarget(
     ushort? MinimumBeatsPerMinute,
@@ -102,7 +107,8 @@ public sealed record CompiledTrainingSegment(
     int MinimumTargetWatts,
     int MaximumTargetWatts,
     ushort? TargetMinimumHeartRate,
-    ushort? TargetMaximumHeartRate)
+    ushort? TargetMaximumHeartRate,
+    ushort? CeilingHeartRate = null)
 {
     public CompiledTrainingSegment(TrainingSegment definition, int targetWatts)
         : this(definition, targetWatts, targetWatts, targetWatts, null, null)
@@ -110,7 +116,11 @@ public sealed record CompiledTrainingSegment(
     }
 }
 
-public sealed record CompiledTrainingWorkout(TrainingWorkout Definition, IReadOnlyList<CompiledTrainingSegment> Segments);
+public sealed record CompiledTrainingWorkout(TrainingWorkout Definition, IReadOnlyList<CompiledTrainingSegment> Segments)
+{
+    // Heart rate at or above this counts as time near VO2max; set for aerobic-capacity workouts when zones are known.
+    public ushort? NearMaximumHeartRate { get; init; }
+}
 
 public static class TrainingWorkoutCompiler
 {
@@ -195,11 +205,37 @@ public static class TrainingWorkoutCompiler
                 capabilities,
                 segment.Name);
 
+            if (segment.HeartRateCeiling is { } ceiling && ResolveCeiling(ceiling, heartRateZones) is ushort ceilingHeartRate)
+            {
+                var floorWatts = int.Min(
+                    powerTargetWatts,
+                    GetBoundedTargetWatts(functionalThresholdPowerWatts * ceiling.MinimumFunctionalThresholdPowerPercentage / 100d, capabilities, segment.Name, roundUp: true));
+                segments[index] = new(adjustedSegment, powerTargetWatts, floorWatts, powerTargetWatts, null, null, ceilingHeartRate);
+                continue;
+            }
+
             segments[index] = new(adjustedSegment, powerTargetWatts, powerTargetWatts, powerTargetWatts, null, null);
         }
 
-        return new(workout, segments);
+        return new(workout, segments) { NearMaximumHeartRate = GetNearMaximumHeartRate(workout, segments, heartRateZones) };
     }
+
+    // Ceilings are an optional refinement: without zones, or with a custom profile, the segment stays power-only.
+    private static ushort? ResolveCeiling(HeartRateTrainingCeiling ceiling, HeartRateZoneProfile? profile) =>
+        profile?.EasyCeilings is { } ceilings
+            ? ceiling.Intensity switch
+            {
+                HeartRateCeilingIntensity.Recovery => ceilings.Recovery,
+                HeartRateCeilingIntensity.Endurance => ceilings.Endurance,
+                _ => null,
+            }
+            : null;
+
+    private static ushort? GetNearMaximumHeartRate(TrainingWorkout workout, CompiledTrainingSegment[] segments, HeartRateZoneProfile? profile) =>
+        profile?.AerobicCapacity is { NearMaximum: var nearMaximum }
+            && (workout.Objective == TrainingObjective.Vo2Max || segments.Any(segment => segment.TargetMaximumHeartRate >= nearMaximum))
+                ? nearMaximum
+                : null;
 
     public static bool IsValidPreferredCadence(int preferredCadenceRpm) =>
         preferredCadenceRpm is >= MinimumPreferredCadenceRpm and <= MaximumPreferredCadenceRpm;
@@ -279,6 +315,16 @@ public static class TrainingWorkoutCompiler
             || segment.MaximumCadenceRpm is < MinimumCadenceTargetRpm or > MaximumCadenceTargetRpm)
         {
             throw new ArgumentException("Cadence targets must be between 20 and 150 rpm.", nameof(segment));
+        }
+
+        if (segment.HeartRateCeiling is { } ceiling
+            && (segment.HeartRateTarget is not null
+                || !Enum.IsDefined(ceiling.Intensity)
+                || !double.IsFinite(ceiling.MinimumFunctionalThresholdPowerPercentage)
+                || ceiling.MinimumFunctionalThresholdPowerPercentage <= 0d
+                || ceiling.MinimumFunctionalThresholdPowerPercentage > segment.FunctionalThresholdPowerPercentage))
+        {
+            throw new ArgumentException("A heart-rate ceiling needs a known intensity and a power floor at or below the segment target, and cannot be combined with a heart-rate target.", nameof(segment));
         }
 
         if (segment.HeartRateTarget is { } target)

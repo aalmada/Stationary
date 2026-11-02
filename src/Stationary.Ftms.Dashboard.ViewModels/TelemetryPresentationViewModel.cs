@@ -174,6 +174,10 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject, IDi
     [Reactive]
     public partial string PeakPowerText { get; private set; } = "--";
 
+    // True once the current session has recorded pedalling power, so an idle connection is not presented as a ride.
+    [Reactive]
+    public partial bool HasSessionEffort { get; private set; }
+
     [Reactive]
     public partial string SpeedText { get; private set; } = "-- km/h";
 
@@ -519,6 +523,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject, IDi
         sessionMaximumPower = sessionMaximumPower is double currentMaximum
             ? double.Max(currentMaximum, power)
             : power;
+        HasSessionEffort = sessionMaximumPower > 0;
         cyclingMetrics.Add(new(snapshot.CapturedAt, power));
     }
 
@@ -601,6 +606,7 @@ public sealed partial class TelemetryPresentationViewModel : ReactiveObject, IDi
         sessionPowerTotal = 0d;
         sessionPowerSampleCount = 0;
         sessionMaximumPower = null;
+        HasSessionEffort = false;
         cyclingMetrics.Reset();
     }
 

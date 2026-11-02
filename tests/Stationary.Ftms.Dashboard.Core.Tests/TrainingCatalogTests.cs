@@ -26,6 +26,30 @@ public sealed class TrainingCatalogTests
     }
 
     [Test]
+    public async Task PlanWeekSummary_ExplainsRidesEasyGapStrengthAndRest()
+    {
+        static TrainingWorkout Workout(int minutes) => new("w", "W", "W", TrainingObjective.Endurance, TrainingExperienceLevel.Beginner,
+            [new("Ride", TimeSpan.FromMinutes(minutes), 60d, null, null, "Ride", true)]);
+        var week = new TrainingPlanWeek(1, TrainingPlanPhase.Foundation, 90, 1, 3, ["a", "b"], "Focus");
+
+        var summary = TrainingPlanWeekSummary.Create(week, [Workout(35), Workout(25)]);
+        var covered = TrainingPlanWeekSummary.Create(week with { StrengthSessions = 0, RecoveryDays = 1 }, [Workout(95)]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Rides).IsEqualTo("Ride all 2 workouts below, on separate days");
+            await Assert.That(summary.EasyRiding).IsEqualTo("90 min total");
+            await Assert.That(summary.EasyRidingDetail).IsEqualTo("Workouts last 60 min; add at least 30 min of easy riding at talking pace");
+            await Assert.That(summary.Strength).IsEqualTo("1 session (optional)");
+            await Assert.That(summary.Rest).IsEqualTo("3 days without training");
+            await Assert.That(covered.Rides).IsEqualTo("Ride the workout below");
+            await Assert.That(covered.EasyRidingDetail).IsEqualTo("Easy parts of the workouts count toward it");
+            await Assert.That(covered.Strength).IsEqualTo("None this week");
+            await Assert.That(covered.Rest).IsEqualTo("1 day without training");
+        }
+    }
+
+    [Test]
     public async Task Compile_AllCatalogWorkoutsSupportCoarsePowerIncrements()
     {
         var catalog = await TrainingCatalog.LoadAsync();

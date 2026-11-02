@@ -281,6 +281,7 @@ public sealed class PowerCadenceMap : GraphicsView
         private const float Inset = 5;
         private const float VerticalLabelWidth = 28;
         private const float HorizontalLabelHeight = 13;
+        private const float HorizontalLabelHalfWidth = 15;
         private static readonly Color PlotBackgroundColor = Color.FromArgb("F3F7F7");
         private static readonly Color StarColor = Color.FromArgb("A2A9B0");
 
@@ -311,7 +312,7 @@ public sealed class PowerCadenceMap : GraphicsView
             var plot = new RectF(
                 Inset + VerticalLabelWidth,
                 Inset,
-                dirtyRect.Width - (Inset * 2) - VerticalLabelWidth,
+                dirtyRect.Width - (Inset * 2) - VerticalLabelWidth - HorizontalLabelHalfWidth,
                 dirtyRect.Height - (Inset * 2) - HorizontalLabelHeight);
             if (plot.Width <= 0 || plot.Height <= 0)
             {
@@ -361,9 +362,10 @@ public sealed class PowerCadenceMap : GraphicsView
             }
 
             maximumCadence += cadencePadding;
+            var maximumSamplePower = Points.Count > 0 ? Points.Max(point => point.PowerWatts) : 0d;
             var maximumObservedPower = AxisMaximumWatts is double axisWatts
-                ? axisWatts * 1.25d
-                : Points.Count > 0 ? Points.Max(point => point.PowerWatts) : 0d;
+                ? double.Max(axisWatts * 1.25d, maximumSamplePower)
+                : maximumSamplePower;
             var targetPowerCeiling = TargetPowerWatts is double targetWatts
                 ? targetWatts + double.Max(5d, targetWatts * 0.05d)
                 : 0d;
@@ -482,7 +484,7 @@ public sealed class PowerCadenceMap : GraphicsView
                     VerticalAlignment.Center);
                 canvas.DrawString(
                     power.ToString("F0", CultureInfo.InvariantCulture),
-                    new RectF(plot.Left + verticalOffset - 15, plot.Bottom + 1, 30, HorizontalLabelHeight),
+                    new RectF(plot.Left + verticalOffset - HorizontalLabelHalfWidth, plot.Bottom + 1, HorizontalLabelHalfWidth * 2, HorizontalLabelHeight),
                     HorizontalAlignment.Center,
                     VerticalAlignment.Center);
             }
@@ -493,7 +495,7 @@ public sealed class PowerCadenceMap : GraphicsView
             canvas.FontColor = Color.FromArgb(highContrast ? "33433D" : "66746D");
             canvas.FontSize = 9;
             canvas.DrawString("cadence rpm ↑ (you)", new RectF(plot.Left + 4, plot.Top + 2, plot.Width / 2, 12), HorizontalAlignment.Left, VerticalAlignment.Top);
-            canvas.DrawString("power W → (bike, dashed = target)", new RectF(plot.Center.X, plot.Bottom - 14, (plot.Width / 2) - 4, 12), HorizontalAlignment.Right, VerticalAlignment.Bottom);
+            canvas.DrawString("power W → (dashed = target)", new RectF(plot.Left + 4, plot.Bottom - 14, plot.Width - 8, 12), HorizontalAlignment.Right, VerticalAlignment.Bottom);
         }
 
         // Samples outside a fixed axis are pinned to the plot edge so the current dot stays visible.

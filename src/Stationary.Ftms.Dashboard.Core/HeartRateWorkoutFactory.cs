@@ -21,7 +21,7 @@ public static class HeartRateWorkoutFactory
         var enduranceMaximum = endurance.MaximumBeatsPerMinute
             ?? throw new ArgumentException("Endurance zone workouts need a bounded second heart-rate zone.", nameof(profile));
 
-        return [
+        TrainingWorkout[] zoneWorkouts = [
             CreateZoneWorkout(
                 "heart-rate-recovery",
                 "Heart-rate recovery",
@@ -43,6 +43,47 @@ public static class HeartRateWorkoutFactory
                 TimeSpan.FromMinutes(30),
                 "Settle into the zone; the bike power target adjusts gradually to follow heart rate."),
         ];
+        return profile.AerobicCapacity is { } aerobicCapacity
+            ? [.. zoneWorkouts, CreateAerobicCapacityIntervals(aerobicCapacity)]
+            : zoneWorkouts;
+    }
+
+    // Helgerud et al. (2007) 4x4: four 4-minute intervals at 85-95% of maximum heart rate with 3-minute active recoveries.
+    // Power opens each interval because heart rate lags, then trims it into the band once heart rate has risen.
+    private static TrainingWorkout CreateAerobicCapacityIntervals(HeartRateAerobicCapacity band)
+    {
+        var target = HeartRateTrainingTarget.ForRange(band.IntervalMinimum, band.IntervalMaximum, 85d, 120d);
+        var interval = TimeSpan.FromMinutes(4);
+        var recovery = TimeSpan.FromMinutes(3);
+        List<TrainingSegment> segments = [new("Warm up", TimeSpan.FromMinutes(10), 55d, null, null, "Build gradually to a comfortable aerobic effort.", false)];
+        for (var number = 1; number <= 4; number++)
+        {
+            segments.Add(new(
+                $"Interval {number}",
+                interval,
+                105d,
+                null,
+                null,
+                $"Breathe hard but stay controlled; power trims to hold {band.IntervalMinimum}-{band.IntervalMaximum} bpm once heart rate rises.",
+                true,
+                target));
+            if (number < 4)
+            {
+                segments.Add(new($"Active recovery {number}", recovery, 50d, null, null, "Keep pedalling easily so heart rate drops but blood keeps moving.", false));
+            }
+        }
+
+        segments.Add(new("Cool down", TimeSpan.FromMinutes(5), 40d, null, null, "Ease off gradually.", false));
+        return new(
+            "heart-rate-4x4",
+            "Heart-rate 4x4 intervals",
+            $"Aerobic-capacity intervals at {band.IntervalMinimum}-{band.IntervalMaximum} bpm (about 85-95% of maximum heart rate). Only for riders cleared for vigorous exercise.",
+            TrainingObjective.HeartRate,
+            TrainingExperienceLevel.Intermediate,
+            segments)
+        {
+            Kind = TrainingWorkoutKind.HeartRateZone,
+        };
     }
 
     public static TrainingWorkout CreateGeneralHealthWorkout(

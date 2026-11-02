@@ -81,13 +81,9 @@
             <VerticalStackLayout Spacing="4">
               <Label Text="FTP TEST" Style="{StaticResource TileCaption}" />
               <Label Text="Ramp test" FontAttributes="Bold" FontSize="20" />
-              <Label Text="Five easy minutes, then one-minute steps until you cannot hold the target. The estimate updates your zones and workout targets." TextColor="{StaticResource Muted}" FontSize="12" />
-              <Label Text="{Binding Training.RampEstimateText}" FontAttributes="Bold" FontSize="12" />
+              <Label Text="Five easy minutes, then one-minute steps until you cannot hold the target. Review the estimate on Results to update your zones and workout targets." TextColor="{StaticResource Muted}" FontSize="12" />
             </VerticalStackLayout>
-            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
-              <Button Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding Training.StartRampTestCommand}" />
-              <Button Grid.Column="1" Style="{StaticResource SecondaryActionButton}" Text="Accept FTP" Command="{Binding Training.AcceptRampEstimateCommand}" />
-            </Grid>
+            <Button Grid.Row="2" Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding Training.StartRampTestCommand}" />
           </Grid>
         </Border>
       </Grid>
@@ -127,6 +123,7 @@
               <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
                 <Label Text="{Binding HeartRateChipText}" FontAttributes="Bold" />
                 <Label Text="{Binding HeartRateChipDetail}" Style="{StaticResource TileDetail}" />
+                <Label Text="{Binding HeartRate.ZoneStatusText}" Style="{StaticResource TileDetail}" />
               </VerticalStackLayout>
               <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Text="Pair" Command="{Binding ShowHeartRateSensorCommand}" VerticalOptions="Center" />
             </Grid>

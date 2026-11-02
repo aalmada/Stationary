@@ -32,6 +32,8 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private readonly IObservable<bool> canEnd;
     private readonly IObservable<bool> canFinishRampTest;
     private readonly IObservable<bool> canAcceptRampEstimate;
+    private readonly IObservable<bool> canKeepCurrentFtp;
+    private readonly IObservable<bool> canUseRampPeakAsMaximumHeartRate;
     private IReadOnlyDictionary<string, TrainingWorkout> workoutsById = new Dictionary<string, TrainingWorkout>(StringComparer.Ordinal);
     private readonly ObservableCollection<TrainingWorkout> workouts = [];
     private TrainingPlanWeek? selectedPlanWeek;
@@ -66,11 +68,13 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         disposables.Add(transitions.Connect());
 
         _activeSegmentsHelper = this.WhenAnyValue(viewModel => viewModel.Session)
-            .Select(static session => session.Workout)
+            .Select(static session => (session.Workout, Count: session is { Workout: { } workout, IsRampTest: true }
+                ? RampFtpProtocol.VisibleSegmentCount(session.Runner?.SegmentIndex ?? 0, workout.Segments.Count)
+                : session.Workout?.Segments.Count ?? 0))
             .DistinctUntilChanged()
-            .Select(static workout => workout is null
+            .Select(static view => view.Workout is null
                 ? (IReadOnlyList<TrainingSegment>)[]
-                : [.. workout.Segments.Select(static segment => segment.Definition)])
+                : [.. view.Workout.Segments.Take(view.Count).Select(static segment => segment.Definition)])
             .ToProperty(this, viewModel => viewModel.ActiveSegments, [], scheduler: ImmediateScheduler.Instance);
         disposables.Add(_activeSegmentsHelper);
 
@@ -124,6 +128,46 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         canEnd = session.Select(static value => value.IsActive).DistinctUntilChanged();
         canFinishRampTest = session.Select(static value => value.CanFinishRampTest).DistinctUntilChanged();
         canAcceptRampEstimate = session.Select(static value => value.RampEstimate is RampFtpEstimateReady).DistinctUntilChanged();
+        canKeepCurrentFtp = session.Select(static value => value.RampEstimate is not null).DistinctUntilChanged();
+        _rampReviewHelper = Observable.CombineLatest(
+                session.Select(static value => value.RampEstimate).DistinctUntilChanged(),
+                dashboard.Telemetry.WhenAnyValue(static telemetry => telemetry.FunctionalThresholdPowerText).Select(ParseFunctionalThresholdPower),
+                TrainingSessionText.Review)
+            .ToProperty(this, viewModel => viewModel.RampReview, (RampFtpReview?)null, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_rampReviewHelper);
+        _hasRampReviewHelper = this.WhenAnyValue(static viewModel => viewModel.RampReview)
+            .Select(static review => review is not null)
+            .ToProperty(this, viewModel => viewModel.HasRampReview, false, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_hasRampReviewHelper);
+        var heartRate = dashboard.HeartRate;
+        _rampHeartRateReviewHelper = Observable.CombineLatest(
+                session.Select(static value => (IsReviewing: value.RampEstimate is not null, Peak: value.RampPeakHeartRate))
+                    .DistinctUntilChanged(),
+                heartRate.WhenAnyValue(
+                    static viewModel => viewModel.MaximumHeartRateText,
+                    static viewModel => viewModel.LactateThresholdText,
+                    static viewModel => viewModel.ActiveZoneMethod,
+                    (_, _, _) => (heartRate.ConfiguredMaximumHeartRate, heartRate.ActiveLactateThreshold)),
+                static (ramp, heart) => ramp.IsReviewing
+                    ? HeartRateZoneGuidance.ReviewRampPeak(ramp.Peak, heart.ConfiguredMaximumHeartRate, heart.ActiveLactateThreshold)
+                    : (RampHeartRateReview?)null)
+            .ToProperty(this, viewModel => viewModel.RampHeartRateReview, (RampHeartRateReview?)null, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_rampHeartRateReviewHelper);
+        var rampHeartRateReview = this.WhenAnyValue(static viewModel => viewModel.RampHeartRateReview);
+        canUseRampPeakAsMaximumHeartRate = rampHeartRateReview.Select(static review => review?.SuggestedMaximumHeartRate is not null);
+        _rampHeartRateTextHelper = rampHeartRateReview
+            .Select(static review => review?.Text ?? string.Empty)
+            .ToProperty(this, viewModel => viewModel.RampHeartRateText, string.Empty, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_rampHeartRateTextHelper);
+        _canUseRampPeakHelper = canUseRampPeakAsMaximumHeartRate
+            .ToProperty(this, viewModel => viewModel.CanUseRampPeak, false, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_canUseRampPeakHelper);
+        _selectedPlanWeekSummaryHelper = this.WhenAnyValue(
+                static viewModel => viewModel.SelectedPlanWeek,
+                static viewModel => viewModel.SelectedPlanWorkouts,
+                static (week, workouts) => week is null ? TrainingPlanWeekSummary.Empty : TrainingPlanWeekSummary.Create(week, workouts))
+            .ToProperty(this, viewModel => viewModel.SelectedPlanWeekSummary, TrainingPlanWeekSummary.Empty, scheduler: ImmediateScheduler.Instance);
+        disposables.Add(_selectedPlanWeekSummaryHelper);
 
         disposables.Add(Observable.Merge(
                 StartCommand.ThrownExceptions.Select(static exception => $"Training could not start: {exception.Message}"),
@@ -134,7 +178,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
                         RetryCommand.ThrownExceptions,
                         EndCommand.ThrownExceptions,
                         FinishRampTestCommand.ThrownExceptions,
-                        AcceptRampEstimateCommand.ThrownExceptions)
+                        AcceptRampEstimateCommand.ThrownExceptions,
+                        KeepCurrentFtpCommand.ThrownExceptions,
+                        UseRampPeakAsMaximumHeartRateCommand.ThrownExceptions)
                     .Select(static exception => $"Training operation failed: {exception.Message}"),
                 LoadCatalogCommand.ThrownExceptions.Select(_ =>
                 {
@@ -265,6 +311,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         }
     }
 
+    [ObservableAsProperty(InitialValue = "global::Stationary.Ftms.Dashboard.Core.TrainingPlanWeekSummary.Empty")]
+    public partial TrainingPlanWeekSummary SelectedPlanWeekSummary { get; }
+
     public IReadOnlyList<TrainingWorkout> SelectedPlanWorkouts => SelectedPlanWeek is null
         ? []
         : [.. SelectedPlanWeek.WorkoutIds.Select(workoutId => workoutsById[workoutId])];
@@ -295,7 +344,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     public string CurrentTargetText => IsActive && CurrentTargetWatts > 0
         ? Runner?.CurrentSegment is { TargetMinimumHeartRate: ushort minimum, TargetMaximumHeartRate: ushort maximum }
             ? string.Create(CultureInfo.InvariantCulture, $"HR {minimum}-{maximum} bpm · power {CurrentTargetWatts} W")
-            : string.Create(CultureInfo.InvariantCulture, $"ERG target {CurrentTargetWatts} W")
+            : Runner?.CurrentSegment is { CeilingHeartRate: ushort ceiling }
+                ? string.Create(CultureInfo.InvariantCulture, $"ERG target {CurrentTargetWatts} W · HR cap {ceiling} bpm")
+                : string.Create(CultureInfo.InvariantCulture, $"ERG target {CurrentTargetWatts} W")
         : string.Empty;
 
     public double? PowerCadenceTargetWatts => IsActive && CurrentTargetWatts > 0 ? CurrentTargetWatts : null;
@@ -313,8 +364,8 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         ? ActiveWorkout?.Segments.Max(static segment => segment.Definition.MaximumCadenceRpm ?? segment.Definition.MinimumCadenceRpm)
         : null;
 
-    public double? PowerCadenceAxisMaximumWatts => IsActive && ActiveWorkout is { Segments.Count: > 0 } workout
-        ? workout.Segments.Max(static segment => segment.TargetWatts)
+    public double? PowerCadenceAxisMaximumWatts => IsActive && Runner is { } runner
+        ? PowerCadenceAxis.MaximumWatts(ActiveWorkout, runner.SegmentIndex)
         : null;
 
     public string CadenceCalibrationText => Session.CadenceCalibrationText;
@@ -327,8 +378,14 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         _ => string.Empty,
     };
 
+    public string WorkoutRemainingDetailText => IsRampTest
+        ? $"{WorkoutElapsedText} elapsed · ends when you stop"
+        : $"{WorkoutRemainingText} workout left";
+
     public string NextSegmentText => Runner is { } activeRunner && ActiveWorkout is { } workout
-        ? activeRunner.SegmentIndex + 1 < workout.Segments.Count
+        ? IsRampTest && activeRunner.SegmentIndex + 1 < workout.Segments.Count
+            ? $"Next: {RampFtpProtocol.DescribeStep(activeRunner.SegmentIndex + 1)} · {workout.Segments[activeRunner.SegmentIndex + 1].TargetWatts} W"
+        : activeRunner.SegmentIndex + 1 < workout.Segments.Count
             ? $"Next: {workout.Segments[activeRunner.SegmentIndex + 1].Definition.Name} · {FormatRemainingTime(workout.Segments[activeRunner.SegmentIndex + 1].Definition.Duration)} at {GetTargetDescription(workout.Segments[activeRunner.SegmentIndex + 1])}"
             : "Final interval"
         : string.Empty;
@@ -347,7 +404,20 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
 
     public RampFtpEstimate? RampEstimate => Session.RampEstimate;
 
-    public string RampEstimateText => TrainingSessionText.Describe(RampEstimate);
+    [ObservableAsProperty]
+    public partial RampFtpReview? RampReview { get; }
+
+    [ObservableAsProperty]
+    public partial bool HasRampReview { get; }
+
+    [ObservableAsProperty]
+    public partial RampHeartRateReview? RampHeartRateReview { get; }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string RampHeartRateText { get; }
+
+    [ObservableAsProperty]
+    public partial bool CanUseRampPeak { get; }
 
     public string StatusText => Session.StatusText;
 
@@ -360,7 +430,9 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     public string CurrentWorkoutName => IsRampTest ? "FTP ramp test" : ActiveWorkout?.Definition.Name ?? SelectedWorkout?.Name ?? "Workout";
 
     public string IntervalProgressText => Runner is { } activeRunner
-        ? $"Interval {activeRunner.SegmentIndex + 1} of {activeRunner.SegmentCount}"
+        ? IsRampTest
+            ? RampFtpProtocol.DescribeStep(activeRunner.SegmentIndex)
+            : $"Interval {activeRunner.SegmentIndex + 1} of {activeRunner.SegmentCount}"
         : "No active interval";
 
     public string CurrentIntervalRemainingText => Runner?.GetCurrentSegmentRemaining(DateTimeOffset.UtcNow) is { } remaining
@@ -401,6 +473,8 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         EndCommand.Dispose();
         FinishRampTestCommand.Dispose();
         AcceptRampEstimateCommand.Dispose();
+        KeepCurrentFtpCommand.Dispose();
+        UseRampPeakAsMaximumHeartRateCommand.Dispose();
     }
 
     [ReactiveCommand]
@@ -678,7 +752,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     {
         SelectedPlan = plan;
         SelectedPlanWeek = plan.Weeks[0];
-        Post($"{plan.Name} selected. Choose a week, then one of its workouts.");
+        Post($"{plan.Name} selected. Choose a week, then ride each of its workouts on separate days.");
     }
 
     [ReactiveCommand(CanExecute = nameof(canSelect))]
@@ -737,8 +811,30 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         var ftp = estimate.EstimatedFtpWatts;
         dashboard.Telemetry.FunctionalThresholdPowerText = ftp.ToString(CultureInfo.InvariantCulture);
         await dashboard.Telemetry.ApplyFunctionalThresholdPowerCommand.Execute().ToTask(cancellationToken);
+        Dispatch(new RampEstimateReviewed(DateTimeOffset.UtcNow));
         Post($"FTP updated to {ftp} W.");
     }
+
+    [ReactiveCommand(CanExecute = nameof(canKeepCurrentFtp))]
+    private void KeepCurrentFtp()
+    {
+        Dispatch(new RampEstimateReviewed(DateTimeOffset.UtcNow));
+        Post("FTP unchanged.");
+    }
+
+    [ReactiveCommand(CanExecute = nameof(canUseRampPeakAsMaximumHeartRate))]
+    private async Task UseRampPeakAsMaximumHeartRateAsync(CancellationToken cancellationToken)
+    {
+        if (RampHeartRateReview?.SuggestedMaximumHeartRate is not ushort peak)
+        {
+            return;
+        }
+
+        Post(await dashboard.HeartRate.ApplyMaximumHeartRateCommand.Execute(peak).ToTask(cancellationToken));
+    }
+
+    private static ushort? ParseFunctionalThresholdPower(string text) =>
+        ushort.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var watts) && watts > 0 ? watts : null;
 
     private void Dispatch(TrainingSessionEvent sessionEvent) => events.OnNext(sessionEvent);
 
@@ -748,6 +844,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
     private IObservable<TrainingSessionEvent> Execute(TrainingSessionEffect effect) => effect switch
     {
         AddTrainingEvent add => Run(() => dashboard.AddTrainingEvent(add.Text)),
+        RecordTrainingSegment record => Run(() => dashboard.RecordTrainingSegment(record.SegmentIndex, record.Segment, record.IsRampStep)),
         NavigateTo navigate => Run(() => dashboard.RequestNavigation(ToDashboardDestination(navigate.Destination))),
         ResetSafetyAcknowledgements => Run(ResetAcknowledgements),
         RecordHeartRateVolume record => Observable.Defer(() => Observable.Return<TrainingSessionEvent>(RecordVolume(record))),
@@ -912,6 +1009,11 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
             return $"Ramping toward {segment.TargetWatts} W. Keep cadence steady.";
         }
 
+        if (segment.CeilingHeartRate is ushort ceiling && heartRate is { BeatsPerMinute: var bpm } && bpm > ceiling)
+        {
+            return $"Heart rate {bpm} bpm is above the {ceiling} bpm ceiling for this easy block; power eases until it settles.";
+        }
+
         var segmentIndex = runner.SegmentIndex;
         if (elapsed < rampEnd + session.GetSettlingDuration(segmentIndex)
             && (session.IsCadenceTransition(segmentIndex) || session.ChangesPowerTarget(segmentIndex)))
@@ -972,6 +1074,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(WorkoutProgress));
         this.RaisePropertyChanged(nameof(WorkoutElapsedText));
         this.RaisePropertyChanged(nameof(WorkoutRemainingText));
+        this.RaisePropertyChanged(nameof(WorkoutRemainingDetailText));
     }
 
     private void NotifySessionChanged()
@@ -983,7 +1086,6 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(AdherenceText));
         this.RaisePropertyChanged(nameof(CadenceCalibrationText));
         this.RaisePropertyChanged(nameof(RampEstimate));
-        this.RaisePropertyChanged(nameof(RampEstimateText));
         this.RaisePropertyChanged(nameof(TargetPowerSamples));
         this.RaisePropertyChanged(nameof(CanPause));
         this.RaisePropertyChanged(nameof(CanResume));
@@ -1017,5 +1119,7 @@ public sealed partial class TrainingViewModel : ReactiveObject, IDisposable
         segment.TargetMinimumHeartRate is ushort minimumHeartRate
             && segment.TargetMaximumHeartRate is ushort maximumHeartRate
                 ? $"{minimumHeartRate}-{maximumHeartRate} bpm"
-                : $"{segment.TargetWatts} W";
+                : segment.CeilingHeartRate is ushort ceiling
+                    ? $"{segment.TargetWatts} W, HR cap {ceiling} bpm"
+                    : $"{segment.TargetWatts} W";
 }

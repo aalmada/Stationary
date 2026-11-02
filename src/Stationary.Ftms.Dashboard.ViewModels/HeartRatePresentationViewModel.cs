@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -25,6 +26,7 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
     private readonly IDashboardPlatform platform;
     private readonly ISubject<HeartRateObservation> chartObservations = Subject.Synchronize(new Subject<HeartRateObservation>());
     private readonly SerialDisposable chartRegionSubscription = new();
+    private readonly CompositeDisposable disposables = [];
     private TelemetryHistory chartHistory = new(ChartWindow);
     private HeartRateZoneProfile? zoneProfile;
     private HeartRateSessionAnalytics? sessionAnalytics;
@@ -43,9 +45,38 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
                 ? method
                 : HeartRateZoneMethod.CyclingLactateThreshold;
         ZoneDurations = [];
+
+        var selectedMethod = this.WhenAnyValue(static viewModel => viewModel.SelectedZoneMethod);
+        disposables.Add(_selectedZoneMethodNameHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.DisplayName)
+            .ToProperty(this, static viewModel => viewModel.SelectedZoneMethodName, string.Empty, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_selectedZoneMethodDescriptionHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.Describe)
+            .ToProperty(this, static viewModel => viewModel.SelectedZoneMethodDescription, string.Empty, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_usesLactateThresholdHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.UsesLactateThreshold)
+            .ToProperty(this, static viewModel => viewModel.UsesLactateThreshold, false, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_usesMaximumHeartRateHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.UsesMaximumHeartRate)
+            .ToProperty(this, static viewModel => viewModel.UsesMaximumHeartRate, false, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_usesRestingHeartRateHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.UsesRestingHeartRate)
+            .ToProperty(this, static viewModel => viewModel.UsesRestingHeartRate, false, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_selectedZoneMethodTabIndexHelper = selectedMethod
+            .Select(HeartRateZoneGuidance.TabIndex)
+            .ToProperty(this, static viewModel => viewModel.SelectedZoneMethodTabIndex, 0, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_activeZoneMethodTextHelper = this.WhenAnyValue(static viewModel => viewModel.ActiveZoneMethod)
+            .Select(static method => method is { } active ? $"Active method: {HeartRateZoneGuidance.DisplayName(active)}" : "Active method: none applied yet")
+            .ToProperty(this, static viewModel => viewModel.ActiveZoneMethodText, string.Empty, scheduler: ImmediateScheduler.Instance));
+        disposables.Add(_zoneStatusTextHelper = this.WhenAnyValue(
+                static viewModel => viewModel.ZoneProfile,
+                static viewModel => viewModel.SafetyCeilingText,
+                static (profile, ceiling) => HeartRateZoneGuidance.DescribeStatus(profile, ParseSafetyCeiling(ceiling)))
+            .ToProperty(this, static viewModel => viewModel.ZoneStatusText, string.Empty, scheduler: ImmediateScheduler.Instance));
+
         if (TryCreateProfile(SelectedZoneMethod, LactateThresholdText, MaximumHeartRateText, RestingHeartRateText, out var profile))
         {
-            ConfigureProfile(profile, false);
+            ConfigureProfile(profile, SelectedZoneMethod, false);
         }
     }
 
@@ -69,6 +100,58 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
     [Reactive]
     public partial HeartRateZoneMethod SelectedZoneMethod { get; private set; }
 
+    [Reactive]
+    public partial HeartRateZoneMethod? ActiveZoneMethod { get; private set; }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string SelectedZoneMethodName { get; }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string SelectedZoneMethodDescription { get; }
+
+    [ObservableAsProperty]
+    public partial bool UsesLactateThreshold { get; }
+
+    [ObservableAsProperty]
+    public partial bool UsesMaximumHeartRate { get; }
+
+    [ObservableAsProperty]
+    public partial bool UsesRestingHeartRate { get; }
+
+    public IReadOnlyList<string> ZoneMethodTabTitles => HeartRateZoneGuidance.TabTitles;
+
+    [ObservableAsProperty]
+    public partial int SelectedZoneMethodTabIndex { get; }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string ActiveZoneMethodText { get; }
+
+    [ObservableAsProperty(InitialValue = "string.Empty")]
+    public partial string ZoneStatusText { get; }
+
+    public ushort? ConfiguredMaximumHeartRate => ParseMaximumHeartRate(MaximumHeartRateText);
+
+    public ushort? ActiveLactateThreshold => ActiveZoneMethod == HeartRateZoneMethod.CyclingLactateThreshold
+        && ushort.TryParse(LactateThresholdText, out var threshold)
+            ? threshold
+            : null;
+
+    [ReactiveCommand]
+    private string ApplyMaximumHeartRate(ushort beatsPerMinute)
+    {
+        MaximumHeartRateText = beatsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        platform.SetPreference(MaximumHeartRatePreferenceKey, MaximumHeartRateText);
+        if (ActiveZoneMethod is { } method
+            && HeartRateZoneGuidance.UsesMaximumHeartRate(method)
+            && TryCreateProfile(method, LactateThresholdText, MaximumHeartRateText, RestingHeartRateText, out var profile))
+        {
+            ConfigureProfile(profile, method, true);
+            return $"Max HR set to {beatsPerMinute} bpm; {profile.Name} zones updated.";
+        }
+
+        return $"Max HR set to {beatsPerMinute} bpm.";
+    }
+
     [ReactiveCommand]
     private void EditLactateThreshold(string text) => LactateThresholdText = text;
 
@@ -90,6 +173,14 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
 
     [ReactiveCommand]
     private void SelectZoneMethod(HeartRateZoneMethod method) => SelectedZoneMethod = method;
+
+    [ReactiveCommand]
+    private void SelectZoneMethodTab(int index)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, HeartRateZoneGuidance.Methods.Count);
+        SelectedZoneMethod = HeartRateZoneGuidance.Methods[index];
+    }
 
     [ReactiveCommand]
     private void EstimateMaximumHeartRate()
@@ -138,10 +229,7 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
 
     public HeartRateObservation? LatestObservation { get; private set; }
 
-    public ushort? SafetyCeilingHeartRate => ushort.TryParse(SafetyCeilingText, out var ceiling)
-        && ceiling is >= 50 and <= 250
-            ? ceiling
-            : null;
+    public ushort? SafetyCeilingHeartRate => ParseSafetyCeiling(SafetyCeilingText);
 
     [Reactive]
     public partial IReadOnlyList<TelemetrySample> ChartSamples { get; private set; } = [];
@@ -176,7 +264,7 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
             return false;
         }
 
-        ConfigureProfile(profile, true);
+        ConfigureProfile(profile, SelectedZoneMethod, true);
         error = string.Empty;
         return true;
     }
@@ -285,9 +373,10 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
         return string.Join(Environment.NewLine, rows);
     }
 
-    private void ConfigureProfile(HeartRateZoneProfile profile, bool persist)
+    private void ConfigureProfile(HeartRateZoneProfile profile, HeartRateZoneMethod method, bool persist)
     {
         zoneProfile = profile;
+        ActiveZoneMethod = method;
         sessionAnalytics = new(profile, MaximumTelemetryGap);
         ZoneDurations.Clear();
         foreach (var zone in profile.Zones)
@@ -304,7 +393,7 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
             platform.SetPreference(LactateThresholdPreferenceKey, LactateThresholdText);
             platform.SetPreference(MaximumHeartRatePreferenceKey, MaximumHeartRateText);
             platform.SetPreference(RestingHeartRatePreferenceKey, RestingHeartRateText);
-            platform.SetPreference(ZoneMethodPreferenceKey, SelectedZoneMethod.ToString());
+            platform.SetPreference(ZoneMethodPreferenceKey, method.ToString());
             platform.SetPreference(SafetyCeilingPreferenceKey, SafetyCeilingText);
         }
 
@@ -395,7 +484,10 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
         EditAgeCommand.Dispose();
         EditSafetyCeilingCommand.Dispose();
         SelectZoneMethodCommand.Dispose();
+        SelectZoneMethodTabCommand.Dispose();
         EstimateMaximumHeartRateCommand.Dispose();
+        ApplyMaximumHeartRateCommand.Dispose();
+        disposables.Dispose();
         chartRegionSubscription.Dispose();
         chartObservations.OnCompleted();
     }
@@ -467,6 +559,12 @@ public sealed partial class HeartRatePresentationViewModel : ReactiveObject, IDi
         var maximum = samples.Max(sample => sample.Value);
         return $"Now {current:F0} bpm\n5m avg {average:F0} bpm\nMax {maximum:F0} bpm";
     }
+
+    private static ushort? ParseSafetyCeiling(string text) =>
+        ushort.TryParse(text, out var ceiling) && ceiling is >= 50 and <= 250 ? ceiling : null;
+
+    private static ushort? ParseMaximumHeartRate(string text) =>
+        ushort.TryParse(text, out var maximum) && maximum is >= 80 and <= 250 ? maximum : null;
 
     private static string GetRangeText(HeartRateZone zone) => zone.MaximumBeatsPerMinute is ushort maximum
         ? $"{zone.MinimumBeatsPerMinute}-{maximum} bpm"

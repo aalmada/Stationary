@@ -191,4 +191,113 @@ public sealed class HeartRateTrainingFeaturesTests
             await Assert.That(HeartRateTrainingProgress.GetMinutesWithinLastSevenDays(rides, DateTimeOffset.UtcNow)).IsEqualTo(12);
         }
     }
+    [Test]
+    public async Task BuiltInProfiles_ExposeEquivalentEasyCeilingsAndAerobicCapacityBands()
+    {
+        var maximum = HeartRateZoneProfile.CreateMaximumHeartRate(200);
+        var reserve = HeartRateZoneProfile.CreateHeartRateReserve(190, 60);
+        var threshold = HeartRateZoneProfile.CreateCyclingLactateThreshold(170);
+        var custom = new HeartRateZoneProfile("Custom", [new("Z1", "Easy", 0, 120), new("Z2", "Hard", 121, null)]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(maximum.EasyCeilings).IsEqualTo(new HeartRateEasyCeilings(139, 159));
+            await Assert.That(maximum.AerobicCapacity).IsEqualTo(new HeartRateAerobicCapacity(170, 190, 180));
+            await Assert.That(reserve.EasyCeilings).IsEqualTo(new HeartRateEasyCeilings(137, 150));
+            await Assert.That(reserve.AerobicCapacity).IsEqualTo(new HeartRateAerobicCapacity(162, 180, 171));
+            await Assert.That(threshold.EasyCeilings).IsEqualTo(new HeartRateEasyCeilings(137, 152));
+            await Assert.That(threshold.AerobicCapacity!.Value.IntervalMinimum).IsEqualTo(threshold.GetZone(threshold.AerobicCapacity.Value.IntervalMinimum).MinimumBeatsPerMinute);
+            await Assert.That(threshold.AerobicCapacity.Value.NearMaximum).IsEqualTo((ushort)170);
+            await Assert.That(custom.EasyCeilings).IsNull();
+            await Assert.That(custom.AerobicCapacity).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task CeilingSegment_CompilesPowerWithAFloorAndCapOnlyWhenZonesAreKnown()
+    {
+        var segment = new TrainingSegment("Aerobic", TimeSpan.FromMinutes(10), 70d, null, null, "Ride easy", true, HeartRateCeiling: new(HeartRateCeilingIntensity.Endurance, 50d));
+        var workout = new TrainingWorkout("ceiling", "Ceiling", "Ceiling", TrainingObjective.Endurance, TrainingExperienceLevel.Beginner, [segment]);
+        var profile = HeartRateZoneProfile.CreateMaximumHeartRate(200);
+
+        var withZones = TrainingWorkoutCompiler.Compile(workout, 200, new(50, 500, 10), heartRateZones: profile).Segments[0];
+        var withoutZones = TrainingWorkoutCompiler.Compile(workout, 200, new(50, 500, 10)).Segments[0];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(withZones.TargetWatts).IsEqualTo(140);
+            await Assert.That(withZones.MinimumTargetWatts).IsEqualTo(100);
+            await Assert.That(withZones.MaximumTargetWatts).IsEqualTo(140);
+            await Assert.That(withZones.CeilingHeartRate).IsEqualTo((ushort)159);
+            await Assert.That(withZones.TargetMinimumHeartRate).IsNull();
+            await Assert.That(withoutZones.CeilingHeartRate).IsNull();
+            await Assert.That(withoutZones.MinimumTargetWatts).IsEqualTo(140);
+        }
+    }
+
+    [Test]
+    public async Task CeilingSegment_RejectsAFloorAboveTheTargetOrACombinedTarget()
+    {
+        var floorAbove = new TrainingSegment("Easy", TimeSpan.FromMinutes(10), 50d, null, null, "Easy", true, HeartRateCeiling: new(HeartRateCeilingIntensity.Recovery, 60d));
+        var combined = new TrainingSegment("Easy", TimeSpan.FromMinutes(10), 50d, null, null, "Easy", true, HeartRateTrainingTarget.ForRange(100, 120, 40d, 60d), new(HeartRateCeilingIntensity.Recovery, 40d));
+
+        foreach (var segment in new[] { floorAbove, combined })
+        {
+            var workout = new TrainingWorkout("invalid", "Invalid", "Invalid", TrainingObjective.Recovery, TrainingExperienceLevel.Beginner, [segment]);
+            await Assert.That(() => TrainingWorkoutCompiler.Compile(workout, 200, new(50, 500, 10))).Throws<ArgumentException>();
+        }
+    }
+
+    [Test]
+    public async Task Vo2Workout_ReportsTheNearMaximumThresholdOnlyWithAerobicCapacityZones()
+    {
+        var workout = TrainingCatalog.Load().Workouts.First(candidate => candidate.Objective == TrainingObjective.Vo2Max);
+        var tempo = TrainingCatalog.Load().Workouts.First(candidate => candidate.Objective == TrainingObjective.TempoSweetSpot);
+        var profile = HeartRateZoneProfile.CreateMaximumHeartRate(200);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(TrainingWorkoutCompiler.Compile(workout, 200, new(50, 500, 10), heartRateZones: profile).NearMaximumHeartRate).IsEqualTo((ushort)180);
+            await Assert.That(TrainingWorkoutCompiler.Compile(workout, 200, new(50, 500, 10)).NearMaximumHeartRate).IsNull();
+            await Assert.That(TrainingWorkoutCompiler.Compile(tempo, 200, new(50, 500, 10), heartRateZones: profile).NearMaximumHeartRate).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task Catalog_CapsSustainedEasyRidingButLeavesHarderWorkPowerLed()
+    {
+        var workouts = TrainingCatalog.Load().Workouts;
+        var recovery = workouts.Where(workout => workout.Objective == TrainingObjective.Recovery).SelectMany(workout => workout.Segments).ToArray();
+        var endurance = workouts.Where(workout => workout.Objective == TrainingObjective.Endurance).SelectMany(workout => workout.Segments).ToArray();
+        var harder = workouts.Where(workout => workout.Objective is not (TrainingObjective.Recovery or TrainingObjective.Endurance)).SelectMany(workout => workout.Segments);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(recovery.Where(segment => segment.CountsTowardAdherence && segment.Duration >= TimeSpan.FromMinutes(3)).All(segment => segment.HeartRateCeiling?.Intensity == HeartRateCeilingIntensity.Recovery)).IsTrue();
+            await Assert.That(endurance.Any(segment => segment.HeartRateCeiling?.Intensity == HeartRateCeilingIntensity.Endurance)).IsTrue();
+            await Assert.That(endurance.Where(segment => segment.FunctionalThresholdPowerPercentage > 75d).All(segment => segment.HeartRateCeiling is null)).IsTrue();
+            await Assert.That(harder.All(segment => segment.HeartRateCeiling is null)).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task ZoneWorkouts_AddTheHeartRate4x4WhenTheAerobicCapacityBandIsKnown()
+    {
+        var profile = HeartRateZoneProfile.CreateMaximumHeartRate(200);
+        var custom = new HeartRateZoneProfile("Custom", [new("Z1", "Easy", 0, 120), new("Z2", "Steady", 121, 150), new("Z3", "Hard", 151, null)]);
+
+        var intervals = HeartRateWorkoutFactory.CreateZoneWorkouts(profile).Single(workout => workout.Id == "heart-rate-4x4");
+        var compiled = TrainingWorkoutCompiler.Compile(intervals, 200, new(50, 500, 10), heartRateZones: profile);
+        var work = compiled.Segments.Where(segment => segment.TargetMinimumHeartRate is not null).ToArray();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(HeartRateWorkoutFactory.CreateZoneWorkouts(custom).Any(workout => workout.Id == "heart-rate-4x4")).IsFalse();
+            await Assert.That(work).Count().IsEqualTo(4);
+            await Assert.That(work.All(segment => segment.Definition.Duration == TimeSpan.FromMinutes(4))).IsTrue();
+            await Assert.That(work.All(segment => segment.TargetMinimumHeartRate == 170 && segment.TargetMaximumHeartRate == 190)).IsTrue();
+            await Assert.That(compiled.NearMaximumHeartRate).IsEqualTo((ushort)180);
+            await Assert.That(intervals.Segments.Sum(segment => segment.Duration.TotalMinutes)).IsEqualTo(40d);
+        }
+    }
 }

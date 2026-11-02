@@ -105,6 +105,8 @@ public sealed record TrainingSession
 
     public bool HeartRateProgressRecorded { get; init; }
 
+    public TimeSpan TimeNearMaximumHeartRate { get; init; }
+
     public string StatusText { get; init; } = "Choose a workout.";
 
     public string AdherenceText { get; init; } = TrainingSessionText.CadenceAdherencePending;
@@ -112,6 +114,8 @@ public sealed record TrainingSession
     public string CadenceCalibrationText { get; init; } = string.Empty;
 
     public RampFtpEstimate? RampEstimate { get; init; }
+
+    public ushort? RampPeakHeartRate { get; init; }
 
     public TrainingWorkoutState RunnerState => Runner?.State ?? TrainingWorkoutState.Selected;
 

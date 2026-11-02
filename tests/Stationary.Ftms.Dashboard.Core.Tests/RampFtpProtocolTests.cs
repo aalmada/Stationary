@@ -28,4 +28,19 @@ public sealed class RampFtpProtocolTests
             await Assert.That(workout.Segments[^1].TargetWatts).IsEqualTo(95);
         }
     }
+
+    [Test]
+    public async Task Steps_AreNumberedAndOnlyTheNextStepIsRevealed()
+    {
+        var workout = RampFtpProtocol.Create(new(50, 500, 10));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(RampFtpProtocol.DescribeStep(0)).IsEqualTo("Warm up");
+            await Assert.That(RampFtpProtocol.DescribeStep(3)).IsEqualTo("Step 3");
+            await Assert.That(RampFtpProtocol.VisibleSegmentCount(0, 496)).IsEqualTo(2);
+            await Assert.That(RampFtpProtocol.VisibleSegmentCount(495, 496)).IsEqualTo(496);
+            await Assert.That(TrainingEventLabels.RampStep(2, workout.Segments[2])).IsEqualTo($"Step 2 · {workout.Segments[2].TargetWatts} W");
+        }
+    }
 }

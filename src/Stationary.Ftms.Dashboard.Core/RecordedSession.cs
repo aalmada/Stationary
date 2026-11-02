@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Stationary.Ftms.Dashboard.Core;
 
 public readonly record struct RecordedTelemetrySample(
@@ -19,4 +21,25 @@ public sealed record RecordedSession(
     DateTimeOffset ExportedAt,
     RecordedTelemetrySample[] Samples,
     SessionEventMarker[] Events,
-    SessionSummary Summary);
+    SessionSummary Summary,
+    RideContext? Context = null)
+{
+    public const int CurrentFormatVersion = 2;
+
+    [JsonIgnore]
+    public DateTimeOffset StartedAt
+    {
+        get
+        {
+            foreach (var marker in Events)
+            {
+                if (marker.Type == SessionEventType.Start)
+                {
+                    return marker.Timestamp;
+                }
+            }
+
+            return Samples.Length > 0 ? Samples[0].CapturedAt : ExportedAt;
+        }
+    }
+}

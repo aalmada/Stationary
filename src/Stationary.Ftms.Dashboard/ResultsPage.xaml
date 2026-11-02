@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
+<ContentPage xmlns:local="clr-namespace:Stationary.Ftms.Dashboard"
+             xmlns:core="clr-namespace:Stationary.Ftms.Dashboard.Core;assembly=Stationary.Ftms.Dashboard.Core"
+             xmlns:viewModels="clr-namespace:Stationary.Ftms.Dashboard.ViewModels;assembly=Stationary.Ftms.Dashboard.ViewModels"
              x:Class="Stationary.Ftms.Dashboard.ResultsPage"
              x:DataType="viewModels:DashboardViewModel"
              Title="Results"
@@ -22,11 +24,27 @@
       <Label Text="{Binding StatusText}" TextColor="{StaticResource Muted}" FontSize="12" />
       <Label Text="{Binding ActionErrorText}" TextColor="{StaticResource Muted}" FontSize="12" />
 
-      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding Training.HasRampReview}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <VerticalStackLayout Spacing="4">
+            <Label Text="FTP RAMP TEST" TextColor="{StaticResource Muted}" FontSize="11" />
+            <Label Text="{Binding Training.RampReview.Headline}" FontAttributes="Bold" FontSize="22" />
+            <Label Text="{Binding Training.RampReview.Detail}" TextColor="{StaticResource Muted}" FontSize="13" />
+            <Label Text="{Binding Training.RampHeartRateText}" TextColor="{StaticResource Muted}" FontSize="13" />
+          </VerticalStackLayout>
+          <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Use as max HR" Command="{Binding Training.UseRampPeakAsMaximumHeartRateCommand}" IsVisible="{Binding Training.CanUseRampPeak}" SemanticProperties.Description="Use the ramp peak heart rate as your maximum heart rate" />
+            <Button Style="{StaticResource SecondaryActionButton}" Text="Keep current FTP" Command="{Binding Training.KeepCurrentFtpCommand}" />
+            <Button Style="{StaticResource ActionButton}" Text="Accept FTP" Command="{Binding Training.AcceptRampEstimateCommand}" IsVisible="{Binding Training.RampReview.CanAccept}" />
+          </HorizontalStackLayout>
+        </Grid>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsLiveSessionVisible}">
         <VerticalStackLayout Spacing="12">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <VerticalStackLayout Spacing="2">
-              <Label Text="SESSION OVERVIEW" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="CURRENT SESSION" TextColor="{StaticResource Muted}" FontSize="11" />
               <Label Text="{Binding MachineStateText}" FontAttributes="Bold" FontSize="20" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
@@ -75,7 +93,7 @@
         </VerticalStackLayout>
       </Border>
 
-      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsSessionAvailable}">
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding IsLiveSessionVisible}">
         <VerticalStackLayout Spacing="12">
           <Label Text="SESSION INSIGHTS" FontAttributes="Bold" />
           <Grid ColumnDefinitions="*,*" ColumnSpacing="20" RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
@@ -90,11 +108,11 @@
               <Label Text="{Binding Telemetry.PowerPacingInsight.Detail}" TextColor="{StaticResource Muted}" FontSize="11" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Row="1" Spacing="2">
-              <Label Text="POWER / HR EFFICIENCY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="EFFICIENCY FACTOR" TextColor="{StaticResource Muted}" FontSize="11" />
               <Label Text="{Binding EfficiencyText}" FontAttributes="Bold" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="2">
-              <Label Text="AEROBIC DECOUPLING" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="HEART-RATE DRIFT (STEADY RIDES)" TextColor="{StaticResource Muted}" FontSize="11" />
               <Label Text="{Binding DecouplingText}" FontAttributes="Bold" />
             </VerticalStackLayout>
             <VerticalStackLayout Grid.Row="2" Spacing="2">
@@ -106,6 +124,190 @@
               <Label Text="{Binding TorqueExposureText}" FontAttributes="Bold" />
             </VerticalStackLayout>
           </Grid>
+        </VerticalStackLayout>
+      </Border>
+      <Border Style="{StaticResource PanelBorder}" IsVisible="{Binding HasLastRide}">
+        <VerticalStackLayout Spacing="12">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="LAST SAVED RIDE" TextColor="{StaticResource Muted}" FontSize="11" />
+            <Label Text="{Binding LastRideReport.Title}" FontAttributes="Bold" FontSize="20" />
+          </VerticalStackLayout>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="DISTANCE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Distance}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="ELAPSED" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Elapsed}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="WORK" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Work}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="2">
+              <Label Text="MAXIMUM POWER" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.MaximumPower}" FontAttributes="Bold" FontSize="18" />
+            </VerticalStackLayout>
+          </Grid>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="AVERAGE POWER" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.AveragePower}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="NORMALIZED" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.NormalizedPower}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="2">
+              <Label Text="INTENSITY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.IntensityFactor}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="2">
+              <Label Text="TSS" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.TrainingStressScore}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+          </Grid>
+          <Label Text="{Binding LastRideReport.PeakPower}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Label Text="{Binding LastRideReport.HeartRate}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="20" RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="EFFICIENCY FACTOR" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Efficiency}" FontAttributes="Bold" />
+              <Label Text="Power per heartbeat. Watch it rise across similar rides as your aerobic fitness improves." TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+              <Label Text="VARIABILITY INDEX" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.VariabilityIndex}" FontAttributes="Bold" />
+              <Label Text="Normalized ÷ average power. 1.05 or less is a steady ride." TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="1" Spacing="2">
+              <Label Text="HEART-RATE DRIFT (STEADY RIDES)" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Decoupling}" FontAttributes="Bold" />
+              <Label Text="Second-half vs first-half power per heartbeat. Under 5% shows a solid aerobic base." TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="2">
+              <Label Text="HEART-RATE RECOVERY" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Recovery}" FontAttributes="Bold" />
+              <Label Text="Best drop 60 s after a hard effort ends. A bigger drop usually means better fitness." TextColor="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="2" Spacing="2">
+              <Label Text="CADENCE RANGE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.Cadence}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Row="2" Grid.Column="1" Spacing="2">
+              <Label Text="LOW-CADENCE HIGH-TORQUE" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.TorqueExposure}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+          </Grid>
+
+          <VerticalStackLayout Spacing="8" IsVisible="{Binding LastRideReport.HasCharts}">
+            <Label Text="RIDE CHARTS" TextColor="{StaticResource Muted}" FontSize="11" />
+            <Grid ColumnDefinitions="96,*" ColumnSpacing="8">
+              <Label Text="Power (W)" TextColor="{Binding Telemetry.PowerChartColor}" VerticalOptions="Center" />
+              <local:TelemetryChart Grid.Column="1" HeightRequest="110" Points="{Binding LastRideReport.Charts.Power}" TargetPoints="{Binding LastRideReport.Charts.TargetPower}" TimeRangeStart="{Binding LastRideReport.Charts.Start}" TimeRangeEnd="{Binding LastRideReport.Charts.End}" MinimumValue="0" StrokeColor="{Binding Telemetry.PowerChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" HoverTimestamp="{x:Null}" SelectionStart="{x:Null}" SelectionEnd="{x:Null}" HoverCommand="{x:Null}" SelectionStartCommand="{x:Null}" SelectionEndCommand="{x:Null}" />
+            </Grid>
+            <Grid ColumnDefinitions="96,*" ColumnSpacing="8" IsVisible="{Binding LastRideReport.HasHeartRateChart}">
+              <Label Text="Heart rate" TextColor="{Binding HeartRate.ChartColor}" VerticalOptions="Center" />
+              <local:TelemetryChart Grid.Column="1" HeightRequest="110" Points="{Binding LastRideReport.Charts.HeartRate}" TimeRangeStart="{Binding LastRideReport.Charts.Start}" TimeRangeEnd="{Binding LastRideReport.Charts.End}" StrokeColor="{Binding HeartRate.ChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="False" HoverTimestamp="{x:Null}" SelectionStart="{x:Null}" SelectionEnd="{x:Null}" HoverCommand="{x:Null}" SelectionStartCommand="{x:Null}" SelectionEndCommand="{x:Null}" />
+            </Grid>
+            <Grid ColumnDefinitions="96,*" ColumnSpacing="8">
+              <Label Text="Cadence (rpm)" TextColor="{Binding Telemetry.CadenceChartColor}" VerticalOptions="Center" />
+              <local:TelemetryChart Grid.Column="1" HeightRequest="110" Points="{Binding LastRideReport.Charts.Cadence}" TimeRangeStart="{Binding LastRideReport.Charts.Start}" TimeRangeEnd="{Binding LastRideReport.Charts.End}" MinimumValue="0" StrokeColor="{Binding Telemetry.CadenceChartColor}" ValueLabelFormat="F0" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" ShowTimeAxis="True" HoverTimestamp="{x:Null}" SelectionStart="{x:Null}" SelectionEnd="{x:Null}" HoverCommand="{x:Null}" SelectionStartCommand="{x:Null}" SelectionEndCommand="{x:Null}" />
+            </Grid>
+          </VerticalStackLayout>
+
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+            <VerticalStackLayout Spacing="6">
+              <Label Text="TIME IN HEART-RATE ZONES" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.HeartRateZoneSource}" TextColor="{StaticResource Muted}" FontSize="11" />
+              <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding LastRideReport.HeartRateZones}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="core:RideZoneShare">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                      <Label Text="{Binding Label}" FontSize="12" />
+                      <Label Grid.Column="1" FontSize="12" HorizontalTextAlignment="End">
+                        <Label.FormattedText>
+                          <FormattedString>
+                            <Span Text="{Binding DurationText}" FontAttributes="Bold" />
+                            <Span Text=" · " />
+                            <Span Text="{Binding PercentText}" />
+                          </FormattedString>
+                        </Label.FormattedText>
+                      </Label>
+                      <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Progress="{Binding Fraction}" ProgressColor="{StaticResource Accent}" />
+                    </Grid>
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </VerticalStackLayout>
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="6">
+              <Label Text="TIME IN POWER ZONES" TextColor="{StaticResource Muted}" FontSize="11" />
+              <Label Text="{Binding LastRideReport.PowerZoneSource}" TextColor="{StaticResource Muted}" FontSize="11" />
+              <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding LastRideReport.PowerZones}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="core:RideZoneShare">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                      <Label Text="{Binding Label}" FontSize="12" />
+                      <Label Grid.Column="1" FontSize="12" HorizontalTextAlignment="End">
+                        <Label.FormattedText>
+                          <FormattedString>
+                            <Span Text="{Binding DurationText}" FontAttributes="Bold" />
+                            <Span Text=" · " />
+                            <Span Text="{Binding PercentText}" />
+                          </FormattedString>
+                        </Label.FormattedText>
+                      </Label>
+                      <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Progress="{Binding Fraction}" ProgressColor="{StaticResource SecondaryAccent}" />
+                    </Grid>
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </VerticalStackLayout>
+            </VerticalStackLayout>
+          </Grid>
+
+          <VerticalStackLayout Spacing="6" IsVisible="{Binding LastRideReport.HasAdherence}">
+            <Label Text="TARGET ADHERENCE" TextColor="{StaticResource Muted}" FontSize="11" />
+            <Label Text="{Binding LastRideReport.Adherence}" FontAttributes="Bold" />
+            <Label Text="Power counts within ±10% of the target; heart rate counts inside the prescribed range. The first 15 s of each interval are not scored." TextColor="{StaticResource Muted}" FontSize="11" />
+            <VerticalStackLayout Spacing="2" BindableLayout.ItemsSource="{Binding LastRideReport.AdherenceSegments}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="core:RideSegmentAdherence">
+                  <Grid ColumnDefinitions="2*,2*,*" ColumnSpacing="8">
+                    <Label Text="{Binding Name}" FontSize="12" LineBreakMode="TailTruncation" />
+                    <Label Grid.Column="1" Text="{Binding TargetText}" FontSize="12" TextColor="{StaticResource Muted}" />
+                    <Label Grid.Column="2" Text="{Binding ResultText}" FontSize="12" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                  </Grid>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource PanelBorder}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="RIDE HISTORY" TextColor="{StaticResource Muted}" FontSize="11" />
+          <Label Text="{Binding RideTrend.Summary}" FontAttributes="Bold" />
+          <Grid ColumnDefinitions="96,*" ColumnSpacing="8" IsVisible="{Binding RideTrend.HasEfficiencyTrend}">
+            <Label Text="Efficiency factor" TextColor="{StaticResource Accent}" VerticalOptions="Center" />
+            <local:TelemetryChart Grid.Column="1" HeightRequest="90" Points="{Binding RideTrend.EfficiencyPoints}" StrokeColor="{StaticResource Accent}" ValueLabelFormat="F2" ShowTimeAxis="False" HoverTimestamp="{x:Null}" SelectionStart="{x:Null}" SelectionEnd="{x:Null}" HoverCommand="{x:Null}" SelectionStartCommand="{x:Null}" SelectionEndCommand="{x:Null}" />
+          </Grid>
+          <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding RideTrend.Rows}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="core:RideTrendRow">
+                <Grid ColumnDefinitions="100,2*,70,2*,80,80,90" ColumnSpacing="8">
+                  <Label Text="{Binding Date}" FontSize="12" />
+                  <Label Grid.Column="1" Text="{Binding Name}" FontSize="12" LineBreakMode="TailTruncation" />
+                  <Label Grid.Column="2" Text="{Binding Duration}" FontSize="12" />
+                  <Label Grid.Column="3" Text="{Binding Power}" FontSize="12" />
+                  <Label Grid.Column="4" Text="{Binding HeartRate}" FontSize="12" />
+                  <Label Grid.Column="5" Text="{Binding EfficiencyFactor}" FontSize="12" FontAttributes="Bold" />
+                  <Label Grid.Column="6" Text="{Binding Drift}" FontSize="12" TextColor="{StaticResource Muted}" />
+                </Grid>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
         </VerticalStackLayout>
       </Border>
     </VerticalStackLayout>

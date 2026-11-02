@@ -32,17 +32,17 @@ internal static class TrainingPlanCatalog
         return new(
             Id: $"{objective.ToString().ToLowerInvariant()}-{level.ToString().ToLowerInvariant()}-plan",
             Name: $"{GetObjectiveName(objective)} {GetLevelName(level)}",
-            Description: $"Eight-week {GetObjectiveName(objective).ToLowerInvariant()} progression with a foundation, build, deload, and reassessment.",
+            Description: $"Eight-week {GetObjectiveName(objective).ToLowerInvariant()} progression with a foundation, build, deload, and reassessment.{GetHeartRateNote(objective)}",
             Objective: objective,
             ExperienceLevel: level,
             Weeks:
             [
                 CreateWeek(1, TrainingPlanPhase.Foundation, prescription, [primary, cadence], "Establish control and finish every interval with reserve."),
-                CreateWeek(2, TrainingPlanPhase.Foundation, prescription, [primary, endurance], "Add easy aerobic volume without adding a second hard session."),
-                CreateWeek(3, TrainingPlanPhase.Build, prescription, [primary, secondary, endurance], "Build specific work while keeping the easy riding genuinely easy."),
+                CreateWeek(2, TrainingPlanPhase.Foundation, prescription, [primary, endurance], "Add easy aerobic volume without adding a second hard session; with a heart-rate strap, easy blocks stay below your endurance ceiling."),
+                CreateWeek(3, TrainingPlanPhase.Build, prescription, [primary, secondary, endurance], "Build specific work while keeping the easy riding genuinely easy, below the endurance heart-rate ceiling."),
                 CreateWeek(4, TrainingPlanPhase.Recovery, prescription with { LowIntensityMinutes = prescription.LowIntensityMinutes * 2 / 3, StrengthSessions = 1 }, [recovery, cadence], "Deload: reduce volume, preserve movement quality, and recover."),
                 CreateWeek(5, TrainingPlanPhase.Build, prescription, [primary, secondary, endurance], "Return to quality work after the deload."),
-                CreateWeek(6, TrainingPlanPhase.Consolidation, prescription with { LowIntensityMinutes = prescription.LowIntensityMinutes + 30 }, [primary, endurance], "Extend aerobic durability while holding the primary work steady."),
+                CreateWeek(6, TrainingPlanPhase.Consolidation, prescription with { LowIntensityMinutes = prescription.LowIntensityMinutes + 30 }, [primary, endurance], "Extend aerobic durability while holding the primary work steady; watch for heart rate drifting up at the same power."),
                 CreateWeek(7, TrainingPlanPhase.Peak, prescription with { LowIntensityMinutes = prescription.LowIntensityMinutes * 3 / 4, StrengthSessions = 1 }, [primary, secondary], "Sharpen, then reassess FTP after adequate recovery."),
                 CreateWeek(8, TrainingPlanPhase.Recovery, prescription with { LowIntensityMinutes = prescription.LowIntensityMinutes / 2, StrengthSessions = 0, RecoveryDays = prescription.RecoveryDays + 1 }, [recovery, endurance], "Absorb the block before beginning another progression.")
             ]);
@@ -87,6 +87,13 @@ internal static class TrainingPlanCatalog
         TrainingExperienceLevel.Experienced => new(210, 2, 2),
         TrainingExperienceLevel.Advanced => new(270, 2, 1),
         _ => throw new ArgumentOutOfRangeException(nameof(level)),
+    };
+
+    private static string GetHeartRateNote(TrainingObjective objective) => objective switch
+    {
+        TrainingObjective.Vo2Max => " VO2 work trains the heart and lungs: with heart-rate zones, rides report time near maximum heart rate, and the heart-rate 4x4 is available as an alternative session.",
+        TrainingObjective.Recovery or TrainingObjective.Endurance => " With heart-rate zones, easy rides ease power when heart rate drifts above the easy ceiling.",
+        _ => string.Empty,
     };
 
     private static string GetObjectiveName(TrainingObjective objective) => objective switch

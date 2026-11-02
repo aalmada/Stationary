@@ -42,23 +42,23 @@
                 </DataTemplate>
               </BindableLayout.ItemTemplate>
             </FlexLayout>
-            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
-              <VerticalStackLayout Spacing="2">
-                <Label Text="PHASE" FontSize="11" TextColor="{StaticResource Muted}" />
-                <Label Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+              <Label Text="PHASE" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+              <Label Grid.Column="1" Text="{Binding SelectedPlanWeek.Phase}" FontAttributes="Bold" />
+              <Label Grid.Row="1" Text="RIDES" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+              <Label Grid.Row="1" Grid.Column="1" Text="{Binding SelectedPlanWeekSummary.Rides}" FontAttributes="Bold" />
+              <Label Grid.Row="2" Text="EASY RIDING (HR Z1–Z2)" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Start" />
+              <VerticalStackLayout Grid.Row="2" Grid.Column="1" Spacing="2">
+                <Label Text="{Binding SelectedPlanWeekSummary.EasyRiding}" FontAttributes="Bold" />
+                <Label Text="{Binding SelectedPlanWeekSummary.EasyRidingDetail}" TextColor="{StaticResource Muted}" FontSize="11" LineBreakMode="WordWrap" />
               </VerticalStackLayout>
-              <VerticalStackLayout Grid.Column="1" Spacing="2">
-                <Label Text="EASY VOLUME GOAL (HR Z1-Z2)" FontSize="11" TextColor="{StaticResource Muted}" />
-                <Label Text="{Binding SelectedPlanWeek.LowIntensityMinutes, StringFormat='{}{0} min'}" FontAttributes="Bold" />
-              </VerticalStackLayout>
-              <VerticalStackLayout Grid.Column="2" Spacing="2">
-                <Label Text="STRENGTH / REST" FontSize="11" TextColor="{StaticResource Muted}" />
-                <Label Text="{Binding SelectedPlanWeek.StrengthSessions, StringFormat='{}{0} sessions'}" FontAttributes="Bold" />
-                <Label Text="{Binding SelectedPlanWeek.RecoveryDays, StringFormat='{}{0} recovery days'}" TextColor="{StaticResource Muted}" FontSize="11" />
-              </VerticalStackLayout>
+              <Label Grid.Row="3" Text="STRENGTH (OFF THE BIKE)" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+              <Label Grid.Row="3" Grid.Column="1" Text="{Binding SelectedPlanWeekSummary.Strength}" FontAttributes="Bold" />
+              <Label Grid.Row="4" Text="REST" FontSize="11" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+              <Label Grid.Row="4" Grid.Column="1" Text="{Binding SelectedPlanWeekSummary.Rest}" FontAttributes="Bold" />
             </Grid>
             <Label Text="{Binding SelectedPlanWeek.Focus}" TextColor="{StaticResource Muted}" FontSize="12" />
-            <Label Text="WEEKLY WORKOUTS" FontAttributes="Bold" FontSize="12" />
+            <Label Text="THIS WEEK'S WORKOUTS" FontAttributes="Bold" FontSize="12" />
             <FlexLayout BindableLayout.ItemsSource="{Binding SelectedPlanWorkouts}" Direction="Row" Wrap="Wrap" AlignItems="Start">
               <BindableLayout.ItemTemplate>
                 <DataTemplate x:DataType="core:TrainingWorkout">

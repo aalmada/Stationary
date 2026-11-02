@@ -22,7 +22,12 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 - Workouts, Plans, and Assessment are Shell top tabs: one `Tab` with three `ShellContent` pages (`TrainingWorkoutsPage`, `TrainingPlansPage`, `TrainingAssessmentPage`) titled "Workouts". Keep the title and native toolbar back control above the tabs; do not repeat a header inside each tab. Do not reintroduce button-driven browse modes in `TrainingViewModel`.
 - Keep the Training `ShellContent` pages lazy (`ContentTemplate`). Eager XAML materialization previously crashed the application during startup.
 - Do not add a `Picker` to the Training pages; it previously crashed navigation to Training. Replace it only with a separately tested selector.
+- Ending a ramp test, whether by Finish, End, or exhausting the steps, computes the FTP estimate and opens Results. The Results ramp panel is the only place to accept the estimate or keep the current FTP (`RampEstimateReviewed`); do not add Accept FTP elsewhere. The same panel offers the ramp's peak heart rate as max HR (`ApplyMaximumHeartRateCommand`).
+- `StopWorkoutSession` saves every ride with effort through `SaveRideCommand` (`rides/`, `previous-session.json`, `ride-history.json`); do not add a separate save button. Ride analyses (`RideAnalytics`, `RideHistory`, `WorkoutAnalysis`, `SavedRideReport`) stay pure in Core and read the ride's stored `RideContext` before current settings.
+- Charts of saved rides and trends set `HoverCommand`, `SelectionStartCommand`, `SelectionEndCommand`, `HoverTimestamp`, `SelectionStart`, and `SelectionEnd` to `{x:Null}` so they do not drive the live chart cursor.
 - Apply the shared `ActionButton` style to every Training action, including ramp-test and currently unavailable actions. It is the established Sensors-page pattern and provides the correct enabled and disabled presentation.
+
+- In-page tabs (such as the heart-rate zone method) use `SegmentedTabs`, which renders a native `UISegmentedControl` through `Platforms/MacCatalyst/SegmentedTabsHandler.cs`. Bind `Titles` and `SelectedIndex` one-way from the view model and route selection through `SelectionChangedCommand` (an `int` index). Do not restyle buttons or labels as tabs.
 
 ## Mac Catalyst Button Rendering
 

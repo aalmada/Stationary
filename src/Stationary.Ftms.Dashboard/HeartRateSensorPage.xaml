@@ -57,32 +57,36 @@
         <VerticalStackLayout Spacing="8">
           <Label Text="HEART-RATE ZONES" FontAttributes="Bold" />
           <Label Text="Choose a method. Measured values are more personal than age estimates; heart rate can be affected by medication, illness, heat and fatigue." TextColor="{StaticResource Muted}" FontSize="12" />
-          <Label Text="{Binding HeartRate.SelectedZoneMethod, StringFormat='Active method: {0}'}" TextColor="{StaticResource Muted}" FontSize="11" />
-          <FlexLayout Direction="Row" Wrap="Wrap" AlignItems="Start">
-            <Button Style="{StaticResource SecondaryActionButton}" Text="Cycling LTHR" Command="{Binding HeartRate.SelectZoneMethodCommand}" CommandParameter="{x:Static core:HeartRateZoneMethod.CyclingLactateThreshold}" />
-            <Button Style="{StaticResource SecondaryActionButton}" Text="Heart-rate reserve" Command="{Binding HeartRate.SelectZoneMethodCommand}" CommandParameter="{x:Static core:HeartRateZoneMethod.HeartRateReserve}" />
-            <Button Style="{StaticResource SecondaryActionButton}" Text="Maximum heart rate" Command="{Binding HeartRate.SelectZoneMethodCommand}" CommandParameter="{x:Static core:HeartRateZoneMethod.MaximumHeartRate}" />
-          </FlexLayout>
-          <Grid ColumnDefinitions="Auto,100,Auto,100" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+          <Label Text="{Binding HeartRate.ActiveZoneMethodText}" TextColor="{StaticResource Muted}" FontSize="11" />
+          <local:SegmentedTabs Titles="{Binding HeartRate.ZoneMethodTabTitles}" SelectedIndex="{Binding HeartRate.SelectedZoneMethodTabIndex}" SelectionChangedCommand="{Binding HeartRate.SelectZoneMethodTabCommand}" SelectedColor="{StaticResource Accent}" HorizontalOptions="Start" SemanticProperties.Description="Heart-rate zone method" />
+          <Label Text="{Binding HeartRate.SelectedZoneMethodDescription}" TextColor="{StaticResource Muted}" FontSize="12" />
+          <Grid ColumnDefinitions="110,100" ColumnSpacing="8" IsVisible="{Binding HeartRate.UsesLactateThreshold}">
             <Label Text="CYCLING LTHR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.LactateThresholdText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditLactateThresholdCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Cycling lactate threshold heart rate in beats per minute" />
             </Border>
-            <Label Grid.Column="2" Text="MAX HR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
-            <Border Grid.Column="3" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
+          </Grid>
+          <Grid ColumnDefinitions="110,100" ColumnSpacing="8" IsVisible="{Binding HeartRate.UsesMaximumHeartRate}">
+            <Label Text="MAX HR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.MaximumHeartRateText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditMaximumHeartRateCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Measured or estimated maximum heart rate" />
             </Border>
-            <Label Grid.Row="1" Text="RESTING HR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
-            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
+          </Grid>
+          <Grid ColumnDefinitions="110,100" ColumnSpacing="8" IsVisible="{Binding HeartRate.UsesRestingHeartRate}">
+            <Label Text="RESTING HR" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.RestingHeartRateText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditRestingHeartRateCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Resting heart rate for heart-rate-reserve zones" />
             </Border>
-            <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Text="Estimate max from age" Command="{Binding HeartRate.EstimateMaximumHeartRateCommand}" />
-            <Border Grid.Row="1" Grid.Column="3" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
+          </Grid>
+          <Grid ColumnDefinitions="110,100,Auto" ColumnSpacing="8" IsVisible="{Binding HeartRate.UsesMaximumHeartRate}">
+            <Label Text="AGE" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.AgeText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditAgeCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="age" HorizontalTextAlignment="Center" SemanticProperties.Description="Age used only for a maximum heart-rate estimate" />
             </Border>
+            <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Text="Estimate max" Command="{Binding HeartRate.EstimateMaximumHeartRateCommand}" SemanticProperties.Description="Estimate maximum heart rate from age" />
           </Grid>
-          <Label Text="{Binding HeartRate.MaximumHeartRateEstimateText}" TextColor="{StaticResource Muted}" FontSize="11" />
-          <Grid ColumnDefinitions="Auto,100,*,Auto" ColumnSpacing="8">
+          <Label Text="{Binding HeartRate.MaximumHeartRateEstimateText}" TextColor="{StaticResource Muted}" FontSize="11" IsVisible="{Binding HeartRate.UsesMaximumHeartRate}" />
+          <Grid ColumnDefinitions="110,100,*,Auto" ColumnSpacing="8">
             <Label Text="OPTIONAL CEILING" FontSize="12" TextColor="{StaticResource Muted}" VerticalOptions="Center" />
             <Border Grid.Column="1" Background="{StaticResource SurfaceSubtle}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 5" Padding="8,0">
               <Entry Text="{Binding HeartRate.SafetyCeilingText, Mode=OneWay}" local:ReactiveInput.TextChangedCommand="{Binding HeartRate.EditSafetyCeilingCommand}" TextColor="{StaticResource Ink}" PlaceholderColor="{StaticResource Muted}" Keyboard="Numeric" Placeholder="bpm" HorizontalTextAlignment="Center" SemanticProperties.Description="Optional heart-rate ceiling for power-based workouts" />

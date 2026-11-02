@@ -572,7 +572,35 @@ internal static class TrainingWorkoutLibrary
         string description,
         TrainingObjective objective,
         TrainingExperienceLevel level,
-        params TrainingSegment[] segments) => new(id, name, description, objective, level, AddWarmUpCadenceGuidance(segments));
+        params TrainingSegment[] segments) => new(
+            id,
+            name,
+            objective switch
+            {
+                TrainingObjective.Recovery => $"{description} {RecoveryHeartRateNote}",
+                TrainingObjective.Endurance => $"{description} {EnduranceHeartRateNote}",
+                TrainingObjective.Vo2Max => $"{description} {AerobicCapacityHeartRateNote}",
+                _ => description,
+            },
+            objective,
+            level,
+            AddHeartRateCeilings(objective, AddWarmUpCadenceGuidance(segments)));
+
+    // Heart rate lags power by one to two minutes, so only sustained easy segments carry a ceiling; harder sessions stay power-led
+    // because their short efforts finish before heart rate catches up.
+    private static TrainingSegment[] AddHeartRateCeilings(TrainingObjective objective, TrainingSegment[] segments) => objective switch
+    {
+        TrainingObjective.Recovery => [.. segments.Select(segment => WithCeiling(segment, HeartRateCeilingIntensity.Recovery, RecoveryPowerFloorPercentage, MaximumRecoveryCeilingPercentage))],
+        TrainingObjective.Endurance => [.. segments.Select(segment => WithCeiling(segment, HeartRateCeilingIntensity.Endurance, EndurancePowerFloorPercentage, MaximumEnduranceCeilingPercentage))],
+        _ => segments,
+    };
+
+    private static TrainingSegment WithCeiling(TrainingSegment segment, HeartRateCeilingIntensity intensity, double floorPercentage, double maximumPercentage) =>
+        segment.Duration >= MinimumHeartRateCeilingDuration
+        && segment.FunctionalThresholdPowerPercentage >= floorPercentage
+        && segment.FunctionalThresholdPowerPercentage <= maximumPercentage
+            ? segment with { HeartRateCeiling = new(intensity, floorPercentage) }
+            : segment;
 
     // Opening segments start with a broad cadence range, then lift toward the first work range so riders arrive prepared.
     private static TrainingSegment[] AddWarmUpCadenceGuidance(TrainingSegment[] segments)
@@ -596,6 +624,15 @@ internal static class TrainingWorkoutLibrary
             .. segments[1..],
         ];
     }
+
+    private const double RecoveryPowerFloorPercentage = 40d;
+    private const double MaximumRecoveryCeilingPercentage = 60d;
+    private const double EndurancePowerFloorPercentage = 50d;
+    private const double MaximumEnduranceCeilingPercentage = 75d;
+    private const string RecoveryHeartRateNote = "With a heart-rate strap and zones, power eases if heart rate drifts above recovery intensity.";
+    private const string EnduranceHeartRateNote = "With a heart-rate strap and zones, aerobic blocks ease power if heart rate drifts above easy endurance.";
+    private const string AerobicCapacityHeartRateNote = "Power leads the short efforts; with a heart-rate strap and zones, the summary reports time near maximum heart rate.";
+    private static readonly TimeSpan MinimumHeartRateCeilingDuration = TimeSpan.FromMinutes(3);
 
     private static string Numbered(string name, int number) => $"{name} {number}";
 

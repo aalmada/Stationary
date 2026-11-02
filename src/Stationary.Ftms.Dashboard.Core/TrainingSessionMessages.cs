@@ -51,6 +51,9 @@ public sealed record EndRequested(DateTimeOffset At) : TrainingSessionEvent(At);
 
 public sealed record RampTestFinishRequested(DateTimeOffset At) : TrainingSessionEvent(At);
 
+// The rider accepted or kept their FTP after a ramp test, which closes the result review.
+public sealed record RampEstimateReviewed(DateTimeOffset At) : TrainingSessionEvent(At);
+
 public sealed record NoticePosted(DateTimeOffset At, string Text) : TrainingSessionEvent(At);
 
 public sealed record PowerTargetCompleted(DateTimeOffset At, ApplyPowerTarget Request, bool Accepted) : TrainingSessionEvent(At);
@@ -70,6 +73,9 @@ public sealed record OperationFailed(DateTimeOffset At, string Message) : Traini
 public abstract record TrainingSessionEffect;
 
 public sealed record AddTrainingEvent(string Text) : TrainingSessionEffect;
+
+// Records the prescribed target of a segment as it starts so saved rides can report target adherence.
+public sealed record RecordTrainingSegment(int SegmentIndex, CompiledTrainingSegment Segment, bool IsRampStep) : TrainingSessionEffect;
 
 public sealed record NavigateTo(TrainingDestination Destination) : TrainingSessionEffect;
 

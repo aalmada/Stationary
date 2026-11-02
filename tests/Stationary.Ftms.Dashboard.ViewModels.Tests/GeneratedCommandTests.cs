@@ -355,6 +355,41 @@ public sealed class GeneratedCommandTests
     }
 
     [Test]
+    public async Task ZoneMethod_ShowsOnlyItsInputsAndRampPeakUpdatesMaximumZones()
+    {
+        using var platform = new TestDashboardPlatform();
+        platform.SetPreference("HeartRateMaximum", "180");
+        platform.SetPreference("HeartRateZoneMethod", nameof(HeartRateZoneMethod.MaximumHeartRate));
+        using var viewModel = new HeartRatePresentationViewModel(platform);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(viewModel.ActiveZoneMethod).IsEqualTo(HeartRateZoneMethod.MaximumHeartRate);
+            await Assert.That(viewModel.UsesMaximumHeartRate).IsTrue();
+            await Assert.That(viewModel.UsesLactateThreshold).IsFalse();
+            await Assert.That(viewModel.UsesRestingHeartRate).IsFalse();
+            await Assert.That(viewModel.SelectedZoneMethodTabIndex).IsEqualTo(2);
+            await Assert.That(viewModel.ZoneMethodTabTitles[viewModel.SelectedZoneMethodTabIndex]).IsEqualTo("Max HR");
+            await Assert.That(viewModel.ZoneStatusText).StartsWith("Maximum heart rate zones");
+        }
+
+        var status = await viewModel.ApplyMaximumHeartRateCommand.Execute((ushort)188).ToTask();
+        await viewModel.SelectZoneMethodTabCommand.Execute(0).ToTask();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(status).Contains("zones updated");
+            await Assert.That(platform.GetPreference("HeartRateMaximum", string.Empty)).IsEqualTo("188");
+            await Assert.That(viewModel.ZoneProfile!.Zones[^1].MinimumBeatsPerMinute).IsEqualTo(HeartRateZoneProfile.CreateMaximumHeartRate(188).Zones[^1].MinimumBeatsPerMinute);
+            await Assert.That(viewModel.UsesLactateThreshold).IsTrue();
+            await Assert.That(viewModel.UsesMaximumHeartRate).IsFalse();
+            await Assert.That(viewModel.SelectedZoneMethod).IsEqualTo(HeartRateZoneMethod.CyclingLactateThreshold);
+            await Assert.That(viewModel.SelectedZoneMethodTabIndex).IsEqualTo(0);
+            await Assert.That(viewModel.ActiveZoneMethod).IsEqualTo(HeartRateZoneMethod.MaximumHeartRate);
+        }
+    }
+
+    [Test]
     public async Task AgeMaximumHeartRateEstimate_UsesTanakaEquation()
     {
         using var platform = new TestDashboardPlatform();
@@ -496,6 +531,8 @@ public sealed class GeneratedCommandTests
         await Assert.That(training.SelectedWorkout).IsEqualTo(training.Workouts[1]);
         await training.SelectPlanWeekCommand.Execute(training.Plans[0].Weeks[1]).ToTask();
         await Assert.That(training.SelectedPlanWorkouts.Count).IsEqualTo(training.Plans[0].Weeks[1].WorkoutIds.Count);
+        await Assert.That(training.SelectedPlanWeekSummary)
+            .IsEqualTo(TrainingPlanWeekSummary.Create(training.Plans[0].Weeks[1], training.SelectedPlanWorkouts));
         await dashboard.ShowTodayCommand.Execute().ToTask();
         await dashboard.ShowTrainingCommand.Execute().ToTask();
         await Assert.That(destinations.SequenceEqual([DashboardDestination.Today, DashboardDestination.Training])).IsTrue();
@@ -639,7 +676,16 @@ public sealed class GeneratedCommandTests
         await environment.ReadyAsync();
         await environment.ConnectAsync();
 
+        var comparisonBeforeExport = environment.ViewModel.PreviousSessionComparisonText;
+        await Assert.That(environment.ViewModel.HasLastRide).IsFalse();
         await environment.ViewModel.ExportSessionCommand.Execute().ToTask();
+
+        // The exported ride is shown on Results at once, but is not compared with itself until the next ride starts.
+        await Assert.That(environment.ViewModel.HasLastRide).IsTrue();
+        await Assert.That(environment.ViewModel.LastRideReport!.Title).StartsWith("Saved ");
+        await Assert.That(environment.ViewModel.PreviousSessionComparisonText).IsEqualTo(comparisonBeforeExport);
+        await environment.ViewModel.ResetSessionCommand.Execute().ToTask();
+        await Assert.That(environment.ViewModel.PreviousSessionComparisonText).StartsWith("Previous:");
 
         var exports = Directory.GetFiles(environment.Platform.CacheDirectory, "stationary-session-*.csv");
         await Assert.That(exports.Length).IsEqualTo(1);
@@ -647,6 +693,41 @@ public sealed class GeneratedCommandTests
             Path.Combine(environment.Platform.AppDataDirectory, "previous-session.json"));
         await Assert.That(archive is not null).IsTrue();
         await Assert.That(environment.ViewModel.ConnectionStatus.Contains(exports[0], StringComparison.Ordinal)).IsTrue();
+        await Assert.That(Directory.GetFiles(Path.Combine(environment.Platform.AppDataDirectory, "rides"), "ride-*.json").Length).IsEqualTo(1);
+        await Assert.That(environment.ViewModel.RideHistoryEntries).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task EndFreeRideCommand_SavesTheRideToTheHistory()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var dashboard = environment.ViewModel;
+        await dashboard.StartCommand.Execute().ToTask();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (!dashboard.Telemetry.HasSessionEffort)
+        {
+            environment.Session.Telemetry.TryPublish(CreatePowerBikeSample(DateTimeOffset.UtcNow, 10));
+            await Task.Delay(20, timeout.Token);
+            environment.Scheduler.AdvanceBy(TimeSpan.FromMilliseconds(250));
+        }
+
+        await dashboard.EndFreeRideCommand.Execute().ToTask();
+        while (dashboard.RideHistoryEntries.Count == 0)
+        {
+            await Task.Delay(20, timeout.Token);
+        }
+
+        var historyPath = Path.Combine(environment.Platform.AppDataDirectory, "ride-history.json");
+        using (Assert.Multiple())
+        {
+            await Assert.That(dashboard.HasLastRide).IsTrue();
+            await Assert.That(dashboard.RideHistoryEntries[0].Name).IsEqualTo("Free ride");
+            await Assert.That((await RideHistory.ReadAsync(historyPath)).Rides).Count().IsEqualTo(1);
+            await Assert.That(Directory.GetFiles(Path.Combine(environment.Platform.AppDataDirectory, "rides"), "ride-*.json").Length).IsEqualTo(1);
+            await Assert.That(dashboard.RideTrend.Rows).Count().IsEqualTo(1);
+        }
     }
 
     private static TelemetrySnapshot CreatePowerBikeSample(DateTimeOffset capturedAt, uint totalDistanceMeters) =>

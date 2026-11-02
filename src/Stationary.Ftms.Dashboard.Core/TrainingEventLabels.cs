@@ -12,6 +12,12 @@ public static class TrainingEventLabels
         return string.Create(CultureInfo.InvariantCulture, $"Workout {name} · FTP {functionalThresholdPower} W · preferred cadence {preferredCadenceRpm} rpm");
     }
 
+    public static string RampStep(int segmentIndex, CompiledTrainingSegment segment)
+    {
+        ArgumentNullException.ThrowIfNull(segment);
+        return string.Create(CultureInfo.InvariantCulture, $"{RampFtpProtocol.DescribeStep(segmentIndex)} · {segment.TargetWatts} W");
+    }
+
     public static string Interval(int segmentIndex, int segmentCount, CompiledTrainingSegment segment)
     {
         ArgumentNullException.ThrowIfNull(segment);

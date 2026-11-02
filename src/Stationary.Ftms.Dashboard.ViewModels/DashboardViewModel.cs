@@ -40,7 +40,6 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
 {
     private const byte StopControlInformation = 0x01;
     private const byte PauseControlInformation = 0x02;
-    private const int SessionArchiveFormatVersion = 1;
     private const int MaximumRecordedSamples = 86_400;
     private const string HeartRateTrainingProgressPreferenceKey = "HeartRateTrainingProgress";
     private static readonly TimeSpan ChartWindow = TimeSpan.FromMinutes(5);
@@ -111,6 +110,10 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     private HeartRateObservation? latestRecordedHeartRate;
     private DateTimeOffset? lastRecordedAt;
     private RecordedSession? previousSession;
+    // An exported ride becomes the comparison baseline only when the next ride starts, so it is never compared with itself.
+    private RecordedSession? exportedSession;
+    private readonly List<RideTargetSegment> rideTargets = [];
+    private readonly SemaphoreSlim rideSaveGate = new(1, 1);
     private DateTimeOffset? lastWorkoutAnalysisAt;
     private int isDisposed;
 
@@ -280,6 +283,21 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             }));
         // ThrownExceptions above reports failures; Execute also needs its own error observer.
         subscriptions.Add(LoadPreviousSessionCommand.Execute().Subscribe(static _ => { }, static _ => { }));
+        subscriptions.Add(LoadRideHistoryCommand
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(result =>
+            {
+                RideHistoryEntries = result.Rides;
+                RideHistoryError = result.Error;
+            }));
+        subscriptions.Add(LoadRideHistoryCommand.ThrownExceptions
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Where(static exception => exception is not OperationCanceledException)
+            .Subscribe(exception => RideHistoryError = $"Ride history could not be loaded: {exception.Message}"));
+        subscriptions.Add(LoadRideHistoryCommand.Execute().Subscribe(static _ => { }, static _ => { }));
+        subscriptions.Add(SaveRideCommand.ThrownExceptions
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(exception => ConnectionStatus = $"The ride could not be saved: {exception.Message}"));
         var sessionTerminationExecuting = sessionTerminationIngress
             .ObserveOn(RxApp.MainThreadScheduler)
             .Select(termination => Observable
@@ -528,7 +546,59 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.EffortMapSpeedKilometersPerHour);
         subscriptions.Add(_effortMapSpeedKilometersPerHourHelper);
+        _lastRideReportHelper = this.WhenAnyValue(
+                static viewModel => viewModel.LastSavedRide,
+                static viewModel => viewModel.Telemetry.UseMetricUnits,
+                static viewModel => viewModel.Telemetry.FunctionalThresholdPowerText,
+                static viewModel => viewModel.HeartRate.ZoneProfile,
+                static (ride, metric, ftpText, zones) => ride is null
+                    ? null
+                    : SavedRideReport.Create(ride, TimeZoneInfo.Local, metric, ParseFunctionalThresholdPower(ftpText), zones))
+            .ToProperty(this, viewModel => viewModel.LastRideReport, (SavedRideReport?)null, scheduler: ImmediateScheduler.Instance);
+        subscriptions.Add(_lastRideReportHelper);
+        _hasLastRideHelper = this.WhenAnyValue(static viewModel => viewModel.LastRideReport)
+            .Select(static report => report is not null)
+            .ToProperty(this, viewModel => viewModel.HasLastRide, false, scheduler: ImmediateScheduler.Instance);
+        subscriptions.Add(_hasLastRideHelper);
+        _isLiveSessionVisibleHelper = this.WhenAnyValue(
+                static viewModel => viewModel.IsSessionAvailable,
+                static viewModel => viewModel.Telemetry.HasSessionEffort,
+                static (available, effort) => available && effort)
+            .DistinctUntilChanged()
+            .ToProperty(this, viewModel => viewModel.IsLiveSessionVisible, false, scheduler: ImmediateScheduler.Instance);
+        subscriptions.Add(_isLiveSessionVisibleHelper);
+        _rideTrendHelper = this.WhenAnyValue(
+                static viewModel => viewModel.RideHistoryEntries,
+                static viewModel => viewModel.RideHistoryError,
+                static (rides, error) => error is null
+                    ? RideHistory.CreateTrend(rides, TimeZoneInfo.Local)
+                    : new RideTrendReport(error, [], []))
+            .ToProperty(this, viewModel => viewModel.RideTrend, scheduler: ImmediateScheduler.Instance);
+        subscriptions.Add(_rideTrendHelper);
     }
+
+    // Saved automatically when a ride ends; the trend on Results is derived from this compact index.
+    [Reactive]
+    public partial IReadOnlyList<RideHistoryEntry> RideHistoryEntries { get; private set; } = [];
+
+    [Reactive]
+    public partial string? RideHistoryError { get; private set; }
+
+    [ObservableAsProperty(InitialValue = "global::Stationary.Ftms.Dashboard.Core.RideHistory.CreateTrend([], global::System.TimeZoneInfo.Local)")]
+    public partial RideTrendReport RideTrend { get; }
+
+    // The most recently exported ride, shown on Results; it becomes the comparison baseline only once the next ride starts.
+    [Reactive]
+    public partial RecordedSession? LastSavedRide { get; private set; }
+
+    [ObservableAsProperty]
+    public partial SavedRideReport? LastRideReport { get; }
+
+    [ObservableAsProperty]
+    public partial bool HasLastRide { get; }
+
+    [ObservableAsProperty]
+    public partial bool IsLiveSessionVisible { get; }
 
     [Reactive]
     public partial string ConnectionStatus { get; private set; } = "No fitness machine connected";
@@ -1135,6 +1205,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         ResetSessionCommand.Dispose();
         ExportSessionCommand.Dispose();
         LoadPreviousSessionCommand.Dispose();
+        LoadRideHistoryCommand.Dispose();
+        SaveRideCommand.Dispose();
+        rideSaveGate.Dispose();
         ApplyHeartRateZonesCommand.Dispose();
         ShowTodayCommand.Dispose();
         ShowRideCommand.Dispose();
@@ -1406,9 +1479,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         var path = Path.Combine(platform.CacheDirectory, fileName);
         var archive = CreateRecordedSession();
         await RecordedSessionArchiveStorage.WriteCsvAsync(path, archive, cancellationToken);
-        await RecordedSessionArchiveStorage.WriteJsonAsync(GetPreviousSessionPath(), archive, cancellationToken);
-        previousSession = archive;
-        UpdatePreviousSessionComparison(archive.Summary);
+        exportedSession = archive;
+        LastSavedRide = archive;
+        await SaveRideFilesAsync(archive, cancellationToken);
         ConnectionStatus = $"Session telemetry exported to {path}.";
     }
 
@@ -1900,6 +1973,7 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             {
                 PauseSessionRecording(timestamp);
                 AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
+                SaveEndedRide();
             }
 
             return;
@@ -1909,6 +1983,97 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         AddSessionEvent(timestamp, SessionEventType.Stop, "Stop");
         SetWorkoutSessionState(WorkoutSessionState.Stopped);
         IsWorkoutActive = false;
+        SaveEndedRide();
+    }
+
+    // Every ride with recorded effort is kept: it becomes the last saved ride and enters the history used for trends.
+    private void SaveEndedRide()
+    {
+        if (!Telemetry.HasSessionEffort || recordedSamples.Count == 0)
+        {
+            return;
+        }
+
+        var archive = CreateRecordedSession();
+        exportedSession = archive;
+        LastSavedRide = archive;
+        SaveRideCommand.Execute(archive).Subscribe(static _ => { }, static _ => { });
+    }
+
+    [ReactiveCommand(AccessModifier = PropertyAccessModifier.Private)]
+    private Task SaveRideAsync(RecordedSession ride, CancellationToken cancellationToken) =>
+        SaveRideFilesAsync(ride, cancellationToken);
+
+    private async Task SaveRideFilesAsync(RecordedSession ride, CancellationToken cancellationToken)
+    {
+        await rideSaveGate.WaitAsync(cancellationToken).ConfigureAwait(true);
+        try
+        {
+            var directory = GetRidesDirectory();
+            Directory.CreateDirectory(directory);
+            await RecordedSessionArchiveStorage.WriteJsonAsync(
+                Path.Combine(directory, RideHistory.GetFileName(ride.StartedAt)),
+                ride,
+                cancellationToken).ConfigureAwait(true);
+            await RecordedSessionArchiveStorage.WriteJsonAsync(GetPreviousSessionPath(), ride, cancellationToken).ConfigureAwait(true);
+            var historyPath = GetRideHistoryPath();
+            var history = await RideHistory.ReadAsync(historyPath, cancellationToken).ConfigureAwait(true);
+            var rides = RideHistory.Upsert(history.Rides, RideHistory.CreateEntry(ride));
+            await RideHistory.WriteAsync(historyPath, new RideHistoryDocument(rides), cancellationToken).ConfigureAwait(true);
+            RideHistoryEntries = rides;
+            RideHistoryError = null;
+        }
+        finally
+        {
+            rideSaveGate.Release();
+        }
+    }
+
+    [ReactiveCommand(AccessModifier = PropertyAccessModifier.Private)]
+    private async Task<RideHistoryLoadResult> LoadRideHistoryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var document = await RideHistory.ReadAsync(GetRideHistoryPath(), cancellationToken).ConfigureAwait(false);
+            return new(document.Rides ?? [], null);
+        }
+        catch (JsonException)
+        {
+            return new([], "Ride history could not be read.");
+        }
+        catch (IOException exception)
+        {
+            return new([], $"Ride history is unavailable: {exception.Message}");
+        }
+    }
+
+    private readonly record struct RideHistoryLoadResult(IReadOnlyList<RideHistoryEntry> Rides, string? Error);
+
+    private string GetRidesDirectory() => Path.Combine(platform.AppDataDirectory, "rides");
+
+    private string GetRideHistoryPath() => Path.Combine(platform.AppDataDirectory, "ride-history.json");
+
+    private static ushort? ParseFunctionalThresholdPower(string? text) =>
+        ushort.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var watts) && watts > 0 ? watts : null;
+
+    public void RecordTrainingSegment(int segmentIndex, CompiledTrainingSegment segment, bool isRampStep)
+    {
+        ArgumentNullException.ThrowIfNull(segment);
+        if (!isSessionRecording || rideTargets.Count > 0 && rideTargets[^1].SegmentIndex == segmentIndex)
+        {
+            return;
+        }
+
+        var isHeartRateLed = segment.Definition.HeartRateTarget is not null;
+        rideTargets.Add(new(
+            segmentIndex,
+            DateTimeOffset.UtcNow,
+            segment.Definition.Name,
+            segment.TargetWatts,
+            isHeartRateLed ? segment.TargetMinimumHeartRate : null,
+            isHeartRateLed ? segment.TargetMaximumHeartRate : segment.CeilingHeartRate,
+            isHeartRateLed,
+            isRampStep));
     }
 
     private void StartLocalSessionRecording()
@@ -2324,7 +2489,14 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
 
     private void ClearRecordedSession()
     {
+        if (exportedSession is { } exported)
+        {
+            exportedSession = null;
+            UsePreviousSession(exported);
+        }
+
         recordedSamples.Clear();
+        rideTargets.Clear();
         lastRecordedAt = null;
         hasLoggedResistanceLevel = false;
         lastLoggedResistanceTenths = null;
@@ -2346,21 +2518,24 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
         lastWorkoutAnalysisAt = timestamp;
         var cutoff = timestamp - TimeSpan.FromMinutes(20);
         var metrics = WorkoutAnalysis.Calculate([.. recordedSamples.Where(sample => sample.CapturedAt >= cutoff)]);
-        EfficiencyText = metrics.PowerHeartRateEfficiency is double efficiency ? $"{efficiency:F2} W/bpm" : "Gathering paired data";
-        DecouplingText = metrics.AerobicDecouplingPercentage is double decoupling ? $"{decoupling:+0.0;-0.0;0.0}%" : "Requires 10 minutes";
-        CadenceAnalysisText = metrics.AverageCadenceRpm is double average
-            ? $"{average:F0} rpm · {metrics.CadenceVariationPercentage:F1}% variation · preferred {metrics.PreferredCadenceMinimumRpm:F0}-{metrics.PreferredCadenceMaximumRpm:F0}"
-            : "Gathering cadence";
-        TorqueExposureText = metrics.LowCadenceHighTorqueExposure.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
-        RecoveryText = metrics.HeartRateRecoveryBeatsPerMinute is double recovery ? $"{recovery:F0} bpm/min" : "Waiting for recovery";
+        EfficiencyText = WorkoutAnalysisText.Efficiency(metrics);
+        DecouplingText = WorkoutAnalysisText.Decoupling(metrics);
+        CadenceAnalysisText = WorkoutAnalysisText.Cadence(metrics);
+        TorqueExposureText = WorkoutAnalysisText.TorqueExposure(metrics);
+        RecoveryText = WorkoutAnalysisText.Recovery(metrics);
     }
 
     private RecordedSession CreateRecordedSession() => new(
-        SessionArchiveFormatVersion,
+        RecordedSession.CurrentFormatVersion,
         DateTimeOffset.UtcNow,
         [.. recordedSamples],
         [.. SessionEvents],
-        Telemetry.GetSessionSummary());
+        Telemetry.GetSessionSummary(),
+        new RideContext(
+            ParseFunctionalThresholdPower(Telemetry.FunctionalThresholdPowerText),
+            HeartRate.ZoneProfile?.Name,
+            HeartRate.ZoneProfile is { } zones ? RideContext.FromProfile(zones) : null,
+            [.. rideTargets]));
 
     [ReactiveCommand(AccessModifier = PropertyAccessModifier.Private)]
     private async Task<PreviousSessionLoadResult> LoadPreviousSessionAsync(CancellationToken cancellationToken)
@@ -2401,9 +2576,15 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             return;
         }
 
-        previousSession = loadedSession;
-        var elapsed = loadedSession.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
-        PreviousSessionComparisonText = $"Previous: {loadedSession.Summary.AveragePowerWatts:F0} W average · {loadedSession.Summary.CyclingMetrics.TotalWorkKilojoules:F1} kJ · {elapsed}";
+        UsePreviousSession(loadedSession);
+    }
+
+    private void UsePreviousSession(RecordedSession session)
+    {
+        previousSession = session;
+        LastSavedRide = session;
+        var elapsed = session.Summary.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        PreviousSessionComparisonText = $"Previous: {session.Summary.AveragePowerWatts:F0} W average · {session.Summary.CyclingMetrics.TotalWorkKilojoules:F1} kJ · {elapsed}";
     }
 
     private readonly record struct PreviousSessionLoadResult(RecordedSession? Session, string? ErrorMessage);

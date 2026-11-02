@@ -2,7 +2,39 @@
 
 Stationary is a .NET 11 toolkit for Bluetooth Fitness Machine Service (FTMS) equipment. It provides high-performance, transport-neutral codecs together with BLE connectivity, serialized Control Point coordination, telemetry presentation, heart-rate support, and a .NET MAUI dashboard for multiplatform app delivery. The dashboard uses ReactiveUI and Reactive Extensions for reactive MVVM and real-time event processing.
 
-![Stationary FTMS dashboard Session view with live telemetry and heart-rate analytics](Screenshot%202026-09-11%20at%2019.50.29.png)
+## Screenshots
+
+### Home
+
+Choose a free ride, a structured workout, or the FTP ramp test, and check that the bike, heart-rate sensor, and FTP are ready.
+
+![Home page with free ride, workout, and ramp test cards, readiness checks, and the last ride summary](assets/screenshots/home.png)
+
+### Ride
+
+The live dashboard during a workout: power with the ERG target and heart-rate cap, heart rate and zone, cadence target, interval progress, five-minute charts, ride totals, and the power-versus-cadence map.
+
+![Ride page during the Aerobic Ladder workout with live metrics, interval timeline, charts, and power-versus-cadence map](assets/screenshots/ride.png)
+
+### Results
+
+Every ride with effort is saved automatically. Results analyses the last saved ride with efficiency factor, variability index, heart-rate drift and recovery, and full-ride charts.
+
+![Results page with the last saved ride's totals, analysis metrics, and power, heart-rate, and cadence charts](assets/screenshots/results-analysis.png)
+
+Time in heart-rate and power zones, target adherence for each interval, and the ride history with the efficiency trend.
+
+![Results page with time in heart-rate and power zones, per-interval target adherence, and ride history](assets/screenshots/results-zones-history.png)
+
+### Sensors
+
+Pair a Bluetooth FTMS bike or trainer and review the telemetry and controls it supports.
+
+![Fitness machine sheet with connection status and device capabilities](assets/screenshots/fitness-machine.png)
+
+Pair a heart-rate strap or watch and choose how heart-rate zones are calculated: cycling lactate threshold, heart-rate reserve, or maximum heart rate.
+
+![Heart-rate sensor sheet with live heart rate and heart-rate zone settings](assets/screenshots/heart-rate-sensor.png)
 
 ## Projects
 
@@ -54,10 +86,12 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 
 - Power-target workout segments send an FTMS target-power command to the bike. In ERG mode, the bike controls resistance; the rider follows the segment's cadence target rather than trying to force measured power to match the target.
 - Heart-rate workouts can target the configured recovery or endurance zone, moderate 40-59% or vigorous 60-89% heart-rate reserve, or a clinician-prescribed bpm range. The app adjusts trainer power in bounded 10 W steps; it requires a connected, fresh heart-rate sensor and pauses the interval after a signal loss. Power remains the target for short high-intensity intervals.
-- Heart-rate zones can use cycling lactate threshold, heart-rate reserve, or maximum heart rate. Age-based maximum-heart-rate estimates are labeled as estimates. An optional user-entered heart-rate ceiling lowers power during any workout when a fresh sensor reading is available; it is not medical monitoring.
+- With a heart-rate strap and a built-in zone profile, sustained recovery and endurance blocks in the structured catalog keep power as the target but ease it (down to 40% or 50% of FTP) when heart rate rises above the profile's recovery or easy-endurance ceiling. Power is restored once heart rate settles. Tempo, threshold, VO2, anaerobic, and cadence sessions stay power-led because heart rate lags short efforts by one to two minutes.
+- VO2 sessions report time spent near maximum heart rate (about 90% of maximum or above). Profiles based on maximum heart rate, heart-rate reserve, or lactate threshold also add a heart-rate 4x4 session: four 4-minute intervals at about 85-95% of maximum heart rate. Power opens each interval and heart rate then trims it.
+- Heart-rate zones can use cycling lactate threshold, heart-rate reserve, or maximum heart rate. The Heart rate page shows only the inputs the selected method uses: LTHR for cycling LTHR, max HR for maximum heart rate, and max and resting HR for heart-rate reserve. Home summarizes the applied zones. FTP does not change heart-rate zones. Age-based maximum-heart-rate estimates are labeled as estimates. An optional user-entered heart-rate ceiling lowers power during any workout when a fresh sensor reading is available; it is not medical monitoring.
 - General-health heart-rate workouts are presented as general guidance for apparently healthy adults and require a screening acknowledgement. Clinician-prescribed sessions accept rider-entered limits only; the app does not generate rehabilitation prescriptions.
-- Completed and rider-ended sessions count measured time in heart-rate Zones 1-2 toward the plan's rolling seven-day easy-volume goal. Power alone does not count as easy aerobic time. Heart-rate target intervals report the share of observed time spent in range.
-- Power target increases ramp in 5-second steps over up to 15 seconds (a quarter of shorter segments); budget trainers take 3-6 seconds to respond, so faster steps are skipped. Decreases apply at once. The first segment starts from half its target. The FTP ramp test applies its steps directly.
+- Completed and rider-ended sessions count measured time in heart-rate Zones 1-2 toward the plan's rolling seven-day easy-volume goal. Power alone does not count as easy aerobic time. Heart-rate target intervals report the share of observed time spent in range, after a settling period (at most half the interval) that allows for heart-rate lag.
+- Power target increases ramp in 5-second steps over up to 15 seconds (a quarter of shorter segments); budget trainers take 3-6 seconds to respond, so faster steps are skipped. Decreases apply at once. The first segment starts from half its target. The FTP ramp test applies its steps directly. The Ride page shows ramp steps as "Step N" with the ride's elapsed time instead of a workout countdown, and reveals only the next step, because the test lasts until the rider stops. Results shows the FTP estimate and the peak heart rate; when the peak is above the configured max HR, or none is set, it offers to use the peak as max HR.
 - Training holds the bike's lowest supported power target until cadence reaches 45 rpm. Only then does the first target ramp begin and the interval timer start, so the trainer does not load resistance against a stopped flywheel.
 - If cadence stays below 35 rpm for 1.5 seconds during a workout, the target drops to the lowest supported power. As soon as cadence reaches 45 rpm, it ramps back to the interval target, starting from the higher of the rider's current power and the bike's estimated minimum at that cadence. Known limit: after an abrupt stop, the test bike's own controller kept resistance at about 3-3.6 W/rpm (roughly twice the target) for the first 3-5 seconds of the restart. Across 26 restarts no power command changed this, whether 0-130 W holds, repeated holds, or FTMS Pause and Start, while spinning up from idle at session start stayed near 1.4 W/rpm. With power-only control, avoiding stalls is the remedy. This guard prevents the ERG "spiral of death" and is disabled during the FTP ramp test.
 - Every workout opens with a broad warm-up cadence range (60-100 rpm as authored), then a 2-minute cadence lift (75-95 rpm as authored), so riders approach the work range before the first scored interval. These opening segments do not count toward adherence.
@@ -68,7 +102,9 @@ See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/Reactive
 - During a workout, the Power vs Cadence map keeps fixed axes that span the whole workout. Cadence runs vertically (the rider moves the dot up or down) and power horizontally (the bike holds it in ERG mode, so the dashed target line only shifts sideways when the interval power changes). Samples outside the axes are pinned to the edge.
 - The Power vs Cadence map has a light background with light-grey stars behind the grid. Stars are points 10-120 m ahead, seen through a 60° horizontal field of view that moves forward at the corrected bike speed, so they drift with real-world perspective: distant points barely move and nearby ones sweep outward. A star draws a streak only when its projected travel over 0.1 s exceeds 6% of the half-width, so easy riding around 12 km/h shows points only and streaks appear on hard efforts. Motion stops at zero speed, during pauses, and when telemetry is stale; rendering also stops when the page is hidden or the app is suspended. The cadence band, dashed power target, and rider marker stay in the foreground.
 - Many bikes cannot go below a minimum resistance level, so at higher cadences low targets are unreachable. During a workout the dashboard learns this floor in watts per rpm. It starts once power has stayed more than 10% above a settled target for 10 seconds at 70 rpm or more. When a target is below the learned floor at the current cadence, the ride panel says power will read high, suggests the lowest cadence in the range that gets closer, and logs a `Training` event.
-- Recorded sessions log `Training` events: the workout and preferred cadence, each interval's power and cadence targets, every target sent with the bike's response and round-trip time, pedalling detection, stalls and recoveries, every Fitness Machine Status notification from the bike (for example `TargetPowerChanged`), changes in the bike-reported resistance level, warm-up cadence tuning, and how the workout ended. The CSV export interleaves events with telemetry by timestamp. Charts do not draw `Training` events.
+- Recorded sessions log `Training` events: the workout and preferred cadence, each interval's power and cadence targets, every target sent with the bike's response and round-trip time, pedalling detection, stalls and recoveries, every Fitness Machine Status notification from the bike (for example `TargetPowerChanged`), changes in the bike-reported resistance level, warm-up cadence tuning, and how the workout ended. The CSV export interleaves events with telemetry by timestamp. Exporting does not change the "Vs previous" comparison; the exported session becomes the baseline when the next session starts. Charts do not draw `Training` events.
+- Ending a ride with recorded effort saves it automatically: the full recording goes to `rides/ride-<UTC start>.json` and `previous-session.json` in the app data folder, and a one-line summary is added to `ride-history.json` (the last 365 rides, one entry per start time, so a later CSV export does not duplicate it). Archives use format version 2, which adds a `Context` with the FTP, heart-rate zones, and each interval's targets in effect during the ride, so saved rides are analysed with the settings the rider actually used.
+- Results analyses the last saved ride: efficiency factor (normalized power ÷ average heart rate), variability index (normalized ÷ average power), heart-rate drift (only for rides of at least 10 minutes with a variability index of 1.05 or less), heart-rate recovery (best drop 60 seconds after power falls below 60% of the previous 30 seconds), time in heart-rate and power zones, target adherence (power within ±10% or 10 W, heart rate inside the prescribed range, ignoring the first 15 seconds of each interval and ramp steps), and power, heart-rate, and cadence charts. Ride history lists recent rides and compares the latest efficiency factor with the average of up to five previous rides of at least 10 minutes; a change of 3% or more reads as up or down.
 - The last plan, "Debug: Power vs Cadence", holds four sessions of under 10 minutes for checking how a bike follows ERG targets. Each opens with a 90-second calibration spin-up and ends with a 1-minute cool down. Power Steps changes power every 45 seconds in a fixed cadence band. Cadence Sweep holds power while the cadence band moves every minute. Big Jumps alternates 45% and 85% FTP every 30 seconds. Stall and Recover asks the rider to stop twice to exercise the stall guard. The sessions also appear at the end of the workout library and stay outside the validated training catalog and its plans.
 - Workouts use ERG's power-torque trade-off: at the same power target, a lower cadence means more resistance (torque) and a higher cadence means less. Between scored intervals, either power or the cadence range changes, never both. Recovery adds quick-feet spin-ups at the same easy power. Endurance adds seated-climb (lower cadence) and high-cadence sections at Zone 2 power. Tempo and sweet spot add low-cadence torque blocks. Threshold keeps over-unders at a steady cadence and closes each set with a seated climb. VO2 efforts use a high cadence to limit torque. Cadence skills run ladders, pyramids, and torque-spin contrasts at fixed power. Scored work with ranges starting below 75 rpm (as authored) stays at or below 95% FTP to avoid grinding into a stall.
 - Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.

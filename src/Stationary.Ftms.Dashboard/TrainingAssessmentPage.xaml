@@ -20,9 +20,7 @@
             <HorizontalStackLayout Spacing="8">
               <Button Style="{StaticResource ActionButton}" Text="Start ramp test" Command="{Binding StartRampTestCommand}" />
               <Button Style="{StaticResource SecondaryActionButton}" Text="Finish test" Command="{Binding FinishRampTestCommand}" />
-              <Button Style="{StaticResource SecondaryActionButton}" Text="Accept FTP" Command="{Binding AcceptRampEstimateCommand}" />
             </HorizontalStackLayout>
-            <Label Text="{Binding RampEstimateText}" TextColor="{StaticResource Muted}" />
           </VerticalStackLayout>
         </Border>
       </VerticalStackLayout>

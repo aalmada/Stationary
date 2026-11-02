@@ -24,6 +24,7 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
 {
     public static readonly TimeSpan HeartRateAdjustmentInterval = TimeSpan.FromSeconds(10);
     public static readonly TimeSpan HeartRateSettlingDuration = TimeSpan.FromMinutes(2);
+    public const int ZoneCeilingHysteresisBeatsPerMinute = 5;
     public static readonly TimeSpan MaximumHeartRateSampleAge = TimeSpan.FromSeconds(5);
 
     public TrainingTransition Reduce(TrainingSession state, TrainingSessionEvent sessionEvent)
@@ -39,8 +40,9 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
                 ? TrainingTransition.Of(state with { IsResumePending = true }).Emit(new ResumeMachineSession())
                 : TrainingTransition.Of(state),
             RetryRequested => Retry(state),
-            EndRequested => RequestEnd(state),
+            EndRequested ended => RequestEnd(state, ended.At),
             RampTestFinishRequested => FinalizeRampTest(state, allStepsExhausted: false),
+            RampEstimateReviewed => TrainingTransition.Of(state with { RampEstimate = null, RampPeakHeartRate = null }),
             NoticePosted notice => TrainingTransition.Of(state with { StatusText = notice.Text }),
             PowerTargetCompleted completed => OnPowerTargetCompleted(state, completed),
             MachineSessionStarted started => OnMachineSessionStarted(state, started),
@@ -176,7 +178,10 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
                 ? $"Ramping toward {segment.TargetWatts} W for {segment.Definition.Name}."
                 : $"Applying {segment.TargetWatts} W for {segment.Definition.Name}.",
         })
-            .Emit(new AddTrainingEvent(TrainingEventLabels.Interval(runner.SegmentIndex, runner.SegmentCount, segment)))
+            .Emit(new RecordTrainingSegment(runner.SegmentIndex, segment, state.IsRampTest))
+            .Emit(new AddTrainingEvent(state.IsRampTest
+                ? TrainingEventLabels.RampStep(runner.SegmentIndex, segment)
+                : TrainingEventLabels.Interval(runner.SegmentIndex, runner.SegmentCount, segment)))
             .Emit(new ApplyPowerTarget(TrainingTargetPurpose.SegmentTarget, state.Generation, revision, runner.SegmentIndex, initialWatts, ramp));
     }
 
@@ -217,12 +222,20 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
             ? state with { IsResumePending = false, Runner = state.Runner?.Resume(resumed.At), StatusText = "Training timer resumed." }
             : state with { IsResumePending = false, StatusText = "The bike session could not be resumed." });
 
-    private static TrainingTransition RequestEnd(TrainingSession state)
+    private TrainingTransition RequestEnd(TrainingSession state, DateTimeOffset at)
     {
         if (state.IsEnding || !state.IsActive)
         {
             return TrainingTransition.Of(state);
         }
+
+        // Stopping a ramp test is how it ends: the rider rides to exhaustion, so the result is estimated rather than discarded.
+        if (state.CanFinishRampTest)
+        {
+            return FinalizeRampTest(state, allStepsExhausted: false);
+        }
+
+        state = state.Runner is { State: TrainingWorkoutState.Running or TrainingWorkoutState.Paused } ? RecordTimeNearMaximum(state, at) : state;
 
         var awaitStart = state.IsSessionStartPending && state.Machine.IsConnected && state.IsSessionStartInFlight;
         var transition = TrainingTransition.Of(state with
@@ -237,18 +250,24 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
         }).Emit(new AddTrainingEvent(state.Runner?.CurrentSegment is { } segment
             ? $"Workout ended by rider during {segment.Definition.Name}"
             : "Workout ended by rider"));
+        transition = state.HasSessionStarted ? ReportTimeNearMaximum(transition) : transition;
         return awaitStart ? transition : transition.Emit(new EndMachineSession(TrainingEndPurpose.Rider));
     }
 
     private static TrainingTransition CompleteWorkout(TrainingSession state) =>
-        TrainingTransition.Of(state with
+        ReportTimeNearMaximum(TrainingTransition.Of(state with
         {
             IsEnding = true,
             IsEndFailed = false,
             StatusText = "Workout complete. Waiting for the bike to stop...",
         })
-            .Emit(new AddTrainingEvent("Workout complete"))
+            .Emit(new AddTrainingEvent("Workout complete")))
             .Emit(new EndMachineSession(TrainingEndPurpose.WorkoutComplete));
+
+    private static TrainingTransition ReportTimeNearMaximum(TrainingTransition transition) =>
+        transition.State.Workout?.NearMaximumHeartRate is ushort threshold
+            ? transition.Emit(new AddTrainingEvent(TrainingSessionText.TimeNearMaximum(threshold, transition.State.TimeNearMaximumHeartRate)))
+            : transition;
 
     private static TrainingTransition FinalizeRampTest(TrainingSession state, bool allStepsExhausted) =>
         state.IsRampTest && state.RampStartedAt is not null && !state.IsEnding
@@ -309,17 +328,19 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
 
     private TrainingTransition FinishRampTest(TrainingSession state, bool allStepsExhausted)
     {
-        var estimate = allStepsExhausted || state.RampStartedAt is not { } startedAt
+        var samples = state.RampStartedAt is { } startedAt ? readSamplesSince(startedAt) : [];
+        var estimate = allStepsExhausted || state.RampStartedAt is null
             ? new RampFtpEstimateDeviceMaximumReached()
-            : RampFtpEstimator.Estimate(readSamplesSince(startedAt), state.Capabilities.MaximumWatts);
+            : RampFtpEstimator.Estimate(samples, state.Capabilities.MaximumWatts);
         return TrainingTransition.Of(state with
         {
             Runner = state.Runner?.Abort(),
             IsWaitingForPedalling = false,
             RampEstimate = estimate,
+            RampPeakHeartRate = RampFtpEstimator.PeakHeartRate(samples),
             IsRampTest = false,
             StatusText = TrainingSessionText.Describe(estimate),
-        }).Emit(new NavigateTo(TrainingDestination.Training));
+        }).Emit(new NavigateTo(TrainingDestination.Results));
     }
 
     private static TrainingTransition RecordVolume(TrainingTransition transition, string statusPrefix) =>
@@ -395,17 +416,26 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
         }
 
         var target = segment.Definition.HeartRateTarget;
-        if (target is not null
+        var isSettling = target is not null
             && state.SegmentStartedAt is { } startedAt
-            && tick.At - startedAt < HeartRateSettlingDuration)
+            && tick.At - startedAt < HeartRateSettlingDuration;
+
+        // A zone ceiling waits for the power ramp to finish; otherwise the next ramp step would overwrite the eased target.
+        var isRamping = segment.CeilingHeartRate is not null
+            && state.GetSegmentElapsed(tick.At) is { } elapsed
+            && elapsed < state.ActiveRampEndElapsed;
+        if (isSettling || isRamping)
         {
-            return tick.Telemetry.SafetyCeilingHeartRate is ushort ceiling
-                && tick.Telemetry.HeartRate is { } latest
-                && latest.BeatsPerMinute >= ceiling;
+            return IsAtSafetyCeiling(tick.Telemetry);
         }
 
-        return target is not null || tick.Telemetry.SafetyCeilingHeartRate is not null;
+        return target is not null || segment.CeilingHeartRate is not null || tick.Telemetry.SafetyCeilingHeartRate is not null;
     }
+
+    private static bool IsAtSafetyCeiling(TrainingTelemetry telemetry) =>
+        telemetry.SafetyCeilingHeartRate is ushort ceiling
+        && telemetry.HeartRate is { } latest
+        && latest.BeatsPerMinute >= ceiling;
 
     private static TrainingTransition AdjustHeartRate(TrainingSession state, ClockTicked tick)
     {
@@ -414,6 +444,11 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
             || tick.Telemetry.HeartRate is not { } observation)
         {
             return TrainingTransition.Of(state);
+        }
+
+        if (segment.CeilingHeartRate is ushort zoneCeiling && !IsAtSafetyCeiling(tick.Telemetry))
+        {
+            return AdjustBelowZoneCeiling(state with { LastHeartRateAdjustmentAt = tick.At }, runner.SegmentIndex, segment, zoneCeiling, observation.BeatsPerMinute);
         }
 
         var capabilities = state.Capabilities;
@@ -455,6 +490,33 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
             .Emit(new ApplyPowerTarget(TrainingTargetPurpose.HeartRateAdjustment, state.Generation, state.Revision, runner.SegmentIndex, nextWatts, AcceptedNotice: acceptedNotice));
     }
 
+    // Keeps easy riding easy: power holds the authored target until heart rate drifts above the zone, then eases toward the floor
+    // and climbs back once heart rate is a few beats below the ceiling.
+    private static TrainingTransition AdjustBelowZoneCeiling(TrainingSession state, int segmentIndex, CompiledTrainingSegment segment, ushort ceiling, ushort bpm)
+    {
+        var current = state.CurrentTargetWatts;
+        var nextWatts = HeartRatePowerController.GetNextTargetWatts(
+            current,
+            segment.MinimumTargetWatts,
+            segment.MaximumTargetWatts,
+            state.Capabilities.IncrementWatts,
+            bpm,
+            (ushort)int.Max(0, ceiling - ZoneCeilingHysteresisBeatsPerMinute),
+            ceiling);
+        if (nextWatts == current)
+        {
+            return TrainingTransition.Of(bpm > ceiling && current <= segment.MinimumTargetWatts
+                ? state with { StatusText = $"Heart rate stays above the {ceiling} bpm ceiling at the {current} W floor. Ease off or stop if you feel unwell." }
+                : state);
+        }
+
+        var notice = nextWatts < current
+            ? $"Heart rate above the {ceiling} bpm ceiling; easing power to {nextWatts} W."
+            : $"Heart rate settled below the {ceiling} bpm ceiling; restoring power to {nextWatts} W.";
+        return TrainingTransition.Of(state with { IsHeartRateAdjustmentPending = true })
+            .Emit(new ApplyPowerTarget(TrainingTargetPurpose.HeartRateAdjustment, state.Generation, state.Revision, segmentIndex, nextWatts, AcceptedNotice: notice));
+    }
+
     private TrainingTransition AdvanceWorkout(TrainingSession state, ClockTicked tick)
     {
         var cadence = tick.Telemetry.CadenceRpm;
@@ -482,7 +544,7 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
 
         var completedSegment = runner.CurrentSegment;
         var completedIndex = runner.SegmentIndex;
-        return TrainingTransition.Of(RecordAdherence(state with { Runner = advanced }, completedSegment, completedIndex, tick.At))
+        return TrainingTransition.Of(RecordAdherence(RecordTimeNearMaximum(state with { Runner = advanced }, tick.At), completedSegment, completedIndex, tick.At))
             .Then(next => CalibrateCadence(next, completedIndex))
             .Then(next => advanced.State != TrainingWorkoutState.Completed
                 ? ApplyCurrentTarget(next)
@@ -630,6 +692,21 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
             TrainingTransition.Of(state with { CadenceCalibrationText = text }).Emit(new AddTrainingEvent(text));
     }
 
+    // Heart rate lags short efforts, so aerobic-capacity work is judged by the time spent near maximum heart rate, not by holding a zone.
+    private TrainingSession RecordTimeNearMaximum(TrainingSession state, DateTimeOffset completedAt) =>
+        state.Workout?.NearMaximumHeartRate is ushort threshold && state.SegmentStartedAt is { } startedAt && completedAt > startedAt
+            ? state with
+            {
+                TimeNearMaximumHeartRate = state.TimeNearMaximumHeartRate + HeartRateTargetAdherenceCalculator.Calculate(
+                    readSamplesSince(startedAt),
+                    threshold,
+                    ushort.MaxValue,
+                    startedAt,
+                    completedAt,
+                    MaximumHeartRateSampleAge).InRange,
+            }
+            : state;
+
     private TrainingSession RecordAdherence(TrainingSession state, CompiledTrainingSegment? segment, int segmentIndex, DateTimeOffset completedAt)
     {
         if (segment is not { Definition.CountsTowardAdherence: true } || state.SegmentStartedAt is not { } startedAt)
@@ -640,11 +717,14 @@ public sealed class TrainingSessionEngine(Func<DateTimeOffset, IReadOnlyList<Rec
         if (segment.TargetMinimumHeartRate is ushort minimumHeartRate
             && segment.TargetMaximumHeartRate is ushort maximumHeartRate)
         {
+            // Heart rate needs time to respond to a new target, so the score starts after the settling period (at most half the interval).
+            var lag = TimeSpan.FromTicks(long.Min(HeartRateSettlingDuration.Ticks, segment.Definition.Duration.Ticks / 2));
+            var scoredFrom = startedAt + lag < completedAt ? startedAt + lag : startedAt;
             var heartRateResult = HeartRateTargetAdherenceCalculator.Calculate(
                 readSamplesSince(startedAt),
                 minimumHeartRate,
                 maximumHeartRate,
-                startedAt,
+                scoredFrom,
                 completedAt,
                 MaximumHeartRateSampleAge);
             return state with

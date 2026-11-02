@@ -88,7 +88,7 @@
           <VerticalStackLayout Spacing="0" IsVisible="{Binding IsTrainingActive}">
             <Label Text="INTERVAL LEFT" Style="{StaticResource TileCaption}" />
             <Label Text="{Binding Training.CurrentIntervalRemainingText}" FontSize="{Binding Telemetry.TelemetryValueFontSize}" FontAttributes="Bold" />
-            <Label Text="{Binding Training.WorkoutRemainingText, StringFormat='{0} workout left'}" Style="{StaticResource TileDetail}" />
+            <Label Text="{Binding Training.WorkoutRemainingDetailText}" Style="{StaticResource TileDetail}" />
           </VerticalStackLayout>
           <VerticalStackLayout Spacing="0" IsVisible="{Binding IsOpenRide}">
             <Label Text="ELAPSED" Style="{StaticResource TileCaption}" />
@@ -245,7 +245,6 @@
           <Border Style="{StaticResource PanelBorder}" Padding="14">
             <VerticalStackLayout Spacing="6">
               <Label Text="POWER VS CADENCE · KEEP THE DOT IN THE SHADED CADENCE BAND" Style="{StaticResource TileCaption}" />
-              <Label Text="Starfield warp speed follows your bike speed" Style="{StaticResource TileDetail}" />
               <local:PowerCadenceMap Points="{Binding Telemetry.PowerCadenceSamples}" SpeedKilometersPerHour="{Binding EffortMapSpeedKilometersPerHour}" TargetPowerWatts="{Binding Training.PowerCadenceTargetWatts}" MinimumCadenceRpm="{Binding Training.PowerCadenceMinimumCadenceRpm}" MaximumCadenceRpm="{Binding Training.PowerCadenceMaximumCadenceRpm}" AxisMinimumCadenceRpm="{Binding Training.PowerCadenceAxisMinimumCadenceRpm}" AxisMaximumCadenceRpm="{Binding Training.PowerCadenceAxisMaximumCadenceRpm}" AxisMaximumWatts="{Binding Training.PowerCadenceAxisMaximumWatts}" AccentColor="{Binding Telemetry.PowerChartColor}" HighContrast="{Binding Telemetry.UseHighContrastTelemetry}" HeightRequest="190" SemanticProperties.Description="Power versus cadence. The shaded band is your cadence target. Background stars move faster as bike speed increases." />
             </VerticalStackLayout>
           </Border>

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Stationary.Ftms.Dashboard.Core;
 
 public static class RampFtpProtocol
@@ -36,6 +38,14 @@ public static class RampFtpProtocol
             [.. segments.Select(static segment => segment.Definition)]);
         return new(definition, segments);
     }
+
+    // The ramp ends when the rider stops, so displays show the steps ridden so far plus the next one, not the
+    // hundreds of steps up to the bike's advertised maximum.
+    public static int VisibleSegmentCount(int segmentIndex, int segmentCount) => int.Clamp(segmentIndex + 2, 0, segmentCount);
+
+    public static string DescribeStep(int segmentIndex) => segmentIndex <= 0
+        ? "Warm up"
+        : string.Create(CultureInfo.InvariantCulture, $"Step {segmentIndex}");
 
     private static int GetStepWatts(int incrementWatts)
     {

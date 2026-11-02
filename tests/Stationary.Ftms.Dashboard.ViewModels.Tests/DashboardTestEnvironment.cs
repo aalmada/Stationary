@@ -16,8 +16,10 @@ internal sealed class DashboardTestEnvironment : IAsyncDisposable
         Platform = new TestDashboardPlatform();
         Session = session ?? new TestFtmsSession();
         HeartRateDiscovery = new TestHeartRateDiscoveryService();
-        ViewModel = new(new TestFtmsDiscoveryService(Session), HeartRateDiscovery, Platform, new HistoricalScheduler());
+        ViewModel = new(new TestFtmsDiscoveryService(Session), HeartRateDiscovery, Platform, Scheduler);
     }
+
+    public HistoricalScheduler Scheduler { get; } = new();
 
     public TestDashboardPlatform Platform { get; }
 
