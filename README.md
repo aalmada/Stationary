@@ -1,142 +1,81 @@
 # Stationary
 
-Stationary is a .NET 11 toolkit for Bluetooth Fitness Machine Service (FTMS) equipment. It provides high-performance, transport-neutral codecs together with BLE connectivity, serialized Control Point coordination, telemetry presentation, heart-rate support, and a .NET MAUI dashboard for multiplatform app delivery. The dashboard supports free rides, FTP ramp tests, power- and heart-rate-guided workouts, automatic ride recording and analysis, and an achievement-based 3D ride scene. It uses ReactiveUI and Reactive Extensions for reactive MVVM and real-time event processing.
+Stationary is an indoor cycling app for macOS. Connect a Bluetooth Fitness Machine Service (FTMS) bike or smart trainer to ride, follow workouts and track your progress.
 
-## Screenshots
+![Live ride dashboard showing power, heart rate, cadence, speed and workout progress](assets/screenshots/ride.png)
 
-### Home
+## Ride and train
 
-Choose a free ride, a structured workout, or the FTP ramp test, and check that the bike, heart-rate sensor, and FTP are ready.
+- Enjoy free rides, structured workouts and training plans, with power- and heart-rate-guided sessions.
+- Estimate your functional threshold power (FTP) with a ramp test and use it to scale workout targets.
+- Follow live power, heart rate, cadence and speed, and control power or resistance when your machine supports it.
+- Save rides with recorded effort locally, review results and ride history, and export data as CSV.
+- Open an optional 3D ride scene with achievements, including on a second display.
 
-![Home page with free ride, workout, and ramp test cards, readiness checks, and the last ride summary](assets/screenshots/home.png)
+More screenshots: [Home](assets/screenshots/home.png), [3D ride scene](assets/screenshots/ride-scene.png) and [results](assets/screenshots/results-analysis.png).
 
-### Ride
+## Getting started
 
-The live dashboard during a workout: power with the ERG target and heart-rate cap, heart rate and zone, cadence target, interval progress, five-minute charts, ride totals, and the power-versus-cadence map.
+Use a Mac with a Bluetooth FTMS-compatible bike or trainer, and optionally a Bluetooth heart-rate sensor. You can also start a free ride with just a heart-rate sensor. Structured workouts and the FTP ramp test require a machine that supports power control; heart-rate-guided workouts also require a heart-rate sensor.
 
-![Ride page during the Aerobic Ladder workout with live metrics, interval timeline, charts, and power-versus-cadence map](assets/screenshots/ride.png)
+1. On Home, pair your fitness machine or heart-rate sensor (or both).
+2. For power-based training, set your FTP in Settings, or complete the ramp test and accept the estimate in Results.
+3. Start a free ride, workout or ramp test. Open Results to review your ride or export the data.
 
-### Ride Scene
+For power-reporting indoor bikes, speed and distance are estimates based on power rather than the bike's readings.
 
-The optional second-screen scene turns a ride into a neon-lit track, with progress and achievement HUDs, heart-rate zones, and live ride metrics.
+**Safety:** Workout targets are guidance, not medical advice, and heart-rate limits are not medical monitoring. Some trainers may retain resistance after an abrupt stop, even with stall protection.
 
-![3D ride scene with milestone progress, heart-rate zone ladder, and live power, cadence, and speed HUD](assets/screenshots/ride-scene.png)
+### Run from source
 
-### Results
-
-Every ride with effort is saved automatically. Results analyses the last saved ride with efficiency factor, variability index, heart-rate drift and recovery, and full-ride charts.
-
-![Results page with the last saved ride's totals, analysis metrics, and power, heart-rate, and cadence charts](assets/screenshots/results-analysis.png)
-
-Time in heart-rate and power zones, target adherence for each interval, and the ride history with the efficiency trend.
-
-![Results page with time in heart-rate and power zones, per-interval target adherence, and ride history](assets/screenshots/results-zones-history.png)
-
-### Sensors
-
-Pair a Bluetooth FTMS bike or trainer and review the telemetry and controls it supports.
-
-![Fitness machine sheet with connection status and device capabilities](assets/screenshots/fitness-machine.png)
-
-Pair a heart-rate strap or watch and choose how heart-rate zones are calculated: cycling lactate threshold, heart-rate reserve, or maximum heart rate.
-
-![Heart-rate sensor sheet with live heart rate and heart-rate zone settings](assets/screenshots/heart-rate-sensor.png)
-
-## Projects
-
-| Project | Purpose |
-| --- | --- |
-| `Stationary.Ftms` | Allocation-conscious FTMS payload codecs and validation. |
-| `Stationary.Ble` | BLE transport integration. |
-| `Stationary.Ftms.Client` | Serialized FTMS Control Point operations and latest-only telemetry delivery. |
-| `Stationary.Ftms.Dashboard.Core` | Telemetry history and dashboard-domain models. |
-| `Stationary.Ftms.Dashboard.ViewModels` | Portable ReactiveUI presentation state, generated commands, and platform-service contracts. |
-| `Stationary.HeartRate` | Heart-rate telemetry and cycling-LTHR analytics. |
-| `Stationary.Ftms.Dashboard` | .NET MAUI dashboard for compatible FTMS equipment. |
-
-## Reactive Architecture
-
-The dashboard is a fully reactive .NET MAUI application built with ReactiveUI's reactive MVVM model and Reactive Extensions (Rx). `ReactiveCommand` represents user operations, while observable state derives UI feedback and availability from the underlying streams.
-
-Reactive pipelines coordinate real-time BLE connection lifecycle, FTMS telemetry, heart-rate measurements, Fitness Machine Status updates, Control Point responses, and dashboard commands. They merge, sample, serialize, schedule, and dispose these concurrent streams so the UI stays responsive while displaying the latest available data.
-
-View models compile in a separate `net11.0` assembly before the MAUI app. ReactiveUI generates their properties and commands there; MAUI's XAML source generator then resolves the completed members from the referenced assembly. Roslyn generators cannot consume each other's output within one compilation, so keep this project boundary rather than relying on generator ordering or reflection fallbacks.
-
-The view-model library references the portable `Microsoft.Maui.Graphics` package for presentation colors, but not MAUI Controls, Essentials, or Plugin.BLE. Discovery/session interfaces and `IDashboardPlatform` belong to this library. The app supplies BLE implementations and `MauiDashboardPlatform` for preferences, cache/app-data paths, and main-thread dispatch through constructor injection.
-
-### Framework Versions
-
-- .NET MAUI `11.0.0-rc.2.26505.5`, the latest published .NET 11 prerelease as of October 28, 2026. The dashboard remains on the .NET 11 preview line rather than downgrading to MAUI 10. It does not reference the legacy `Microsoft.Maui.Controls.Compatibility` package.
-- ReactiveUI `20.4.1`, upgraded from `19.6.12` and pinned to the newest version verified to pass the normal trimmed Mac Catalyst build with this SDK.
-- Reactive Extensions (`System.Reactive`) `7.0.0`, upgraded from `6.0.0`. Rx.NET 7 separates Windows-specific UI support into platform packages; this Mac Catalyst application needs no additional Rx platform package.
-- ReactiveUI.SourceGenerators `2.6.1`, the newest release that supports ReactiveUI 20; 3.x and 4.x require ReactiveUI `23.2.28` or later.
-
-The dashboard references only core ReactiveUI; `ReactiveUI.Maui` is not needed because no ReactiveUI views or MAUI-specific registrations are used, and it would pull in the legacy Compatibility package. `MauiProgram` calls `PlatformRegistrationManager.SetRegistrationNamespaces(RegistrationNamespace.None)` before anything touches `RxApp`, so ReactiveUI does not probe for optional platform assemblies during static initialization. The core package still supplies the Mac Catalyst main-thread scheduler.
-
-ReactiveUI `26.0.1` is the latest published release, but it is not currently compatible with this project's normal build. Tested stable releases from the 21.x through 24.x lines, plus `25.1.1`, `26.0.0`, and `26.0.1`, fail trimming with `IL2037`: their preservation metadata requests constructors on static types such as `DependencyResolverMixins`. The 25.x .NET 11 assemblies also have a Mono runtime-async compatibility issue described in the ReactiveUI 26 release notes. Do not adopt the newer binding engine, builder APIs, or `RxSchedulers` migration until a compatible release is available. Trimming and warnings-as-errors remain enabled; no diagnostic suppressions are required for `20.4.1`.
-
-See the [ReactiveUI 20.4.1 release notes](https://github.com/reactiveui/ReactiveUI/releases/tag/20.4.1), [ReactiveUI 26 compatibility notes](https://github.com/reactiveui/ReactiveUI/releases/tag/26.0.0), and [Rx.NET 7 release history](https://github.com/dotnet/reactive/blob/main/Rx.NET/Documentation/ReleaseHistory/Rx.v7.md).
-
-### Dashboard Conventions
-
-- XAML files use MAUI 11 implicit namespaces and compiled bindings (`x:DataType`) everywhere, including `DataTemplate`s. Bindings to a parent view model from a template use `RelativeSource AncestorType` instead of `x:Reference`.
-- View-model state uses source-generated partial properties: `[Reactive]` for settable state and `[ObservableAsProperty]` for derived state. Dependent notifications are raised explicitly, because `[Reactive]` `alsoNotify` in `2.6.1` raises them unconditionally and twice.
-- Commands use `[ReactiveCommand]` methods, including commands bound in XAML, with `CanExecute` naming an `IObservable<bool>` field initialized before the command is accessed. Keep Control Point operations behind the shared serialization gate, and retain `IsExecuting`, `ThrownExceptions`, and disposal handling.
-- XAML namespace declarations for view models and discovery models include `assembly=Stationary.Ftms.Dashboard.ViewModels`. Keep views, converters, and platform implementations in the MAUI app; do not move generated view models back into its compilation.
-
-### Telemetry
-
-- Indoor bikes often report speed from a fixed cadence-to-wheel ratio (the test bike reports 0.358 km/h per rpm at any power). When an indoor bike reports power, the dashboard replaces its speed with the flat-road, no-wind speed that power would sustain: 83 kg rider and bike, rolling resistance 0.004, drag area 0.32 m², air density 1.225 kg/m³, and 97.6% drivetrain efficiency. For example, 100 W gives about 26 km/h and 200 W about 34 km/h. Display, charts, and recorded sessions use this speed. Session distance for power-reporting indoor bikes is integrated from consecutive corrected-speed samples; gaps over five seconds and paused time are excluded, and the bike's distance counter is ignored. Other machines continue to use their reported distance counter.
-
-### Structured Training
-
-- Power-target workout segments send an FTMS target-power command to the bike. In ERG mode, the bike controls resistance; the rider follows the segment's cadence target rather than trying to force measured power to match the target.
-- Heart-rate workouts can target the configured recovery or endurance zone, moderate 40-59% or vigorous 60-89% heart-rate reserve, or a clinician-prescribed bpm range. The app adjusts trainer power in bounded 10 W steps; it requires a connected, fresh heart-rate sensor and pauses the interval after a signal loss. Power remains the target for short high-intensity intervals.
-- With a heart-rate strap and a built-in zone profile, sustained recovery and endurance blocks in the structured catalog keep power as the target but ease it (down to 40% or 50% of FTP) when heart rate rises above the profile's recovery or easy-endurance ceiling. Power is restored once heart rate settles. Tempo, threshold, VO2, anaerobic, and cadence sessions stay power-led because heart rate lags short efforts by one to two minutes.
-- VO2 sessions report time spent near maximum heart rate (about 90% of maximum or above). Profiles based on maximum heart rate, heart-rate reserve, or lactate threshold also add a heart-rate 4x4 session: four 4-minute intervals at about 85-95% of maximum heart rate. Power opens each interval and heart rate then trims it.
-- Heart-rate zones can use cycling lactate threshold, heart-rate reserve, or maximum heart rate. The Heart rate page shows only the inputs the selected method uses: LTHR for cycling LTHR, max HR for maximum heart rate, and max and resting HR for heart-rate reserve. Home summarizes the applied zones. FTP does not change heart-rate zones. Age-based maximum-heart-rate estimates are labeled as estimates. An optional user-entered heart-rate ceiling lowers power during any workout when a fresh sensor reading is available; it is not medical monitoring.
-- General-health heart-rate workouts are presented as general guidance for apparently healthy adults and require a screening acknowledgement. Clinician-prescribed sessions accept rider-entered limits only; the app does not generate rehabilitation prescriptions.
-- Completed and rider-ended sessions count measured time in heart-rate Zones 1-2 toward the plan's rolling seven-day easy-volume goal. Power alone does not count as easy aerobic time. Heart-rate target intervals report the share of observed time spent in range, after a settling period (at most half the interval) that allows for heart-rate lag.
-- Power target increases ramp in 5-second steps over up to 15 seconds (a quarter of shorter segments); budget trainers take 3-6 seconds to respond, so faster steps are skipped. Decreases apply at once. The first segment starts from half its target. The FTP ramp test applies its steps directly. The Ride page shows ramp steps as "Step N" with the ride's elapsed time instead of a workout countdown, and reveals only the next step, because the test lasts until the rider stops. Results shows the FTP estimate and the peak heart rate; when the peak is above the configured max HR, or none is set, it offers to use the peak as max HR.
-- Training holds the bike's lowest supported power target until cadence reaches 45 rpm. Only then does the first target ramp begin and the interval timer start, so the trainer does not load resistance against a stopped flywheel.
-- If cadence stays below 35 rpm for 1.5 seconds during a workout, the target drops to the lowest supported power. As soon as cadence reaches 45 rpm, it ramps back to the interval target, starting from the higher of the rider's current power and the bike's estimated minimum at that cadence. Known limit: after an abrupt stop, the test bike's own controller kept resistance at about 3-3.6 W/rpm (roughly twice the target) for the first 3-5 seconds of the restart. Across 26 restarts no power command changed this, whether 0-130 W holds, repeated holds, or FTMS Pause and Start, while spinning up from idle at session start stayed near 1.4 W/rpm. With power-only control, avoiding stalls is the remedy. This guard prevents the ERG "spiral of death" and is disabled during the FTP ramp test.
-- Every workout opens with a broad warm-up cadence range (60-100 rpm as authored), then a 2-minute cadence lift (75-95 rpm as authored), so riders approach the work range before the first scored interval. These opening segments do not count toward adherence.
-- The cadence tile shows "Pedal faster" or "Pedal slower" while live cadence is outside the active range.
-- The Power vs Cadence map shades the active cadence range as a band across every power and marks the ERG power target with a dashed line. The dot turns green whenever cadence is in range, because ERG trainers often settle a few percent away from the target and the rider cannot change that. While a target ramps and for 10 seconds afterward, the ride panel reminds the rider to hold cadence steady while the trainer adjusts resistance; when the cadence range changes, the window is 15 seconds and the panel asks the rider to move cadence smoothly into the new range. The segment cue appears afterward. Workout adherence measures time in the prescribed cadence range after the ramp and this settling period, excluding telemetry gaps longer than five seconds.
-- Workout cadence ranges are authored for a 90 rpm rider. Settings accepts a preferred cadence from 40 to 110 rpm, and every range scales proportionally to it; for example, 85-95 rpm becomes 47-53 rpm at 50 rpm. A scaled range never starts below 45 rpm, the stall guard's pedalling threshold; lower ranges shift up and keep their width. A saved legacy cadence offset is migrated to 90 plus the offset.
-- At the end of the opening warm-up, the median warm-up cadence refines the preferred cadence by up to 10 rpm for the rest of that ride, starting with the cadence lift. The ride panel reports the measured warm-up cadence and the tuned cadence when the limit applies; the saved setting does not change.
-- During a workout, the Power vs Cadence map keeps fixed axes that span the whole workout. Cadence runs vertically (the rider moves the dot up or down) and power horizontally (the bike holds it in ERG mode, so the dashed target line only shifts sideways when the interval power changes). Samples outside the axes are pinned to the edge.
-- The Power vs Cadence map has a light background with light-grey stars behind the grid. Stars are points 10-120 m ahead, seen through a 60° horizontal field of view that moves forward at the corrected bike speed, so they drift with real-world perspective: distant points barely move and nearby ones sweep outward. A star draws a streak only when its projected travel over 0.1 s exceeds 6% of the half-width, so easy riding around 12 km/h shows points only and streaks appear on hard efforts. Motion stops at zero speed, during pauses, and when telemetry is stale; rendering also stops when the page is hidden or the app is suspended. The cadence band, dashed power target, and rider marker stay in the foreground.
-- Many bikes cannot go below a minimum resistance level, so at higher cadences low targets are unreachable. During a workout the dashboard learns this floor in watts per rpm. It starts once power has stayed more than 10% above a settled target for 10 seconds at 70 rpm or more. When a target is below the learned floor at the current cadence, the ride panel says power will read high, suggests the lowest cadence in the range that gets closer, and logs a `Training` event.
-- Recorded sessions log `Training` events: the workout and preferred cadence, each interval's power and cadence targets, every target sent with the bike's response and round-trip time, pedalling detection, stalls and recoveries, every Fitness Machine Status notification from the bike (for example `TargetPowerChanged`), changes in the bike-reported resistance level, warm-up cadence tuning, and how the workout ended. The CSV export interleaves events with telemetry by timestamp. Exporting does not change the "Vs previous" comparison; the exported session becomes the baseline when the next session starts. Charts do not draw `Training` events.
-- Ending a ride with recorded effort saves it automatically: the full recording goes to `rides/ride-<UTC start>.json` and `previous-session.json` in the app data folder, and a one-line summary is added to `ride-history.json` (the last 365 rides, one entry per start time, so a later CSV export does not duplicate it). Archives use format version 2, which adds a `Context` with the FTP, heart-rate zones, and each interval's targets in effect during the ride, so saved rides are analysed with the settings the rider actually used.
-- Results analyses the last saved ride: efficiency factor (normalized power ÷ average heart rate), variability index (normalized ÷ average power), heart-rate drift (only for rides of at least 10 minutes with a variability index of 1.05 or less), heart-rate recovery (best drop 60 seconds after power falls below 60% of the previous 30 seconds), time in heart-rate and power zones, target adherence (power within ±10% or 10 W, heart rate inside the prescribed range, ignoring the first 15 seconds of each interval and ramp steps), and power, heart-rate, and cadence charts. Ride history lists recent rides and compares the latest efficiency factor with the average of up to five previous rides of at least 10 minutes; a change of 3% or more reads as up or down.
-- The last plan, "Debug: Power vs Cadence", holds four sessions of under 10 minutes for checking how a bike follows ERG targets. Each opens with a 90-second calibration spin-up and ends with a 1-minute cool down. Power Steps changes power every 45 seconds in a fixed cadence band. Cadence Sweep holds power while the cadence band moves every minute. Big Jumps alternates 45% and 85% FTP every 30 seconds. Stall and Recover asks the rider to stop twice to exercise the stall guard. The sessions also appear at the end of the workout library and stay outside the validated training catalog and its plans.
-- Workouts use ERG's power-torque trade-off: at the same power target, a lower cadence means more resistance (torque) and a higher cadence means less. Between scored intervals, either power or the cadence range changes, never both. Recovery adds quick-feet spin-ups at the same easy power. Endurance adds seated-climb (lower cadence) and high-cadence sections at Zone 2 power. Tempo and sweet spot add low-cadence torque blocks. Threshold keeps over-unders at a steady cadence and closes each set with a seated climb. VO2 efforts use a high cadence to limit torque. Cadence skills run ladders, pyramids, and torque-spin contrasts at fixed power. Scored work with ranges starting below 75 rpm (as authored) stays at or below 95% FTP to avoid grinding into a stall.
-- Anaerobic workouts are controlled ERG efforts, not all-out sprints. Each effort has a cadence-build segment; recovery before subsequent efforts is at least 2:1. The dashboard does not currently offer resistance-mode sprint workouts.
-- Workout targets are generic FTP-relative prescriptions. Set FTP accurately and adjust or stop an interval if the effort is unsuitable.
-
-### 3D Ride Scene
-
-- A 3D scene of the ride renders with Vulkan through [Silk.NET](https://github.com/dotnet/Silk.NET) on MoltenVK into a `CAMetalLayer`, on its own render thread. The neon, Tron-style scene puts the camera on the centre line of a glossy light track that moves at the corrected bike speed, past neon towers under a synthwave sun. Rendering is HDR, with multi-level bloom, ACES tone mapping, and mirrored reflections on the wet grid floor and track.
-- The scene keeps two rhythms. Cadence drives the grid beat, the track scanlines, and the tower pulses. Heart rate drives the lub-dub rings coloured by heart-rate zone, the ECG trace across the sky, and the breathing horizon. The track edges follow the target status: cyan on target, amber too low, red too high.
-- A HUD over the scene shows elapsed time, distance, and progress to the next milestones; the current streak; medals and recent achievements; a heart panel with bpm, the zone name, and a zone ladder that highlights the current and target zones; the active interval; and power, cadence, and speed.
-- When a second display is connected and a ride starts, the scene opens in its own window on that display, full screen. Disable this with **Settings → 3D ride scene**. Open or close it any time with the Ride page's **3D scene** button or the **Display** menu.
-- Gamification rewards real achievements, not points. The active interval target decides whether the rider is on target: heart rate leads when the interval targets heart rate (±2 bpm), then power (±10%), then cadence (±3 rpm). A streak survives up to 5 s off target. Each interval earns gold, silver, or bronze for 90%, 75%, or 50% of its time on target. Milestone achievements unlock for distance (every 1 km up to 5 km, then every 5 km), ride time (every 5 min up to 30 min, then every 15 min), time on target (every 5 min up to 30 min, then every 10 min), streaks (2 min, every 2 min up to 10 min, then every 5 min), gold intervals (1, 3, 5, 10), and completing the workout. Each milestone passes under a light arch and shows a toast; medals and achievements launch fireworks.
-- While a ride is in progress, the app holds two macOS power assertions, `PreventUserIdleDisplaySleep` and `PreventUserIdleSystemSleep`, so neither the display nor the computer sleeps when idle. It releases both when the ride ends or the app closes. Closing a laptop lid still sleeps the computer unless an external display and power are connected, as macOS requires.
-
-## Prerequisites
-
-- .NET SDK `11.0.100-rc.3.26522.148`, as pinned in [global.json](global.json). If installed under `~/.dotnet`, put that directory first on `PATH`.
-- The .NET MAUI workload for the platform being built. On macOS, install the Mac Catalyst workload for the currently configured dashboard target:
+The app currently targets Mac Catalyst. Install [Xcode](https://developer.apple.com/xcode/) and the [.NET SDK](https://dotnet.microsoft.com/download) version specified in [`global.json`](global.json), then run these commands on an Apple silicon Mac:
 
 ```bash
+git clone https://github.com/aalmada/Stationary.git
+cd Stationary
 dotnet workload install maui-maccatalyst
+dotnet restore Stationary.slnx
+dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
+  -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore \
+  -p:ValidateXcodeVersion=false
+dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
+  -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore \
+  -p:ValidateXcodeVersion=false
 ```
 
-## Build And Test
+On an Intel Mac, replace both occurrences of `maccatalyst-arm64` with `maccatalyst-x64`.
 
-Restore packages once, then use the no-restore commands for normal iteration:
+## Contributing
+
+[Report an issue](https://github.com/aalmada/Stationary/issues) or [contribute a pull request](https://github.com/aalmada/Stationary/pulls).
+
+### Agent-first development
+
+Stationary is an agent-first codebase: all of its source code was generated with [GitHub Copilot](https://github.com/features/copilot). Contributors are encouraged to work the same way:
+
+- [AGENTS.md](AGENTS.md) files give agents the commands, conventions and guardrails for each area.
+- Agent skills come from [Intelligentium.ai](https://intelligentium.ai) and are installed with [APM](https://github.com/microsoft/apm) from [apm.yml](apm.yml). Change dependencies there and let APM regenerate `apm.lock.yaml`.
+
+### How it's built
+
+- **[.NET 11](https://dotnet.microsoft.com/)**: every project targets `net11.0`, with nullable reference types, analyzers and warnings as errors enabled.
+- **[.NET MAUI](https://dotnet.microsoft.com/apps/maui)**: the cross-platform UI framework for the app, which currently ships for Mac Catalyst.
+- **[Reactive Extensions (Rx.NET)](https://github.com/dotnet/reactive)**: observable pipelines merge, sample and schedule Bluetooth connections, telemetry, heart rate and Control Point responses, so the UI always shows the latest data.
+- **[ReactiveUI](https://www.reactiveui.net/)**: reactive MVVM with source-generated properties and `ReactiveCommand`s. View models live in a portable library, so they're tested without the app.
+- **[Silk.NET](https://github.com/dotnet/Silk.NET)**: Vulkan bindings for the 3D ride scene, running on Metal through MoltenVK. It renders on a dedicated thread with HDR, reflections, bloom and tone mapping.
+
+Workout execution is a pure reducer in the dashboard core.
+
+### Project layout
+
+- [Dashboard](src/Stationary.Ftms.Dashboard/): the Mac Catalyst app.
+- [Dashboard core](src/Stationary.Ftms.Dashboard.Core/) and [view models](src/Stationary.Ftms.Dashboard.ViewModels/): ride and training logic and reactive presentation.
+- [FTMS](src/Stationary.Ftms/), [FTMS client](src/Stationary.Ftms.Client/), [Bluetooth](src/Stationary.Ble/) and [heart rate](src/Stationary.HeartRate/): codecs, connectivity and device analytics.
+- [Tests](tests/) and [benchmarks](benchmarks/): automated checks and performance measurements.
+
+### Build and test
+
+On macOS, with the prerequisites above:
 
 ```bash
 dotnet restore Stationary.slnx
@@ -145,7 +84,7 @@ dotnet test --solution Stationary.slnx --no-restore
 dotnet format Stationary.slnx --verify-no-changes --no-restore
 ```
 
-The portable view models and their regression tests are included in Linux CI:
+On Linux, use the solution filter that excludes the Mac Catalyst app:
 
 ```bash
 dotnet restore Stationary.CI.slnf
@@ -153,37 +92,4 @@ dotnet build Stationary.CI.slnf --no-restore
 dotnet test --solution Stationary.CI.slnf --no-build
 ```
 
-## Run The Mac Catalyst Dashboard
-
-On Apple silicon:
-
-```bash
-dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
-  -t:Run \
-  -f net11.0-maccatalyst \
-  -r maccatalyst-arm64 \
-  --no-restore \
-  -p:ValidateXcodeVersion=false
-```
-
-Use `maccatalyst-x64` on an Intel Mac.
-
-The dashboard uses .NET MAUI as its multiplatform application foundation. The checked-in project currently targets Mac Catalyst; add the required MAUI target frameworks and workloads before building additional platform apps.
-
-## Benchmarks
-
-```bash
-dotnet build benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj \
-  -c Release \
-  --no-restore
-
-dotnet run --project benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj \
-  -c Release \
-  --no-build \
-  -- --filter '*FtmsCodecBenchmarks*' --join
-```
-
-## Documentation
-
-- [FTMS v1.0.1 reference](docs/ftms/index.md)
-- [Documentation index](docs/index.md)
+ReactiveUI is pinned for trimmed Mac Catalyst compatibility; check the app build when upgrading it. See the [development commands and conventions](AGENTS.md) and the [FTMS reference](docs/ftms/index.md).
