@@ -12,7 +12,11 @@ Stationary is an indoor cycling app for macOS. Connect a Bluetooth Fitness Machi
 - Save rides with recorded effort locally, review results and ride history, and export data as CSV.
 - Open an optional 3D ride scene with achievements, including on a second display.
 
-More screenshots: [Home](assets/screenshots/home.png), [3D ride scene](assets/screenshots/ride-scene.png) and [results](assets/screenshots/results-analysis.png).
+The 3D ride scene turns your effort into a neon track. Cadence drives the beat, heart rate pulses the sky, and staying on target earns medals and milestones:
+
+![3D ride scene with a neon track, heart-rate zone ladder, milestone progress and live power, cadence and speed](assets/screenshots/ride-scene.png)
+
+More screenshots: [Home](assets/screenshots/home.png) and [results](assets/screenshots/results-analysis.png).
 
 ## Getting started
 
