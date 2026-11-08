@@ -18,6 +18,8 @@ public interface IDashboardPlatform
 
     Task InvokeOnMainThreadAsync(Action action);
 
+    Task<FileExportResult> ExportFileAsync(string path, CancellationToken cancellationToken);
+
     // Number of connected displays; emits the current count on subscription and again whenever it changes.
     IObservable<int> DisplayCount { get; }
 

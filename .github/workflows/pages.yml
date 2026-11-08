@@ -1,0 +1,63 @@
+name: Deploy download website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'scripts/build_site.py'
+      - 'scripts/test_build_site.py'
+      - 'assets/screenshots/**'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test and build static site
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/build_site.py
+      - name: Verify published download links
+        run: |
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          from pathlib import Path
+          release = json.loads(Path("site/release.json").read_text())
+          version = release["version"]
+          if version is not None:
+              base = f"https://github.com/aalmada/Stationary/releases/download/v{version}"
+              for name in (f"Stationary-{version}-macos-arm64.dmg", "SHA256SUMS", "release-info.txt"):
+                  with urllib.request.urlopen(urllib.request.Request(f"{base}/{name}", method="HEAD"), timeout=30) as response:
+                      if response.status != 200:
+                          raise RuntimeError(f"Download unavailable: {name}")
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: artifacts/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

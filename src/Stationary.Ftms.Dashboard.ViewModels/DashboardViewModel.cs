@@ -1560,13 +1560,30 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     private async Task ExportSessionAsync(CancellationToken cancellationToken)
     {
         var fileName = $"stationary-session-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.csv";
-        var path = Path.Combine(platform.CacheDirectory, fileName);
+        var directory = Path.Combine(platform.CacheDirectory, $"export-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, fileName);
         var archive = CreateRecordedSession();
-        await RecordedSessionArchiveStorage.WriteCsvAsync(path, archive, cancellationToken);
-        exportedSession = archive;
-        LastSavedRide = archive;
-        await SaveRideFilesAsync(archive, cancellationToken);
-        ConnectionStatus = $"Session telemetry exported to {path}.";
+        try
+        {
+            await RecordedSessionArchiveStorage.WriteCsvAsync(path, archive, cancellationToken);
+            var result = await platform.ExportFileAsync(path, cancellationToken);
+            if (result.Destination is not { } destination)
+            {
+                ConnectionStatus = "Session export cancelled.";
+                return;
+            }
+
+            exportedSession = archive;
+            LastSavedRide = archive;
+            await SaveRideFilesAsync(archive, cancellationToken);
+            ConnectionStatus = $"Session telemetry exported to {destination}.";
+        }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     [ReactiveCommand(CanExecute = nameof(canResetSession))]

@@ -14,6 +14,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Stationary.Ble/Stationary.Ble.csproj" />
     <ProjectReference Include="../Stationary.Ftms.Client/Stationary.Ftms.Client.csproj" />
     <ProjectReference Include="../Stationary.Ftms.Dashboard.Core/Stationary.Ftms.Dashboard.Core.csproj" />

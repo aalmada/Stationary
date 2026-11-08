@@ -687,14 +687,85 @@ public sealed class GeneratedCommandTests
         await environment.ViewModel.ResetSessionCommand.Execute().ToTask();
         await Assert.That(environment.ViewModel.PreviousSessionComparisonText).StartsWith("Previous:");
 
-        var exports = Directory.GetFiles(environment.Platform.CacheDirectory, "stationary-session-*.csv");
+        var exports = Directory.GetFiles(environment.Platform.ExportDirectory, "stationary-session-*.csv");
         await Assert.That(exports.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(exports[0])).StartsWith("TimestampUtc,RecordType,");
+        await Assert.That(Directory.GetFileSystemEntries(environment.Platform.CacheDirectory).Length).IsEqualTo(0);
         var archive = await RecordedSessionArchiveStorage.ReadJsonAsync(
             Path.Combine(environment.Platform.AppDataDirectory, "previous-session.json"));
         await Assert.That(archive is not null).IsTrue();
+        var expectedPath = Path.Combine(environment.Platform.AppDataDirectory, "expected.csv");
+        await RecordedSessionArchiveStorage.WriteCsvAsync(expectedPath, archive!);
+        await Assert.That(await File.ReadAllTextAsync(exports[0])).IsEqualTo(await File.ReadAllTextAsync(expectedPath));
         await Assert.That(environment.ViewModel.ConnectionStatus.Contains(exports[0], StringComparison.Ordinal)).IsTrue();
         await Assert.That(Directory.GetFiles(Path.Combine(environment.Platform.AppDataDirectory, "rides"), "ride-*.json").Length).IsEqualTo(1);
         await Assert.That(environment.ViewModel.RideHistoryEntries).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ExportCommand_CancellationDoesNotSaveARideOrLeaveTemporaryFiles()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        environment.Platform.ExportFile = static (_, _) => Task.FromResult(Services.FileExportResult.Cancelled);
+
+        await environment.ViewModel.ExportSessionCommand.Execute().ToTask();
+
+        await Assert.That(environment.ViewModel.ConnectionStatus).IsEqualTo("Session export cancelled.");
+        await Assert.That(environment.ViewModel.HasLastRide).IsFalse();
+        await Assert.That(environment.ViewModel.RideHistoryEntries).Count().IsEqualTo(0);
+        await Assert.That(Directory.GetFileSystemEntries(environment.Platform.CacheDirectory).Length).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ExportCommand_FailureIsSurfacedAndTemporaryFilesAreRemoved()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var failure = new IOException("Export destination is not writable");
+        environment.Platform.ExportFile = (_, _) => Task.FromException<Services.FileExportResult>(failure);
+        Exception? observed = null;
+
+        await environment.ViewModel.ExportSessionCommand.Execute()
+            .Catch<System.Reactive.Unit, Exception>(exception =>
+            {
+                observed = exception;
+                return Observable.Empty<System.Reactive.Unit>();
+            })
+            .DefaultIfEmpty()
+            .ToTask();
+
+        await Assert.That(observed).IsEqualTo(failure);
+        await Assert.That(environment.ViewModel.ConnectionStatus).Contains(failure.Message);
+        await Assert.That(environment.ViewModel.HasLastRide).IsFalse();
+        await Assert.That(environment.ViewModel.RideHistoryEntries).Count().IsEqualTo(0);
+        await Assert.That(Directory.GetFileSystemEntries(environment.Platform.CacheDirectory).Length).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ExportCommand_DisablesFurtherOperationsWhileThePickerIsOpen()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var entered = new TaskCompletionSource();
+        var completed = new TaskCompletionSource<Services.FileExportResult>();
+        environment.Platform.ExportFile = (_, token) =>
+        {
+            entered.SetResult();
+            return completed.Task.WaitAsync(token);
+        };
+
+        var execution = environment.ViewModel.ExportSessionCommand.Execute().ToTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(environment.ViewModel.IsBusy).IsTrue();
+        await Assert.That(await environment.ViewModel.ExportSessionCommand.CanExecute.FirstAsync()).IsFalse();
+        completed.SetResult(Services.FileExportResult.Cancelled);
+        await execution.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(environment.ViewModel.IsBusy).IsFalse();
+        await Assert.That(Directory.GetFileSystemEntries(environment.Platform.CacheDirectory).Length).IsEqualTo(0);
     }
 
     [Test]

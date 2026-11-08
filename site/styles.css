@@ -1,0 +1,33 @@
+:root { color-scheme: dark; --bg: #101827; --surface: #1c283a; --text: #eef7ff; --muted: #bccbdb; --accent: #53e2bd; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 1.05rem/1.65 system-ui, sans-serif; }
+a { color: var(--accent); text-underline-offset: .2em; }
+a:hover { color: white; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+header, main, footer { max-width: 1100px; margin: auto; padding: 1.5rem; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+nav, footer { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.brand { font-size: 1.5rem; font-weight: 750; color: var(--text); text-decoration: none; }
+.skip { position: absolute; top: -10rem; background: var(--bg); padding: 1rem; z-index: 1; }
+.skip:focus { top: 0; }
+.hero { padding: 3rem 0 1rem; }
+.eyebrow { color: var(--accent); font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+h1 { font-size: clamp(2.6rem, 8vw, 5.5rem); line-height: 1.08; margin: 1rem 0; letter-spacing: -.04em; }
+h2 { font-size: 2rem; line-height: 1.2; }
+h3 { line-height: 1.3; }
+.lead { max-width: 700px; font-size: 1.3rem; color: var(--muted); }
+section { margin-bottom: 2.5rem; }
+.download { margin: 2rem 0 1rem; }
+.button { display: inline-block; background: var(--accent); color: var(--bg); padding: .8rem 1.4rem; border-radius: .6rem; font-weight: 700; text-decoration: none; }
+.button:hover { background: white; color: var(--bg); }
+.notice { background: var(--surface); border-left: 4px solid var(--accent); padding: 1.1rem; border-radius: .4rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; }
+.cards article { background: var(--surface); padding: 1.3rem; border-radius: .8rem; }
+figure { margin: 2rem 0; }
+img { display: block; max-width: 100%; height: auto; border-radius: .8rem; }
+figcaption { margin-top: .5rem; color: var(--muted); }
+footer { border-top: 1px solid var(--surface); margin-top: 2rem; font-size: .95rem; }
+code { overflow-wrap: anywhere; color: var(--accent); }
+li { margin: .5rem 0; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

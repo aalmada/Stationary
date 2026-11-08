@@ -9,6 +9,8 @@
 - Apply formatting and analyzer fixes: `dotnet format Stationary.slnx --no-restore`
 - Verify formatting and analyzer fixes: `dotnet format Stationary.slnx --verify-no-changes --no-restore`
 - Run all tests: `dotnet test --solution Stationary.slnx --no-restore`
+- Validate the static download site: `python3 -m unittest discover -s scripts -p 'test_*.py'`, then `python3 scripts/build_site.py`.
+- Prepare a website DMG on a supported macOS toolchain: `bash scripts/publish-macos.sh <major.minor.patch> <build>`. See [release gates](RELEASING.md); never bypass Xcode validation for distribution.
 - Linux CI (excludes the Mac Catalyst dashboard): `dotnet restore Stationary.CI.slnf`, `dotnet build Stationary.CI.slnf --no-restore`, then `dotnet test --solution Stationary.CI.slnf --no-build`. Keep the filter updated when adding portable projects.
 - Build benchmarks: `dotnet build benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-restore`
 - Run benchmarks: `dotnet run --project benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-build -- --filter '*FtmsCodecBenchmarks*' --join`
@@ -32,4 +34,5 @@
 - Do not add agent instructions inside `docs/ftms` or other OKF bundles.
 - Do not add Bluetooth discovery, GATT connection management, or platform-specific transport behavior to the codec library.
 - Do not commit credentials or connection strings. Request confirmation before destructive operations.
+- Keep website source in `site/`, separate from OKF bundles. Website binaries are ad-hoc signed, not Apple-notarized; do not add paid provisioning, remove quarantine, or disable system security. Require owner approval and browser-download/hardware tests before publishing.
 - Update these instructions with any change to build, test, or benchmark tooling.

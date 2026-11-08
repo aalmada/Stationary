@@ -69,6 +69,23 @@ internal sealed class TestDashboardPlatform : IDashboardPlatform, IDisposable
 
     public Exception? PreferenceWriteException { get; set; }
 
+    public Func<string, CancellationToken, Task<FileExportResult>>? ExportFile { get; set; }
+
+    public string ExportDirectory => Directory.CreateDirectory(Path.Combine(root, "exports")).FullName;
+
+    public Task<FileExportResult> ExportFileAsync(string path, CancellationToken cancellationToken)
+    {
+        if (ExportFile is { } export)
+        {
+            return export(path, cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var destination = Path.Combine(ExportDirectory, Path.GetFileName(path));
+        File.Copy(path, destination, overwrite: true);
+        return Task.FromResult(FileExportResult.Saved(destination));
+    }
+
     public bool GetPreference(string key, bool defaultValue) => booleanPreferences.GetValueOrDefault(key, defaultValue);
 
     public string GetPreference(string key, string defaultValue) => stringPreferences.GetValueOrDefault(key, defaultValue);

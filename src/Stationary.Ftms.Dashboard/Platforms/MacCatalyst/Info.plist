@@ -5,11 +5,7 @@
   <key>CFBundleDisplayName</key>
   <string>Stationary FTMS</string>
   <key>NSBluetoothAlwaysUsageDescription</key>
-  <string>Stationary uses Bluetooth to find and connect to compatible fitness machines.</string>
-  <key>UIBackgroundModes</key>
-  <array>
-    <string>fetch</string>
-  </array>
+  <string>Stationary uses Bluetooth to find and connect to compatible fitness machines and heart-rate sensors.</string>
   <key>UIApplicationSceneManifest</key>
   <dict>
     <key>UIApplicationSupportsMultipleScenes</key>

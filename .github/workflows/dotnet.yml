@@ -19,10 +19,15 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 10.0.x
+        global-json-file: global.json
     - name: Restore dependencies
       run: dotnet restore Stationary.CI.slnf
     - name: Build
       run: dotnet build Stationary.CI.slnf --no-restore
     - name: Test
       run: dotnet test --solution Stationary.CI.slnf --no-build --verbosity normal
+    - name: Validate website and packaging script
+      run: |
+        python3 -m unittest discover -s scripts -p 'test_*.py'
+        python3 scripts/build_site.py
+        bash -n scripts/publish-macos.sh

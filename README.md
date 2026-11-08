@@ -20,6 +20,8 @@ More screenshots: [Home](assets/screenshots/home.png) and [results](assets/scree
 
 ## Getting started
 
+Website downloads are being prepared for Apple silicon Macs. They will be distributed as an ad-hoc-signed DMG, without Apple notarization; macOS may require a per-app security exception. A public binary is not available until the supported-toolchain and installation tests pass. See [website release preparation](RELEASING.md).
+
 Use a Mac with a Bluetooth FTMS-compatible bike or trainer, and optionally a Bluetooth heart-rate sensor. You can also start a free ride with just a heart-rate sensor. Structured workouts and the FTP ramp test require a machine that supports power control; heart-rate-guided workouts also require a heart-rate sensor.
 
 1. On Home, pair your fitness machine or heart-rate sensor (or both).
