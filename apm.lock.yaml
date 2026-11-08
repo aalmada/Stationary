@@ -1,11 +1,11 @@
 lockfile_version: '1'
-generated_at: '2026-11-08T22:35:54.647135+00:00'
+generated_at: '2026-11-08T23:38:19.920567+00:00'
 apm_version: 0.28.0
 dependencies:
 - repo_url: netfabric/intelligentium
   name: agent-authoring
   host: github.com
-  resolved_commit: 0ea29d4b05b717965b12bdcd572df5d10acfa9db
+  resolved_commit: ac49c7fbbe63b717521be6315e4564c956db04b1
   version: 0.15.1
   virtual_path: plugins/agent-authoring
   is_virtual: true
@@ -55,6 +55,16 @@ dependencies:
   - .agents/skills/copilot-github-actions/references/cli-invocation-patterns.md
   - .agents/skills/copilot-github-actions/references/gh-aw-vs-direct.md
   - .agents/skills/copilot-github-actions/references/security-and-cost.md
+  - .agents/skills/copilot-sdk
+  - .agents/skills/copilot-sdk/SKILL.md
+  - .agents/skills/copilot-sdk/references/advanced-features.md
+  - .agents/skills/copilot-sdk/references/core-session-api.md
+  - .agents/skills/copilot-sdk/references/language-quickstarts.md
+  - .agents/skills/copilot-sdk/references/setup-and-auth.md
+  - .agents/skills/create-skill
+  - .agents/skills/create-skill/SKILL.md
+  - .agents/skills/create-skill/references/research-workflow.md
+  - .agents/skills/create-skill/references/structure.md
   - .agents/skills/markdown-best-practices
   - .agents/skills/markdown-best-practices/SKILL.md
   - .agents/skills/markdown-best-practices/references/headings-and-structure.md
@@ -130,6 +140,14 @@ dependencies:
     .agents/skills/copilot-github-actions/references/cli-invocation-patterns.md: sha256:79f4a19ef74c2e8c460e110e5bce94ccb97dd71c9a06b353ca2a40a8d514026c
     .agents/skills/copilot-github-actions/references/gh-aw-vs-direct.md: sha256:4decd77ce57997fa27f5a6f2922e0d4edf3ef7dca51342065bdab2629cf0411a
     .agents/skills/copilot-github-actions/references/security-and-cost.md: sha256:2d8cf99a02ddbb121ed82cff99008eede4be1b6baf631c9352f8261b6bda1f7c
+    .agents/skills/copilot-sdk/SKILL.md: sha256:dc852fe506071a4d7bbe038957670c09030f655f8f43e223302940b32de5306a
+    .agents/skills/copilot-sdk/references/advanced-features.md: sha256:2569fa16d680cb03f488e31fb44ab49a8321545166d640cb569ecd31beb9bf9c
+    .agents/skills/copilot-sdk/references/core-session-api.md: sha256:52602af806dd9ee95a214e1a25b1d8853f2f183f2cc4d4575a6502d1602ae8e2
+    .agents/skills/copilot-sdk/references/language-quickstarts.md: sha256:d754b0268c63db6576c0edcc6d6f5539e1f8e91279b0586ed7e2bdf6d0095718
+    .agents/skills/copilot-sdk/references/setup-and-auth.md: sha256:b17b03ee2b6335971a47ea7cbfe16c88f4cf4ca1cf8e440dca2517352ae22861
+    .agents/skills/create-skill/SKILL.md: sha256:8d9ddb4eada9d2852deb6a3e03e704a74c1df1b97287f82c15c0ba7c46196975
+    .agents/skills/create-skill/references/research-workflow.md: sha256:0a97c30d72faf2767c7ed8863589937c3b39931dd7906f5117c01f33a82d679d
+    .agents/skills/create-skill/references/structure.md: sha256:209255de5bf812600ec790fffa3d1c2e3608e627f2e8867fe54fbc3187efd588
     .agents/skills/markdown-best-practices/SKILL.md: sha256:14b8eabe547cdfbde852d37bd5ba8df3e48d651e36d88cb9998597f6a7dfa15f
     .agents/skills/markdown-best-practices/references/headings-and-structure.md: sha256:5ab224aaac9580430c58883ae64bc8f48eea824dd4f86eeaf3c55d4c14f40874
     .agents/skills/markdown-best-practices/references/links-images-and-whitespace.md: sha256:40890f9118576259aa0eafe487b095249a2a3dcf23e8cd597d491d63e346d2f2
@@ -165,29 +183,29 @@ dependencies:
 - repo_url: netfabric/intelligentium
   name: codebase-memory
   host: github.com
-  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
-  version: 0.1.2
+  resolved_commit: ac49c7fbbe63b717521be6315e4564c956db04b1
+  version: 0.3.0
   virtual_path: plugins/codebase-memory
   is_virtual: true
   package_type: apm_package
   deployed_files:
-  - .agents/skills/codebase-memory
-  - .agents/skills/codebase-memory/SKILL.md
-  - .agents/skills/codebase-memory/references/installation.md
-  - .agents/skills/codebase-memory/references/integration-guide.md
-  - .agents/skills/codebase-memory/references/tools.md
+  - .agents/skills/codebase-memory-exploration
+  - .agents/skills/codebase-memory-exploration/SKILL.md
+  - .agents/skills/codebase-memory-lens
+  - .agents/skills/codebase-memory-lens/SKILL.md
+  - .agents/skills/codebase-memory-test-impact
+  - .agents/skills/codebase-memory-test-impact/SKILL.md
   deployed_file_hashes:
-    .agents/skills/codebase-memory/SKILL.md: sha256:240a4cca4a6bed0d0d2cae0b359349b4184a33f781f4c7f34289b0a2fd8b49ab
-    .agents/skills/codebase-memory/references/installation.md: sha256:34d7bdded5ec515c380015918dbafa3aee2f9254a0a7aaa2e10d6724c88621f9
-    .agents/skills/codebase-memory/references/integration-guide.md: sha256:b8a8d2b5849e3c81051f8f2c4ab08d04b1bdca5151c43d8cced943ab7fef1b93
-    .agents/skills/codebase-memory/references/tools.md: sha256:25fcaa9a684a2c52d4dbfab16fd0cc81ce09a251143f53360c960482e70bdfae
-  content_hash: sha256:0c25fda5abfd9589ef8dc26d834555a91ac00de7159a100872d5733ec2ad0c48
+    .agents/skills/codebase-memory-exploration/SKILL.md: sha256:d28e034ad1bcc4c1b018ddb26bbfb310f3fbaeda6af30cdde026d14dd150f1fa
+    .agents/skills/codebase-memory-lens/SKILL.md: sha256:ea949064aa4f9b5f3da547a93fa57bd6346fd73cf1cf43dd33e4808b309f7659
+    .agents/skills/codebase-memory-test-impact/SKILL.md: sha256:c3f47cf4e5efdbb2a97ec4f5fc2e910e3ad2217434f7a0814a7a9a810110447f
+  content_hash: sha256:1cebfc8478c35cf48808623220a47a395ef261c9c8daa7c75d64dc3fa22aa598
   declared_license: MIT
 - repo_url: netfabric/intelligentium
   name: dotnet
   host: github.com
-  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
-  version: 0.8.0
+  resolved_commit: ac49c7fbbe63b717521be6315e4564c956db04b1
+  version: 0.8.1
   virtual_path: plugins/dotnet
   is_virtual: true
   package_type: apm_package
@@ -202,12 +220,6 @@ dependencies:
   - .agents/skills/csharp-file-based-app/SKILL.md
   - .agents/skills/csharp-file-based-app/references/directives-reference.md
   - .agents/skills/csharp-file-based-app/references/runtime-behavior.md
-  - .agents/skills/dotnet-agent-guardrails
-  - .agents/skills/dotnet-agent-guardrails/SKILL.md
-  - .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md
-  - .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md
-  - .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md
-  - .agents/skills/dotnet-agent-guardrails/references/testing-contract.md
   - .agents/skills/dotnet-benchmarking
   - .agents/skills/dotnet-benchmarking/SKILL.md
   - .agents/skills/dotnet-benchmarking/references/comparing-configurations.md
@@ -257,11 +269,6 @@ dependencies:
     .agents/skills/csharp-file-based-app/SKILL.md: sha256:5ea7aeea7fe640247c5eac3cd6b1533f063c55886d20c3ca01f9c01317d54688
     .agents/skills/csharp-file-based-app/references/directives-reference.md: sha256:693eb060099de2665e9650361bd276c2ace84c912850134ec5448713a832c531
     .agents/skills/csharp-file-based-app/references/runtime-behavior.md: sha256:1b219f542476a6f2c0b360be4f20f4e961427c43bb37bd16cf37c277cb1292bf
-    .agents/skills/dotnet-agent-guardrails/SKILL.md: sha256:319102a5b95e4da0b0e5fa90b969c596f8ba25e22b2b631f1521a7bf8d3352f6
-    .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md: sha256:c13c1cea13842fe364e21cdcefe7a177fd7cab7ae0fefacf347aae6c2b8aecba
-    .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md: sha256:8fc799949cbdce10460ffa2e2ccfc0e3f6347cc49034d1bf5f09e629e540bca6
-    .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md: sha256:e9348cf0ad1d78cd8a3cf443227670c55b802109d42a6dcfd4ac72b3e75a338b
-    .agents/skills/dotnet-agent-guardrails/references/testing-contract.md: sha256:13ab02ff8b9e66ba8b28986b8007436767341d76b6af196f87bc0a32be677da7
     .agents/skills/dotnet-benchmarking/SKILL.md: sha256:6b031572f25a2264fe245a7b291ae3e1386d1db7efb41d1064218610f703011c
     .agents/skills/dotnet-benchmarking/references/comparing-configurations.md: sha256:03584501ccb08761e5aaef7a9fdddef9ddc481ffe99bcf78ce97f90302dd6e9e
     .agents/skills/dotnet-benchmarking/references/interpreting-results.md: sha256:dadd07191a32bf80b1a1bdf6e1773555291ccb81ce40680f7981d1bbd853bd42
@@ -296,7 +303,7 @@ dependencies:
     .agents/skills/dotnet-solution-setup/references/central-package-management.md: sha256:0535110ac73800af2ef7d8a4b8cee40472caa355dc0dfd4380e4180367c9c15a
     .agents/skills/dotnet-solution-setup/references/directory-build-props.md: sha256:6b751c7a8527bdf75c6139c95f0cda3aa71b3e167f9c086e37a0909120b92e7e
     .agents/skills/dotnet-solution-setup/references/repo-scaffold.md: sha256:3f1beca10ba8b2772c9fdac1557375f8fc707b496bb5d45a5d2a5200117e7c26
-  content_hash: sha256:c15403a560140e93a037a010418fa2ae2d8ef7ebebf9128625ff7936cc307273
+  content_hash: sha256:1e162e438bfd7a09452881cd14a2f51316fa81789262bd8d6a41c20fb38753e0
   declared_license: MIT
 - repo_url: netfabric/intelligentium
   name: dotnet-rx
@@ -647,7 +654,7 @@ deployments:
   content_hash: sha256:757c39e849a320d0d21d60705e51fb6240f9ac3c40bab65460ee285faea81e12
 - kind: project-relative
   target: copilot
-  value: .agents/skills/codebase-memory
+  value: .agents/skills/codebase-memory-exploration
   runtime: null
   scope: project
   owners:
@@ -656,40 +663,49 @@ deployments:
   content_hash: null
 - kind: project-relative
   target: copilot
-  value: .agents/skills/codebase-memory/SKILL.md
+  value: .agents/skills/codebase-memory-exploration/SKILL.md
   runtime: null
   scope: project
   owners:
   - netfabric/intelligentium/plugins/codebase-memory
   active_owner: netfabric/intelligentium/plugins/codebase-memory
-  content_hash: sha256:240a4cca4a6bed0d0d2cae0b359349b4184a33f781f4c7f34289b0a2fd8b49ab
+  content_hash: sha256:d28e034ad1bcc4c1b018ddb26bbfb310f3fbaeda6af30cdde026d14dd150f1fa
 - kind: project-relative
   target: copilot
-  value: .agents/skills/codebase-memory/references/installation.md
+  value: .agents/skills/codebase-memory-lens
   runtime: null
   scope: project
   owners:
   - netfabric/intelligentium/plugins/codebase-memory
   active_owner: netfabric/intelligentium/plugins/codebase-memory
-  content_hash: sha256:34d7bdded5ec515c380015918dbafa3aee2f9254a0a7aaa2e10d6724c88621f9
+  content_hash: null
 - kind: project-relative
   target: copilot
-  value: .agents/skills/codebase-memory/references/integration-guide.md
+  value: .agents/skills/codebase-memory-lens/SKILL.md
   runtime: null
   scope: project
   owners:
   - netfabric/intelligentium/plugins/codebase-memory
   active_owner: netfabric/intelligentium/plugins/codebase-memory
-  content_hash: sha256:b8a8d2b5849e3c81051f8f2c4ab08d04b1bdca5151c43d8cced943ab7fef1b93
+  content_hash: sha256:ea949064aa4f9b5f3da547a93fa57bd6346fd73cf1cf43dd33e4808b309f7659
 - kind: project-relative
   target: copilot
-  value: .agents/skills/codebase-memory/references/tools.md
+  value: .agents/skills/codebase-memory-test-impact
   runtime: null
   scope: project
   owners:
   - netfabric/intelligentium/plugins/codebase-memory
   active_owner: netfabric/intelligentium/plugins/codebase-memory
-  content_hash: sha256:25fcaa9a684a2c52d4dbfab16fd0cc81ce09a251143f53360c960482e70bdfae
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/codebase-memory-test-impact/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/codebase-memory
+  active_owner: netfabric/intelligentium/plugins/codebase-memory
+  content_hash: sha256:c3f47cf4e5efdbb2a97ec4f5fc2e910e3ad2217434f7a0814a7a9a810110447f
 - kind: project-relative
   target: copilot
   value: .agents/skills/copilot-cli-custom-agents
@@ -800,6 +816,96 @@ deployments:
   content_hash: sha256:2d8cf99a02ddbb121ed82cff99008eede4be1b6baf631c9352f8261b6bda1f7c
 - kind: project-relative
   target: copilot
+  value: .agents/skills/copilot-sdk
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/copilot-sdk/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:dc852fe506071a4d7bbe038957670c09030f655f8f43e223302940b32de5306a
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/copilot-sdk/references/advanced-features.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:2569fa16d680cb03f488e31fb44ab49a8321545166d640cb569ecd31beb9bf9c
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/copilot-sdk/references/core-session-api.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:52602af806dd9ee95a214e1a25b1d8853f2f183f2cc4d4575a6502d1602ae8e2
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/copilot-sdk/references/language-quickstarts.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:d754b0268c63db6576c0edcc6d6f5539e1f8e91279b0586ed7e2bdf6d0095718
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/copilot-sdk/references/setup-and-auth.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:b17b03ee2b6335971a47ea7cbfe16c88f4cf4ca1cf8e440dca2517352ae22861
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/create-skill
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/create-skill/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:8d9ddb4eada9d2852deb6a3e03e704a74c1df1b97287f82c15c0ba7c46196975
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/create-skill/references/research-workflow.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:0a97c30d72faf2767c7ed8863589937c3b39931dd7906f5117c01f33a82d679d
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/create-skill/references/structure.md
+  runtime: null
+  scope: project
+  owners:
+  - netfabric/intelligentium/plugins/agent-authoring
+  active_owner: netfabric/intelligentium/plugins/agent-authoring
+  content_hash: sha256:209255de5bf812600ec790fffa3d1c2e3608e627f2e8867fe54fbc3187efd588
+- kind: project-relative
+  target: copilot
   value: .agents/skills/csharp-best-practices
   runtime: null
   scope: project
@@ -888,60 +994,6 @@ deployments:
   - netfabric/intelligentium/plugins/dotnet
   active_owner: netfabric/intelligentium/plugins/dotnet
   content_hash: sha256:1b219f542476a6f2c0b360be4f20f4e961427c43bb37bd16cf37c277cb1292bf
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: null
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: sha256:319102a5b95e4da0b0e5fa90b969c596f8ba25e22b2b631f1521a7bf8d3352f6
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails/references/aspire-agent-native.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: sha256:c13c1cea13842fe364e21cdcefe7a177fd7cab7ae0fefacf347aae6c2b8aecba
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails/references/conventions-and-analyzers.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: sha256:8fc799949cbdce10460ffa2e2ccfc0e3f6347cc49034d1bf5f09e629e540bca6
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails/references/hooks-governance.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: sha256:e9348cf0ad1d78cd8a3cf443227670c55b802109d42a6dcfd4ac72b3e75a338b
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/dotnet-agent-guardrails/references/testing-contract.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet
-  active_owner: netfabric/intelligentium/plugins/dotnet
-  content_hash: sha256:13ab02ff8b9e66ba8b28986b8007436767341d76b6af196f87bc0a32be677da7
 - kind: project-relative
   target: copilot
   value: .agents/skills/dotnet-benchmarking
@@ -1851,3 +1903,25 @@ deployments:
   - netfabric/intelligentium/plugins/agent-authoring
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:cc5c20c4b740042cff6b90ad77fdfceb4ad008a02771adf1b809c078206e3c66
+- kind: uri
+  target: mcp
+  value: microsoft-learn
+  runtime: copilot
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+mcp_servers:
+- microsoft-learn
+mcp_configs:
+  microsoft-learn:
+    name: microsoft-learn
+    transport: streamable-http
+    registry: false
+    url: https://learn.microsoft.com/api/mcp
+mcp_target_servers:
+  copilot:
+  - microsoft-learn
+mcp_config_provenance:
+  microsoft-learn: dotnet

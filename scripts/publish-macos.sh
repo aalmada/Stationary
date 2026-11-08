@@ -21,6 +21,15 @@ if [[ "$(uname -s)" != Darwin ]]; then
     exit 1
 fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+sdk="$(dotnet --version)"
+if [[ ! "$sdk" =~ ^11\.[0-9]+\.[0-9]+$ ]]; then
+    printf 'Website releases require a supported stable .NET 11 SDK; selected SDK is %s.\n' "$sdk" >&2
+    exit 1
+fi
+for tool in python3 codesign hdiutil ditto shasum; do
+    command -v "$tool" >/dev/null || { printf 'Required tool not found: %s\n' "$tool" >&2; exit 1; }
+done
 output="${3:-$root/artifacts/macos/$version}"
 mkdir -p "$output"
 output="$(cd "$output" && pwd)"
@@ -34,9 +43,16 @@ mount="$work/mounted"
 mounted=false
 cleanup() {
     if [[ "$mounted" == true ]]; then
-        hdiutil detach "$mount" >&2
+        if hdiutil detach "$mount" >&2; then
+            mounted=false
+        else
+            printf 'Could not unmount %s; preserving staging files at %s.\n' "$mount" "$work" >&2
+            return 1
+        fi
     fi
-    rm -r -- "$work"
+    if [[ "$mounted" == false ]]; then
+        rm -r -- "$work"
+    fi
 }
 trap cleanup EXIT
 project="$root/src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj"
@@ -54,32 +70,7 @@ fi
 mkdir "$work/image"
 ditto "${apps[0]}" "$work/image/Stationary.app"
 app="$work/image/Stationary.app"
-plist="$app/Contents/Info.plist"
-read_plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist"; }
-[[ "$(read_plist CFBundleIdentifier)" == com.stationary.ftms.dashboard ]]
-[[ "$(read_plist CFBundleShortVersionString)" == "$version" ]]
-[[ "$(read_plist CFBundleVersion)" == "$build" ]]
-executable="$(read_plist CFBundleExecutable)"
-[[ "$(lipo -archs "$app/Contents/MacOS/$executable")" == arm64 ]]
-codesign --verify --deep --strict --verbose=2 "$app"
-codesign --display --entitlements :- "$app" > "$work/entitlements.plist"
-plutil -lint "$work/entitlements.plist"
-if /usr/libexec/PlistBuddy -c 'Print :get-task-allow' "$work/entitlements.plist" 2>/dev/null | /usr/bin/awk '$0 == "true" { found=1 } END { exit !found }'; then
-    printf '%s\n' 'Release app contains the debugging entitlement get-task-allow.' >&2
-    exit 1
-fi
-if [[ -f "$app/Contents/embedded.provisionprofile" ]]; then
-    printf '%s\n' 'Website releases must not depend on a provisioning profile.' >&2
-    exit 1
-fi
-while IFS= read -r -d '' binary; do
-    case "$(file -b "$binary")" in
-        *Mach-O*)
-            [[ "$(lipo -archs "$binary")" == arm64 ]]
-            codesign --verify --strict --verbose=2 "$binary"
-            ;;
-    esac
-done < <(find "$app" -type f -print0)
+minimum="$(python3 "$root/scripts/validate_macos_bundle.py" "$app" "$version" "$build")"
 ln -s /Applications "$work/image/Applications"
 hdiutil create -srcfolder "$work/image" -volname "Stationary $version" \
     -format UDZO "$work/$name"
@@ -88,12 +79,11 @@ mkdir "$mount"
 hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$work/$name"
 mounted=true
 [[ -d "$mount/Stationary.app" && "$(readlink "$mount/Applications")" == /Applications ]]
-codesign --verify --deep --strict --verbose=2 "$mount/Stationary.app"
+[[ "$(python3 "$root/scripts/validate_macos_bundle.py" "$mount/Stationary.app" "$version" "$build")" == "$minimum" ]]
 hdiutil detach "$mount"
 mounted=false
 rmdir "$mount"
 
-minimum="$(read_plist LSMinimumSystemVersion)"
 printf 'Version: %s\nBuild: %s\nMinimum macOS: %s\n' "$version" "$build" "$minimum" > "$work/release-info.txt"
 dotnet --info >> "$work/release-info.txt"
 xcodebuild -version >> "$work/release-info.txt"

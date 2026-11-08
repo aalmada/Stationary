@@ -76,8 +76,18 @@ def check_links(output: Path) -> None:
 
 def build(output: Path, release: dict) -> None:
     output = output.resolve()
-    if output == ROOT or output in ROOT.parents or output.is_relative_to(ROOT / "site"):
-        raise ValueError("Build output must not overwrite the repository or site sources.")
+    if output == ROOT or output in ROOT.parents or (output.is_relative_to(ROOT) and not output.is_relative_to(ROOT / "artifacts")):
+        raise ValueError("Repository builds must use an output directory under artifacts/.")
+    if output.exists():
+        allowed = {"index.html", "support.html", "privacy.html", "styles.css", ".nojekyll", "images"}
+        for path in output.iterdir():
+            if path.is_symlink() or path.name not in allowed:
+                raise ValueError(f"Unexpected output entry (not safe to deploy): {path}")
+        images = output / "images"
+        if images.exists():
+            for path in images.iterdir():
+                if path.is_symlink() or not path.is_file() or path.name not in {"ride.png", "ride-scene.png"}:
+                    raise ValueError(f"Unexpected image output entry: {path}")
     markup = download_markup(release)
     output.mkdir(parents=True, exist_ok=True)
     for source in (ROOT / "site").iterdir():
