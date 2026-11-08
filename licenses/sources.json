@@ -1,0 +1,98 @@
+{
+  "microsoft.extensions.configuration-11.0.0-rc.1.26425.128.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/dotnet/3551975be08744f0418857c5bed8ab1545c5dd47/LICENSE.TXT",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "microsoft.extensions.dependencyinjection-11.0.0-rc.1.26425.128.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/dotnet/3551975be08744f0418857c5bed8ab1545c5dd47/LICENSE.TXT",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "microsoft.extensions.logging-11.0.0-rc.1.26425.128.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/dotnet/3551975be08744f0418857c5bed8ab1545c5dd47/LICENSE.TXT",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "microsoft.net.illink.tasks-11.0.0-rc.3.26522.148.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/dotnet/5254d8bcf59917edc1e1abc33bdf2442b77b1c70/LICENSE.TXT",
+    "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+  },
+  "plugin.ble-3.2.1.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet-bluetooth-le/dotnet-bluetooth-le/4802d4a7f24105f66117566f3cc17da4d9ffef7e/LICENSE",
+    "sha256": "cfa9400eccb0b2be0a5e1dcb03e8a87c130e7c51e593591de93df2905e7f93c8"
+  },
+  "system.reactive-7.0.0.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/reactive/cf59bed2247fdd8f8c3c6fe05c328934518c0c96/LICENSE",
+    "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310"
+  },
+  "silk.net.core-2.23.0.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/Silk.NET/94605142f7b7bd6e69c9201e8e721d245c69eb7e/LICENSE.md",
+    "sha256": "725919ae6dd430f6302bd4e84958ae5b99f4f231b164382f6197df1413d4a9c1"
+  },
+  "silk.net.vulkan-2.23.0.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/Silk.NET/94605142f7b7bd6e69c9201e8e721d245c69eb7e/LICENSE.md",
+    "sha256": "725919ae6dd430f6302bd4e84958ae5b99f4f231b164382f6197df1413d4a9c1"
+  },
+  "silk.net.vulkan.extensions.ext-2.23.0.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/Silk.NET/94605142f7b7bd6e69c9201e8e721d245c69eb7e/LICENSE.md",
+    "sha256": "725919ae6dd430f6302bd4e84958ae5b99f4f231b164382f6197df1413d4a9c1"
+  },
+  "silk.net.vulkan.extensions.khr-2.23.0.txt": {
+    "url": "https://raw.githubusercontent.com/dotnet/Silk.NET/94605142f7b7bd6e69c9201e8e721d245c69eb7e/LICENSE.md",
+    "sha256": "725919ae6dd430f6302bd4e84958ae5b99f4f231b164382f6197df1413d4a9c1"
+  },
+  "silk.net.moltenvk.native-2.23.0.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/MoltenVK/458870543b9bcf6b0edd6f90aaa776707b310d96/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "additional-moltenvk-2.23.0-spirv-cross.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Cross/0a88b2d5c08708d45692b7096a0a84e7bfae366c/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "additional-moltenvk-2.23.0-spirv-cross-Apache-2.0.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Cross/0a88b2d5c08708d45692b7096a0a84e7bfae366c/LICENSES/Apache-2.0.txt",
+    "sha256": "44b0a56e80b41a1b0a6bd1292515e806539fd97b30be54c2719e6c763190ab57"
+  },
+  "additional-moltenvk-2.23.0-spirv-cross-CC-BY-4.0.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Cross/0a88b2d5c08708d45692b7096a0a84e7bfae366c/LICENSES/CC-BY-4.0.txt",
+    "sha256": "b89aeb7c2a164a0576786dd2a8b57f2fb628b23981f0a06bd77e2f99a9befa0f"
+  },
+  "additional-moltenvk-2.23.0-spirv-cross-LicenseRef-KhronosFreeUse.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Cross/0a88b2d5c08708d45692b7096a0a84e7bfae366c/LICENSES/LicenseRef-KhronosFreeUse.txt",
+    "sha256": "fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f"
+  },
+  "additional-moltenvk-2.23.0-spirv-cross-MIT.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Cross/0a88b2d5c08708d45692b7096a0a84e7bfae366c/LICENSES/MIT.txt",
+    "sha256": "8f25018489d6fe0dec34a352314c38dc146247b7de65735790f4398a92afa84b"
+  },
+  "additional-moltenvk-2.23.0-spirv-headers.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/bab63ff679c41eb75fc67dac76e1dc44426101e1/LICENSE",
+    "sha256": "ff04ae7e6a468587fe59434fee2e67c0e2a749b592c794b764ff80f30b94a084"
+  },
+  "additional-moltenvk-2.23.0-spirv-tools.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Tools/783d7033613cedaa7147d0700b517abc5c32312d/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "additional-moltenvk-2.23.0-vulkan-headers.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/088a00d81d1fc30ff77aacf31485871aebec7cb2/LICENSE.md",
+    "sha256": "ac24e5ea920e4318e4d02c4086ae51f53cfb03feed06c18df1019e7ada1ec7bc"
+  },
+  "additional-moltenvk-2.23.0-vulkan-headers-Apache-2.0.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/088a00d81d1fc30ff77aacf31485871aebec7cb2/LICENSES/Apache-2.0.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "additional-moltenvk-2.23.0-vulkan-headers-MIT.txt": {
+    "url": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/088a00d81d1fc30ff77aacf31485871aebec7cb2/LICENSES/MIT.txt",
+    "sha256": "1ca3502222d967f3be5751c55f6b7ee735b5383909c3b501495f54b216dbf227"
+  },
+  "additional-moltenvk-2.23.0-cereal.txt": {
+    "url": "https://raw.githubusercontent.com/USCiLab/cereal/51cbda5f30e56c801c07fe3d3aba5d7fb9e6cca4/LICENSE",
+    "sha256": "18fd7618c44c9fe28b5f54cd19747df3c0472ed33e8507fea571e2acf6e72f34"
+  },
+  "additional-dotnet-runtime-11.0.0-rc.3.26522.148-license.txt": {
+    "pack": "Microsoft.NETCore.App.Runtime.Mono.maccatalyst-arm64/11.0.0-rc.3.26522.148/LICENSE.TXT",
+    "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310"
+  },
+  "additional-dotnet-runtime-11.0.0-rc.3.26522.148-third-party-notices.txt": {
+    "pack": "Microsoft.NETCore.App.Runtime.Mono.maccatalyst-arm64/11.0.0-rc.3.26522.148/THIRD-PARTY-NOTICES.TXT",
+    "sha256": "4790bb15f0edd1b105aecb05174fc6c589d4d9fad0c50616ef5f7dc365f1c8a6"
+  }
+}

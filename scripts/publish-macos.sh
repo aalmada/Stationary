@@ -27,14 +27,14 @@ if [[ ! "$sdk" =~ ^11\.[0-9]+\.[0-9]+$ ]]; then
     printf 'Website releases require a supported stable .NET 11 SDK; selected SDK is %s.\n' "$sdk" >&2
     exit 1
 fi
-for tool in python3 codesign hdiutil ditto shasum; do
+for tool in python3 codesign hdiutil ditto shasum lipo file xcodebuild; do
     command -v "$tool" >/dev/null || { printf 'Required tool not found: %s\n' "$tool" >&2; exit 1; }
 done
 output="${3:-$root/artifacts/macos/$version}"
 mkdir -p "$output"
 output="$(cd "$output" && pwd)"
 name="Stationary-$version-macos-arm64.dmg"
-if [[ -e "$output/$name" || -e "$output/SHA256SUMS" ]]; then
+if [[ -n "$(find "$output" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
     printf '%s\n' 'Release output already exists. Use a new empty output directory; existing releases are never overwritten.' >&2
     exit 1
 fi
@@ -57,8 +57,11 @@ cleanup() {
 trap cleanup EXIT
 project="$root/src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj"
 cd "$root"
+dotnet restore "$project" -r maccatalyst-arm64
+python3 "$root/scripts/collect_notices.py" --release --output "$work/notices"
 dotnet publish "$project" -f net11.0-maccatalyst -c Release -r maccatalyst-arm64 \
-    -p:PublishProfile=Website -p:ApplicationDisplayVersion="$version" -p:ApplicationVersion="$build"
+    -p:PublishProfile=Website -p:ApplicationDisplayVersion="$version" -p:ApplicationVersion="$build" \
+    -p:WebsiteNoticesPath="$work/notices/THIRD-PARTY-NOTICES.txt"
 
 app_root="$root/src/Stationary.Ftms.Dashboard/bin/Release/net11.0-maccatalyst/maccatalyst-arm64"
 apps=()
@@ -89,5 +92,6 @@ dotnet --info >> "$work/release-info.txt"
 xcodebuild -version >> "$work/release-info.txt"
 ditto "$work/$name" "$output/$name"
 ditto "$work/release-info.txt" "$output/release-info.txt"
+ditto "$work/notices/dependency-licenses.json" "$output/dependency-licenses.json"
 (cd "$output" && shasum -a 256 "$name" > SHA256SUMS)
 printf 'Created %s\nRead release-info.txt and test the browser-downloaded DMG before publishing.\n' "$output/$name"

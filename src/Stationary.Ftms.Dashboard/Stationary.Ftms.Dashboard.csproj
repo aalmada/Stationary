@@ -16,6 +16,9 @@
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" />
   </ItemGroup>
+  <ItemGroup Condition="'$(WebsiteNoticesPath)' != ''">
+    <BundleResource Include="$(WebsiteNoticesPath)" LogicalName="THIRD-PARTY-NOTICES.txt" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Stationary.Ble/Stationary.Ble.csproj" />
     <ProjectReference Include="../Stationary.Ftms.Client/Stationary.Ftms.Client.csproj" />

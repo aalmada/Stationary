@@ -3,13 +3,21 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from validate_macos_bundle import validate_metadata
+from validate_macos_bundle import run, validate_metadata
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 class BundleMetadataTests(unittest.TestCase):
+    def test_native_validation_failures_preserve_diagnostics(self):
+        with patch("validate_macos_bundle.subprocess.run", return_value=subprocess.CompletedProcess(
+            ["codesign"], 1, b"", b"resource envelope is obsolete"
+        )):
+            with self.assertRaisesRegex(RuntimeError, "resource envelope is obsolete"):
+                run("codesign", "--verify", "test.app")
+
     def setUp(self):
         self.info = {
             "CFBundleIdentifier": "com.stationary.ftms.dashboard",
@@ -36,8 +44,9 @@ class BundleMetadataTests(unittest.TestCase):
 
     def test_both_debug_entitlement_spellings_are_rejected(self):
         for key in ("get-task-allow", "com.apple.security.get-task-allow"):
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                validate_metadata(self.info, self.entitlements | {key: True}, "1.2.3", "4")
+            for value in (True, 0, "false"):
+                with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                    validate_metadata(self.info, self.entitlements | {key: value}, "1.2.3", "4")
 
     def test_bluetooth_must_remain_enabled(self):
         for value in (None, False, "true"):

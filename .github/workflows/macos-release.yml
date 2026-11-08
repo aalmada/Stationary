@@ -97,4 +97,4 @@ jobs:
             'The minimum macOS and build information are in release-info.txt.' > release-notes.txt
           gh release create "v$VERSION" --draft --target "$GITHUB_SHA" \
             --title "Stationary $VERSION" --notes-file release-notes.txt \
-            "Stationary-$VERSION-macos-arm64.dmg" SHA256SUMS release-info.txt
+            "Stationary-$VERSION-macos-arm64.dmg" SHA256SUMS release-info.txt dependency-licenses.json

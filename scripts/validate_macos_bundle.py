@@ -8,10 +8,16 @@ import subprocess
 from pathlib import Path
 
 
+def command(*arguments: str) -> subprocess.CompletedProcess:
+    result = subprocess.run(arguments, capture_output=True)
+    if result.returncode:
+        detail = (result.stdout + result.stderr).decode(errors="replace")
+        raise RuntimeError(f"{' '.join(arguments)} failed ({result.returncode}):\n{detail}")
+    return result
+
+
 def run(*arguments: str) -> str:
-    return subprocess.run(
-        arguments, check=True, capture_output=True, text=True
-    ).stdout.strip()
+    return command(*arguments).stdout.decode().strip()
 
 
 def validate_metadata(info: dict, entitlements: dict, version: str, build: str) -> str:
@@ -30,7 +36,7 @@ def validate_metadata(info: dict, entitlements: dict, version: str, build: str) 
     if not isinstance(minimum, str) or not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", minimum):
         raise ValueError("The generated app must report its minimum macOS version.")
     for key in ("get-task-allow", "com.apple.security.get-task-allow"):
-        if entitlements.get(key) not in (None, False):
+        if entitlements.get(key) is not None and entitlements[key] is not False:
             raise ValueError(f"Public releases must not enable {key}.")
     if entitlements.get("com.apple.security.device.bluetooth") is not True:
         raise ValueError("The app must retain its Bluetooth entitlement.")
@@ -45,18 +51,15 @@ def validate(app: Path, version: str, build: str) -> str:
     if any(app.rglob("embedded.provisionprofile")) or any(app.rglob("embedded.mobileprovision")):
         raise ValueError("Website apps must not contain provisioning profiles.")
     run("codesign", "--verify", "--deep", "--strict", "--verbose=2", str(app))
-    signature = subprocess.run(
-        ["codesign", "--display", "--verbose=2", str(app)],
-        check=True, capture_output=True, text=True,
-    )
-    if "Signature=adhoc" not in signature.stderr.splitlines():
+    signature = command("codesign", "--display", "--verbose=2", str(app))
+    if "Signature=adhoc" not in signature.stderr.decode().splitlines():
         raise ValueError("Expected an ad-hoc signature, not a paid/development signing identity.")
-    raw_entitlements = subprocess.run(
-        ["codesign", "--display", "--entitlements", ":-", str(app)],
-        check=True, capture_output=True,
-    ).stdout
+    raw_entitlements = command("codesign", "--display", "--entitlements", ":-", str(app)).stdout
     entitlements = plistlib.loads(raw_entitlements)
     minimum = validate_metadata(info, entitlements, version, build)
+    notices = contents / "Resources" / "THIRD-PARTY-NOTICES.txt"
+    if not notices.is_file() or notices.is_symlink() or not notices.read_text().strip():
+        raise ValueError("Bundled third-party license notices are missing or empty.")
     executable = contents / "MacOS" / info["CFBundleExecutable"]
     if not executable.is_file():
         raise ValueError("The generated executable is missing.")

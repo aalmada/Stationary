@@ -6,7 +6,7 @@ Stationary's website distribution uses an Apple-silicon Mac Catalyst `.app` insi
 
 The repository currently pins prerelease .NET 11/MAUI versions. The installed Mac Catalyst workload requires Xcode 27.0; the current development host has Xcode 27.2. A supported production SDK/workload/Xcode combination must be selected before a public release. Do not downgrade .NET or disable `ValidateXcodeVersion` to conceal the mismatch.
 
-Check the [macios releases](https://github.com/dotnet/macios/releases) and [Xcode compatibility guidance](https://learn.microsoft.com/dotnet/ios/troubleshooting/xcode-requirement). Update the SDK pin, central MAUI package versions, project `MauiVersion`, and workload selection together. Release CI rejects prerelease SDKs.
+Check the [macios releases](https://github.com/dotnet/macios/releases) and [Xcode compatibility guidance](https://learn.microsoft.com/dotnet/ios/troubleshooting/xcode-requirement). Update the SDK pin, central MAUI package versions, project `MauiVersion`, and workload selection together. Both local packaging and release CI reject prerelease SDKs; packaging also rejects prerelease restored packages and requires exact stable .NET 11 runtime notices.
 
 ## Build a DMG
 
@@ -23,17 +23,36 @@ dotnet format Stationary.slnx --verify-no-changes --no-restore
 bash scripts/publish-macos.sh 1.0.0 1
 ```
 
-Select the Xcode version required by the chosen workload, not necessarily the example above. The script does not use Developer ID certificates or provisioning profiles. It explicitly publishes the dashboard project using the `Website` profile, verifies signatures/arm64 architecture/bundle versions, and creates a DMG with the app and an Applications link.
+Select the Xcode version required by the chosen workload, not necessarily the example above. The script does not use Developer ID certificates or provisioning profiles. It explicitly publishes the dashboard project using the `Website` profile, collects and embeds dependency notices before signing, and creates a DMG with the app and an Applications link. The bundle validator checks the staged and mounted copies for signatures, arm64 native code, bundle identity/version/build, the generated minimum macOS, Bluetooth entitlement, missing notices, and development entitlements/profiles.
 
 Outputs under `artifacts/macos/<version>/`:
 
 - `Stationary-<version>-macos-arm64.dmg`
 - `SHA256SUMS`
 - `release-info.txt`, including the generated minimum macOS and toolchain information
+- `dependency-licenses.json`, listing restored packages and included full license texts
 
 Use a new version/build for a release. Existing output assets are never overwritten. Retain build symbols separately when diagnosing native crashes.
 
 The packaging script is a validation gate, not proof that the app works on another Mac. It must not be run with a development Xcode-validation bypass or distribute altered signatures.
+
+## Dependency licenses and notices
+
+Inspect the restored dashboard's inventory independently of packaging:
+
+```bash
+python3 scripts/collect_notices.py
+# Production gate, after updating to the supported stable toolchain:
+python3 scripts/collect_notices.py --release
+```
+
+The collector preserves package-provided license/copyright and third-party notice files, includes build-time packages conservatively, and writes the inventory and combined notices under `artifacts/notices/`. An SPDX expression or license URL alone is not a full license text. Missing or empty texts fail collection; a failed rerun removes stale generated notices.
+
+For packages without full license files, `licenses/<lowercase-package-id>-<exact-version>.txt` contains upstream license text. Additional native/runtime notices use `licenses/additional-*.txt`. The current supplements were retrieved from package repository commits, the Silk.NET-pinned MoltenVK submodule and its external dependency revisions, or the installed versioned .NET runtime pack. `licenses/sources.json` records provenance and SHA-256 hashes; retain original upstream texts rather than inventing license terms.
+
+After any dependency/toolchain change, review and update these supplements and their provenance. Production collection requires both `additional-dotnet-runtime-<exact-restored-version>-license.txt` and `additional-dotnet-runtime-<exact-restored-version>-third-party-notices.txt`; old runtime notices do not satisfy a newer runtime. Confirm actual native build provenance and all required attribution notices before distribution. Successful collection is an inventory check, not a legal opinion or proof that every native component has been audited.
+
+Packaging embeds `THIRD-PARTY-NOTICES.txt` in the app before signing and uploads the package inventory with the draft release.
 
 ## Draft and verify
 
@@ -61,13 +80,14 @@ Website source is in `site/`, separate from the existing OKF bundle in `docs/`. 
 ```bash
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/build_site.py
+python3 scripts/check_release_links.py
 ```
 
 Preview the generated `artifacts/site/` directory locally. The site works without JavaScript. Before a verified release it deliberately shows no binary download link.
 
 To activate downloads, publish the tested GitHub Release with tag `v<version>` and the exact asset names above. Update both values in `site/release.json` using the **verified** display version and generated minimum macOS. Do not invent the minimum from the Catalyst target number.
 
-Enable repository GitHub Pages using **GitHub Actions**, with HTTPS and the `github-pages` environment. The workflow deploys only the generated site and checks published asset URLs when release metadata is set. The planned URL is <https://aalmada.github.io/Stationary/>; it is not live merely because the workflow exists.
+Enable repository GitHub Pages using **GitHub Actions**, with HTTPS and the `github-pages` environment. The workflow deploys only the generated site and checks published asset URLs, checksum shape, and agreement between website and packaged version/minimum macOS when release metadata is set. The site builder rejects unexpected output files rather than publishing incidental artifacts. The planned URL is <https://aalmada.github.io/Stationary/>; it is not live merely because the workflow exists.
 
 After deployment, test the live download/checksum/support/privacy links and install the browser-downloaded application again. Keep previous release assets; rollback by linking the previous verified version.
 
