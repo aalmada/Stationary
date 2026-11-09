@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleDisplayName</key>
-  <string>Stationary FTMS</string>
+  <string>Stationary Beta</string>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>Stationary uses Bluetooth to find and connect to compatible fitness machines and heart-rate sensors.</string>
   <key>UIApplicationSceneManifest</key>

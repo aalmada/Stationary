@@ -22,7 +22,7 @@ More screenshots: [Home](assets/screenshots/home.png) and [results](assets/scree
 
 ## Getting started
 
-Website beta downloads are being prepared for Apple silicon Macs. They will be distributed as an ad-hoc-signed DMG, without Apple notarization; macOS may require a per-app security exception. A public beta binary is not available until packaging and installation tests pass. See [website release preparation](RELEASING.md).
+[Download Stationary Beta for Apple silicon Macs](https://antaoalmada.dev/Stationary/). Requires macOS 14.0 or later. The DMG is ad-hoc signed, without Apple notarization; macOS may require a per-app security exception. See the [installation instructions](https://antaoalmada.dev/Stationary/support.html) and [release process](RELEASING.md).
 
 Use a Mac with a Bluetooth FTMS-compatible bike or trainer, and optionally a Bluetooth heart-rate sensor. You can also start a free ride with just a heart-rate sensor. Structured workouts and the FTP ramp test require a machine that supports power control; heart-rate-guided workouts also require a heart-rate sensor.
 

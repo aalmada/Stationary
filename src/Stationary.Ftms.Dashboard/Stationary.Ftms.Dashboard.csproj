@@ -5,7 +5,7 @@
     <UseMaui>true</UseMaui>
     <MauiVersion>11.0.0-rc.2.26505.5</MauiVersion>
     <SingleProject>true</SingleProject>
-    <ApplicationTitle>Stationary FTMS</ApplicationTitle>
+    <ApplicationTitle>Stationary Beta</ApplicationTitle>
     <ApplicationId>com.stationary.ftms.dashboard</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>

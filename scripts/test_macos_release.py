@@ -55,14 +55,14 @@ class BundleMetadataTests(unittest.TestCase):
 
 
 class PackagingPreflightTests(unittest.TestCase):
-    def test_prerelease_sdk_fails_before_output_is_created(self):
+    def test_prerelease_sdk_requires_explicit_beta_channel(self):
         with tempfile.TemporaryDirectory(prefix="stationary-preflight-") as directory:
             root = Path(directory)
             tools = root / "tools"
             tools.mkdir()
             for name, content in (
                 ("uname", "#!/bin/sh\nprintf 'Darwin\\n'\n"),
-                ("dotnet", "#!/bin/sh\nprintf '11.0.100-rc.3\\n'\n"),
+                ("dotnet", "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '11.0.100-rc.3\\n'; else echo 'mock restore reached' >&2; exit 42; fi\n"),
             ):
                 script = tools / name
                 script.write_text(content)
@@ -74,8 +74,17 @@ class PackagingPreflightTests(unittest.TestCase):
                 capture_output=True, text=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("stable .NET 11", result.stderr)
+            self.assertIn("stable", result.stderr)
             self.assertFalse(output.exists())
+            result = subprocess.run(
+                ["bash", str(ROOT / "scripts" / "publish-macos.sh"), "--beta", "1.2.3", "4", str(output)],
+                env=os.environ | {"PATH": f"{tools}:{os.environ['PATH']}"},
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("mock restore reached", result.stderr)
+            self.assertTrue(output.exists())
+            self.assertFalse(any(output.iterdir()))
 
 
 if __name__ == "__main__":

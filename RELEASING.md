@@ -1,29 +1,26 @@
 # Website releases
 
-Stationary's website distribution uses an Apple-silicon Mac Catalyst `.app` inside a read-only DMG. The app is ad-hoc signed: it is not Developer ID signed or Apple-notarized, and requires no Apple Developer Program subscription.
+Stationary is beta software. Website beta distribution uses an Apple-silicon Mac Catalyst `.app` inside a read-only DMG. The app is ad-hoc signed: it is not Developer ID signed or Apple-notarized, and requires no Apple Developer Program subscription. Beta releases may use the currently pinned .NET 11 preview toolchain; stable releases retain a separate stable-only gate.
 
 ## Current release gate
 
-The repository currently pins prerelease .NET 11/MAUI versions. The installed Mac Catalyst workload requires Xcode 27.0; the current development host has Xcode 27.2. A supported production SDK/workload/Xcode combination must be selected before a public release. Do not downgrade .NET or disable `ValidateXcodeVersion` to conceal the mismatch.
+The repository currently pins prerelease .NET 11/MAUI versions. A normal arm64 Release publish and bundle validation passed with Xcode 27.0, which matches the installed Mac Catalyst workload. Beta packaging is explicitly opt-in and accepts .NET 11 prerelease SDKs/packages while still validating the bundle, embedded full license texts, and exact runtime notices. The default stable packaging path continues to reject prereleases. Do not disable `ValidateXcodeVersion` to conceal an Xcode mismatch.
 
-Check the [macios releases](https://github.com/dotnet/macios/releases) and [Xcode compatibility guidance](https://learn.microsoft.com/dotnet/ios/troubleshooting/xcode-requirement). Update the SDK pin, central MAUI package versions, project `MauiVersion`, and workload selection together. Both local packaging and release CI reject prerelease SDKs; packaging also rejects prerelease restored packages and requires exact stable .NET 11 runtime notices.
+Check the [macios releases](https://github.com/dotnet/macios/releases) and [Xcode compatibility guidance](https://learn.microsoft.com/dotnet/ios/troubleshooting/xcode-requirement). Update the SDK pin, central MAUI package versions, project `MauiVersion`, and workload selection together. Select the beta channel for prerelease SDKs/packages. The stable channel requires stable .NET 11 and restored packages. Both channels require exact runtime notices.
 
 ## Build a DMG
 
-On a Mac with the supported .NET 11 workload and matching Xcode:
+On a Mac with .NET 11 RC3, the pinned MAUI workload, and Xcode 27.0, create a beta DMG with:
 
 ```bash
-# Only if selecting an installed Xcode alongside the system default:
-export DEVELOPER_DIR=/Applications/Xcode_27.0.app/Contents/Developer
-
 dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj
 dotnet restore Stationary.slnx
-dotnet test --solution Stationary.slnx --no-restore
+dotnet test --solution Stationary.CI.slnf --no-restore
 dotnet format Stationary.slnx --verify-no-changes --no-restore
-bash scripts/publish-macos.sh 1.0.0 1
+bash scripts/publish-macos.sh --beta 0.1.0 1
 ```
 
-Select the Xcode version required by the chosen workload, not necessarily the example above. The script does not use Developer ID certificates or provisioning profiles. It explicitly publishes the dashboard project using the `Website` profile, collects and embeds dependency notices before signing, and creates a DMG with the app and an Applications link. The bundle validator checks the staged and mounted copies for signatures, arm64 native code, bundle identity/version/build, the generated minimum macOS, Bluetooth entitlement, missing notices, and development entitlements/profiles.
+The explicit `--beta` option permits prerelease .NET 11 SDK/runtime/packages; without it the script enforces the stable-release policy. For stable releases, use `bash scripts/publish-macos.sh 1.0.0 1` after installing the stable supported toolchain. The script does not use Developer ID certificates or provisioning profiles. It explicitly publishes the dashboard project using the `Website` profile, collects and embeds dependency notices before signing, and creates a DMG with the app and an Applications link. The bundle validator checks the staged and mounted copies for signatures, arm64 native code, bundle identity/version/build, the generated minimum macOS, Bluetooth entitlement, missing notices, and development entitlements/profiles.
 
 Outputs under `artifacts/macos/<version>/`:
 
@@ -42,8 +39,10 @@ Inspect the restored dashboard's inventory independently of packaging:
 
 ```bash
 python3 scripts/collect_notices.py
-# Production gate, after updating to the supported stable toolchain:
-python3 scripts/collect_notices.py --release
+# Beta packaging policy:
+python3 scripts/collect_notices.py --channel beta
+# Stable production policy:
+python3 scripts/collect_notices.py --channel stable
 ```
 
 The collector preserves package-provided license/copyright and third-party notice files, includes build-time packages conservatively, and writes the inventory and combined notices under `artifacts/notices/`. An SPDX expression or license URL alone is not a full license text. Missing or empty texts fail collection; a failed rerun removes stale generated notices.
@@ -56,7 +55,9 @@ Packaging embeds `THIRD-PARTY-NOTICES.txt` in the app before signing and uploads
 
 ## Draft and verify
 
-The manually dispatched **Prepare macOS website release** workflow builds artifacts, verifies checksums, and creates a **draft** GitHub Release on main. Configure the `macos-release` environment with appropriate maintainer protections. If the exact Xcode is unavailable on hosted runners, use the same local script and upload its outputs to a draft with `gh release create --draft`; do not introduce untrusted self-hosted runners.
+The manually dispatched **Prepare Stationary beta release** workflow builds artifacts, verifies checksums, and creates a **draft prerelease** on main. The local script retains stable SDK/package checks when `--beta` is omitted. Configure the `macos-release` environment with appropriate maintainer protections. If the exact Xcode is unavailable on hosted runners, use the same local script and upload its outputs to a draft with `gh release create --draft --prerelease`; do not introduce untrusted self-hosted runners.
+
+For beta 0.1.0, the maintainer confirmed browser-downloaded installation/launch, Bluetooth, session CSV export, and the 3D scene on their Mac. A separate clean Mac, minimum-macOS host, secondary display, and upgrade testing were not confirmed. These are additional compatibility checks, not claims made by the beta release. The maintainer approved public beta distribution with that test scope.
 
 Before publishing:
 
@@ -83,7 +84,7 @@ python3 scripts/build_site.py
 python3 scripts/check_release_links.py
 ```
 
-Preview the generated `artifacts/site/` directory locally. The site works without JavaScript. Before a verified release it deliberately shows no binary download link.
+Preview the generated `artifacts/site/` directory locally. The site identifies Stationary as beta and works without JavaScript. Before a verified beta release it deliberately shows no binary download link.
 
 To activate downloads, publish the tested GitHub Release with tag `v<version>` and the exact asset names above. Update both values in `site/release.json` using the **verified** display version and generated minimum macOS. Do not invent the minimum from the Catalyst target number.
 

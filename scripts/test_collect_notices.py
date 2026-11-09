@@ -18,17 +18,27 @@ class NoticesTests(unittest.TestCase):
                 }]}}},
             }
             with self.assertRaisesRegex(ValueError, "runtime are missing"):
-                validate_release_assets(assets, supplements)
+                validate_release_assets(assets, supplements, allow_prerelease=False)
             for name in ("license", "third-party-notices"):
                 (supplements / f"additional-dotnet-runtime-11.0.1-{name}.txt").write_text("Runtime fixture")
             validate_release_assets(assets, supplements)
             with self.assertRaisesRegex(ValueError, "stable packages"):
-                validate_release_assets(assets | {"libraries": {"Example/1.0.0-rc.1": {"type": "package"}}}, supplements)
+                validate_release_assets(
+                    assets | {"libraries": {"Example/1.0.0-rc.1": {"type": "package"}}},
+                    supplements,
+                    allow_prerelease=False,
+                )
             runtime = assets["project"]["frameworks"]["net11.0-maccatalyst"]["downloadDependencies"][0]
-            for version in ("[11.0.1-rc.1, 11.0.1-rc.1]", "[11.0.1, 11.0.2]"):
+            runtime["version"] = "[11.0.1-rc.1, 11.0.1-rc.1]"
+            with self.assertRaisesRegex(ValueError, "stable .NET 11 runtime"):
+                validate_release_assets(assets, supplements)
+            (supplements / "additional-dotnet-runtime-11.0.1-rc.1-license.txt").write_text("RC license")
+            (supplements / "additional-dotnet-runtime-11.0.1-rc.1-third-party-notices.txt").write_text("RC notices")
+            validate_release_assets(assets, supplements, allow_prerelease=True)
+            for version in ("[11.0.1-rc.1, 11.0.1-rc.2]", "[10.0.1, 10.0.1]"):
                 runtime["version"] = version
-                with self.assertRaisesRegex(ValueError, "exact stable"):
-                    validate_release_assets(assets, supplements)
+                with self.assertRaisesRegex(ValueError, "exact .NET 11"):
+                    validate_release_assets(assets, supplements, allow_prerelease=True)
 
     def test_package_files_are_preserved_and_missing_text_is_an_error(self):
         with tempfile.TemporaryDirectory(prefix="stationary-notices-") as directory:

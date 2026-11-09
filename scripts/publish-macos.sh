@@ -3,12 +3,18 @@ set -Eeuo pipefail
 trap 'printf "Packaging failed at line %s. Do not publish this build.\n" "$LINENO" >&2' ERR
 
 usage() {
-    printf '%s\n' 'Usage: bash scripts/publish-macos.sh VERSION BUILD [OUTPUT_DIRECTORY]' \
+    printf '%s\n' 'Usage: bash scripts/publish-macos.sh [--beta] VERSION BUILD [OUTPUT_DIRECTORY]' \
         'Creates an ad-hoc-signed Apple-silicon DMG and SHA256SUMS without Apple membership.' \
+        'Stable toolchains are required unless the explicit --beta channel is selected.' \
         'Set DEVELOPER_DIR to a workload-compatible Xcode installation if needed.'
 }
 
 if [[ "${1:-}" == "--help" ]]; then usage; exit 0; fi
+channel="stable"
+if [[ "${1:-}" == "--beta" ]]; then
+    channel="beta"
+    shift
+fi
 if [[ $# -lt 2 || $# -gt 3 ]]; then usage >&2; exit 2; fi
 version="$1"
 build="$2"
@@ -23,8 +29,9 @@ fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 sdk="$(dotnet --version)"
-if [[ ! "$sdk" =~ ^11\.[0-9]+\.[0-9]+$ ]]; then
-    printf 'Website releases require a supported stable .NET 11 SDK; selected SDK is %s.\n' "$sdk" >&2
+if [[ ! "$sdk" =~ ^11\.[0-9]+\.[0-9]+(-[[:alnum:].-]+)?$ ]] \
+    || { [[ "$channel" == stable ]] && [[ "$sdk" == *-* ]]; }; then
+    printf 'The %s channel does not accept selected .NET SDK %s.\n' "$channel" "$sdk" >&2
     exit 1
 fi
 for tool in python3 codesign hdiutil ditto shasum lipo file xcodebuild; do
@@ -58,20 +65,35 @@ trap cleanup EXIT
 project="$root/src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj"
 cd "$root"
 dotnet restore "$project" -r maccatalyst-arm64
-python3 "$root/scripts/collect_notices.py" --release --output "$work/notices"
+python3 "$root/scripts/collect_notices.py" --channel "$channel" --output "$work/notices"
 dotnet publish "$project" -f net11.0-maccatalyst -c Release -r maccatalyst-arm64 \
     -p:PublishProfile=Website -p:ApplicationDisplayVersion="$version" -p:ApplicationVersion="$build" \
     -p:WebsiteNoticesPath="$work/notices/THIRD-PARTY-NOTICES.txt"
 
 app_root="$root/src/Stationary.Ftms.Dashboard/bin/Release/net11.0-maccatalyst/maccatalyst-arm64"
-apps=()
-while IFS= read -r -d '' app; do apps+=("$app"); done < <(find "$app_root" -maxdepth 1 -type d -name '*.app' -print0)
-if [[ ${#apps[@]} -ne 1 ]]; then
-    printf '%s\n' 'Expected exactly one published .app.' >&2
-    exit 1
-fi
+app="$(python3 - "$app_root" "$version" "$build" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+root, version, build = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+matches = []
+for app in root.glob("*.app"):
+    with (app / "Contents" / "Info.plist").open("rb") as stream:
+        info = plistlib.load(stream)
+    if (
+        info.get("CFBundleIdentifier") == "com.stationary.ftms.dashboard"
+        and info.get("CFBundleShortVersionString") == version
+        and info.get("CFBundleVersion") == build
+    ):
+        matches.append(app)
+if len(matches) != 1:
+    raise SystemExit(f"Expected one app matching bundle ID/version/build; found {len(matches)}.")
+print(matches[0])
+PY
+)"
 mkdir "$work/image"
-ditto "${apps[0]}" "$work/image/Stationary.app"
+ditto "$app" "$work/image/Stationary.app"
 app="$work/image/Stationary.app"
 minimum="$(python3 "$root/scripts/validate_macos_bundle.py" "$app" "$version" "$build")"
 ln -s /Applications "$work/image/Applications"
@@ -87,8 +109,8 @@ hdiutil detach "$mount"
 mounted=false
 rmdir "$mount"
 
-printf 'Version: %s\nBuild: %s\nMinimum macOS: %s\n' "$version" "$build" "$minimum" > "$work/release-info.txt"
-dotnet --info >> "$work/release-info.txt"
+printf 'Channel: %s\nVersion: %s\nBuild: %s\nMinimum macOS: %s\n' "$channel" "$version" "$build" "$minimum" > "$work/release-info.txt"
+printf 'SDK: %s\n' "$sdk" >> "$work/release-info.txt"
 xcodebuild -version >> "$work/release-info.txt"
 ditto "$work/$name" "$output/$name"
 ditto "$work/release-info.txt" "$output/release-info.txt"

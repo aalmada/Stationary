@@ -5,17 +5,18 @@ import argparse
 import json
 import re
 from pathlib import Path
+from typing import Optional
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def validate_release_assets(assets: dict, supplements: Path) -> None:
+def validate_release_assets(assets: dict, supplements: Path, allow_prerelease: bool = False) -> None:
     prerelease = [
         identity for identity, library in assets["libraries"].items()
         if library["type"] == "package" and "-" in identity.rsplit("/", 1)[-1]
     ]
-    if prerelease:
+    if prerelease and not allow_prerelease:
         raise ValueError("Public releases require stable packages: " + ", ".join(prerelease))
     runtimes = [
         dependency
@@ -26,22 +27,32 @@ def validate_release_assets(assets: dict, supplements: Path) -> None:
     ]
     if len(runtimes) != 1:
         raise ValueError("Expected one exact restored arm64 Mac Catalyst runtime")
-    match = re.fullmatch(r"\[(11\.[0-9]+\.[0-9]+),\s*\1\]", runtimes[0]["version"])
+    match = re.fullmatch(
+        r"\[(11\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?),\s*\1\]",
+        runtimes[0]["version"],
+    )
     if match is None:
-        raise ValueError("Public releases require an exact stable .NET 11 runtime")
+        raise ValueError("Releases require an exact .NET 11 runtime")
+    if not allow_prerelease and "-" in match[1]:
+        raise ValueError("Stable releases require a stable .NET 11 runtime")
     for name in ("license", "third-party-notices"):
         file = supplements / f"additional-dotnet-runtime-{match[1]}-{name}.txt"
         if not file.is_file() or file.is_symlink() or not file.read_text().strip():
             raise ValueError(f"Reviewed notices for the restored runtime are missing: {file}")
 
 
-def collect(assets_path: Path, output: Path, supplements: Path, release: bool = False) -> list[str]:
+def collect(
+    assets_path: Path,
+    output: Path,
+    supplements: Path,
+    channel: Optional[str] = None,
+) -> list[str]:
     output.mkdir(parents=True, exist_ok=True)
     for name in ("THIRD-PARTY-NOTICES.txt", "dependency-licenses.json"):
         (output / name).unlink(missing_ok=True)
     assets = json.loads(assets_path.read_text())
-    if release:
-        validate_release_assets(assets, supplements)
+    if channel is not None:
+        validate_release_assets(assets, supplements, allow_prerelease=channel == "beta")
     folders = [Path(folder).resolve() for folder in assets["packageFolders"]]
     report = []
     sections = []
@@ -126,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--assets", type=Path, default=ROOT / "src/Stationary.Ftms.Dashboard/obj/project.assets.json")
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts/notices")
     parser.add_argument("--supplements", type=Path, default=ROOT / "licenses")
-    parser.add_argument("--release", action="store_true", help="Require stable packages and exact runtime notices")
+    parser.add_argument("--channel", choices=("beta", "stable"), help="Validate the exact runtime notices and release dependency policy")
     args = parser.parse_args()
-    packages = collect(args.assets, args.output, args.supplements, args.release)
+    packages = collect(args.assets, args.output, args.supplements, args.channel)
     print(f"Collected notices for {len(packages)} packages in {args.output}")
