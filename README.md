@@ -1,5 +1,7 @@
 # Stationary
 
+**Beta software:** Stationary is under active development. Features may change, and bugs or data loss are possible. Back up important ride data.
+
 Stationary is an indoor cycling app for macOS. Connect a Bluetooth Fitness Machine Service (FTMS) bike or smart trainer to ride, follow workouts and track your progress.
 
 ![Live ride dashboard showing power, heart rate, cadence, speed and workout progress](assets/screenshots/ride.png)
@@ -20,7 +22,7 @@ More screenshots: [Home](assets/screenshots/home.png) and [results](assets/scree
 
 ## Getting started
 
-Website downloads are being prepared for Apple silicon Macs. They will be distributed as an ad-hoc-signed DMG, without Apple notarization; macOS may require a per-app security exception. A public binary is not available until the supported-toolchain and installation tests pass. See [website release preparation](RELEASING.md).
+Website beta downloads are being prepared for Apple silicon Macs. They will be distributed as an ad-hoc-signed DMG, without Apple notarization; macOS may require a per-app security exception. A public beta binary is not available until packaging and installation tests pass. See [website release preparation](RELEASING.md).
 
 Use a Mac with a Bluetooth FTMS-compatible bike or trainer, and optionally a Bluetooth heart-rate sensor. You can also start a free ride with just a heart-rate sensor. Structured workouts and the FTP ramp test require a machine that supports power control; heart-rate-guided workouts also require a heart-rate sensor.
 

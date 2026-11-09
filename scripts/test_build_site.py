@@ -12,7 +12,8 @@ class SiteTests(unittest.TestCase):
             output = Path(directory)
             build(output, {"version": None, "minimumMacOS": None})
             index = (output / "index.html").read_text()
-            self.assertIn("Download not yet available", index)
+            self.assertIn("Beta download not yet available", index)
+            self.assertIn("features and behavior may change", index)
             self.assertNotIn("{{DOWNLOAD}}", index)
             self.assertNotIn('href="https://github.com/aalmada/Stationary/releases/download/', index)
             self.assertTrue((output / "images" / "ride.png").is_file())
@@ -22,6 +23,7 @@ class SiteTests(unittest.TestCase):
         markup = download_markup({"version": "1.2.3", "minimumMacOS": "14.0"})
         self.assertIn("/v1.2.3/Stationary-1.2.3-macos-arm64.dmg", markup)
         self.assertIn("/v1.2.3/SHA256SUMS", markup)
+        self.assertIn("Download Stationary Beta 1.2.3", markup)
         self.assertIn("macOS 14.0", markup)
 
     def test_invalid_metadata_fails(self):
@@ -58,7 +60,7 @@ class SiteTests(unittest.TestCase):
     def test_release_documents_agree_with_website(self):
         release = {"version": "1.2.3", "minimumMacOS": "14.0"}
         checksum = "a" * 64 + "  Stationary-1.2.3-macos-arm64.dmg\n"
-        info = "Version: 1.2.3\nBuild: 4\nMinimum macOS: 14.0\nToolchain details\n"
+        info = "Channel: beta\nVersion: 1.2.3\nBuild: 4\nMinimum macOS: 14.0\nToolchain details\n"
         validate_documents(release, checksum, info)
         for invalid in (
             info.replace("Version: 1.2.3", "Version: 1.2.4"),

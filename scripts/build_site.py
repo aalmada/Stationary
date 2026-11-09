@@ -19,7 +19,7 @@ def download_markup(release: dict) -> str:
     version, minimum = release["version"], release["minimumMacOS"]
     if version is None and minimum is None:
         return (
-            '<p><strong>Download not yet available.</strong> A website build will be linked '
+            '<p><strong>Beta download not yet available.</strong> A website build will be linked '
             'here after installation and hardware validation.</p>'
             '<p><a href="https://github.com/aalmada/Stationary#run-from-source">'
             "Build from source in the meantime</a>.</p>"
@@ -31,7 +31,7 @@ def download_markup(release: dict) -> str:
     base = f"https://github.com/aalmada/Stationary/releases/download/v{version}"
     return (
         f'<a class="button" href="{base}/Stationary-{version}-macos-arm64.dmg">'
-        f"Download Stationary {html.escape(version)}</a>"
+        f"Download Stationary Beta {html.escape(version)}</a>"
         f"<p>Requires macOS {html.escape(minimum)} or later and Apple silicon.</p>"
         f'<p><a href="{base}/SHA256SUMS">SHA-256 checksums</a> &middot; '
         f'<a href="https://github.com/aalmada/Stationary/releases/tag/v{version}">'
