@@ -1,4 +1,4 @@
 {
-  "version": null,
-  "minimumMacOS": null
+  "version": "0.1.0",
+  "minimumMacOS": "14.0"
 }
