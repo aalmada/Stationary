@@ -63,6 +63,11 @@ class PackagingPreflightTests(unittest.TestCase):
             for name, content in (
                 ("uname", "#!/bin/sh\nprintf 'Darwin\\n'\n"),
                 ("dotnet", "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '11.0.100-rc.3\\n'; else echo 'mock restore reached' >&2; exit 42; fi\n"),
+                ("codesign", "#!/bin/sh\nexit 1\n"),
+                ("hdiutil", "#!/bin/sh\nexit 1\n"),
+                ("ditto", "#!/bin/sh\nexit 1\n"),
+                ("lipo", "#!/bin/sh\nexit 1\n"),
+                ("xcodebuild", "#!/bin/sh\nexit 1\n"),
             ):
                 script = tools / name
                 script.write_text(content)
