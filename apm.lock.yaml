@@ -1,5 +1,5 @@
 lockfile_version: '1'
-generated_at: '2026-11-08T23:38:19.920567+00:00'
+generated_at: '2026-11-09T23:37:21.609691+00:00'
 apm_version: 0.28.0
 dependencies:
 - repo_url: netfabric/intelligentium
@@ -308,11 +308,11 @@ dependencies:
 - repo_url: netfabric/intelligentium
   name: dotnet-rx
   host: github.com
-  resolved_commit: 33588d42ec382fca6407fea46f63c7a43c9d16e6
-  version: 0.1.0
+  resolved_commit: ac49c7fbbe63b717521be6315e4564c956db04b1
+  version: 0.1.1
   virtual_path: plugins/dotnet-rx
   is_virtual: true
-  package_type: marketplace_plugin
+  package_type: apm_package
   deployed_files:
   - .agents/skills/dotnet-rx
   - .agents/skills/dotnet-rx/SKILL.md
@@ -326,18 +326,6 @@ dependencies:
   - .agents/skills/dotnet-rx/references/sources.md
   - .agents/skills/dotnet-rx/references/subjects-and-multicasting.md
   - .agents/skills/dotnet-rx/references/testing.md
-  - .agents/skills/reactiveui
-  - .agents/skills/reactiveui/SKILL.md
-  - .agents/skills/reactiveui/references/activation-and-lifetimes.md
-  - .agents/skills/reactiveui/references/collections-validation-and-services.md
-  - .agents/skills/reactiveui/references/commands-and-errors.md
-  - .agents/skills/reactiveui/references/interactions-routing-and-location.md
-  - .agents/skills/reactiveui/references/migration-and-review.md
-  - .agents/skills/reactiveui/references/packages-startup-and-platforms.md
-  - .agents/skills/reactiveui/references/scheduling-and-testing.md
-  - .agents/skills/reactiveui/references/sources.md
-  - .agents/skills/reactiveui/references/view-model-state-and-generators.md
-  - .agents/skills/reactiveui/references/views-bindings-and-events.md
   deployed_file_hashes:
     .agents/skills/dotnet-rx/SKILL.md: sha256:edcea0b380ccddf403e05f09776574f40df00dbb033ed14133d200b4a4ca68d8
     .agents/skills/dotnet-rx/references/creating-and-interop.md: sha256:def2e2f16d8c5764708fe61e8289de087808b4f7611197c9d4e73a36a6614c2a
@@ -350,18 +338,7 @@ dependencies:
     .agents/skills/dotnet-rx/references/sources.md: sha256:5e3729e06e7e1c83d06bad3759d693612387424668f8e5c882a0cbe081dbfd04
     .agents/skills/dotnet-rx/references/subjects-and-multicasting.md: sha256:bef1b0fdaaa3f6d9946e7d09e281d9674083707578c3c3f3d50964e6f980ad99
     .agents/skills/dotnet-rx/references/testing.md: sha256:b050bf1a3dd3190e74e307b3c50a4d5360036f20315865d0b2a2ff546693af99
-    .agents/skills/reactiveui/SKILL.md: sha256:46cfdb4210587906c76093ee9e2ea0013e837a34a9c2b7f00bafef1278169f84
-    .agents/skills/reactiveui/references/activation-and-lifetimes.md: sha256:6b11e6298a5fd97317c5efc62c9e7e60a2e16f012b92ce2b963391a07c20d282
-    .agents/skills/reactiveui/references/collections-validation-and-services.md: sha256:ed76d0ab737c82679623c3a2a35ac67fec0c1db1826f7788245e98de05eb3873
-    .agents/skills/reactiveui/references/commands-and-errors.md: sha256:0d019ed23666315a5fe03e070c86a71007469f7d382d9ba1d900aa44110f7f1e
-    .agents/skills/reactiveui/references/interactions-routing-and-location.md: sha256:705eb4a200c1f91933ab90067f081debcbefffeee9657719c94d8c6544f0ac17
-    .agents/skills/reactiveui/references/migration-and-review.md: sha256:f796c72d37657112b4d31b3b1ef78c0b0f331cec0bf80546b68c0f4e5253ee77
-    .agents/skills/reactiveui/references/packages-startup-and-platforms.md: sha256:4f07d726c15041a35a2671efb14c848154df3e9787387e411498abd577c1e21b
-    .agents/skills/reactiveui/references/scheduling-and-testing.md: sha256:da5c91ec763578530309983bdc10f021a63537c471b9a41a9bbb80c6545d8792
-    .agents/skills/reactiveui/references/sources.md: sha256:8714c6bb0a3f995b1052d61a8d42852406a9956a40fb4e34d4ebc04e6e2295cf
-    .agents/skills/reactiveui/references/view-model-state-and-generators.md: sha256:fa80f2185260827edd64bcc6def3208395a4af11b86a151ebd0770d0df546c86
-    .agents/skills/reactiveui/references/views-bindings-and-events.md: sha256:bc159e2879fc733415ff14cd4913ee0c354d4ef8bfd834fe0fa9860c8cf92ffc
-  content_hash: sha256:e7fbf9fe9e50c6f3b06317cd5be349686fdd65f44532df3b92a9b5f2cb25a400
+  content_hash: sha256:dd618f1446b9b3929b911225df6714210f07c2c1c67b54288a73023f6a440b7f
   declared_license: MIT
 deployments:
 - kind: project-relative
@@ -1714,114 +1691,6 @@ deployments:
   - netfabric/intelligentium/plugins/agent-authoring
   active_owner: netfabric/intelligentium/plugins/agent-authoring
   content_hash: sha256:40ddc1ce1b779c53160e05c722320d970460b70e3cbed9f9b693a01647c830a4
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: null
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:46cfdb4210587906c76093ee9e2ea0013e837a34a9c2b7f00bafef1278169f84
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/activation-and-lifetimes.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:6b11e6298a5fd97317c5efc62c9e7e60a2e16f012b92ce2b963391a07c20d282
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/collections-validation-and-services.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:ed76d0ab737c82679623c3a2a35ac67fec0c1db1826f7788245e98de05eb3873
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/commands-and-errors.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:0d019ed23666315a5fe03e070c86a71007469f7d382d9ba1d900aa44110f7f1e
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/interactions-routing-and-location.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:705eb4a200c1f91933ab90067f081debcbefffeee9657719c94d8c6544f0ac17
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/migration-and-review.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:f796c72d37657112b4d31b3b1ef78c0b0f331cec0bf80546b68c0f4e5253ee77
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/packages-startup-and-platforms.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:4f07d726c15041a35a2671efb14c848154df3e9787387e411498abd577c1e21b
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/scheduling-and-testing.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:da5c91ec763578530309983bdc10f021a63537c471b9a41a9bbb80c6545d8792
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/sources.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:8714c6bb0a3f995b1052d61a8d42852406a9956a40fb4e34d4ebc04e6e2295cf
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/view-model-state-and-generators.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:fa80f2185260827edd64bcc6def3208395a4af11b86a151ebd0770d0df546c86
-- kind: project-relative
-  target: copilot
-  value: .agents/skills/reactiveui/references/views-bindings-and-events.md
-  runtime: null
-  scope: project
-  owners:
-  - netfabric/intelligentium/plugins/dotnet-rx
-  active_owner: netfabric/intelligentium/plugins/dotnet-rx
-  content_hash: sha256:bc159e2879fc733415ff14cd4913ee0c354d4ef8bfd834fe0fa9860c8cf92ffc
 - kind: project-relative
   target: copilot
   value: .agents/skills/ripgrep
