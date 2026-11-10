@@ -4,15 +4,17 @@ Mac Catalyst MAUI dashboard for connecting to FTMS equipment and presenting tele
 
 ## Commands
 
-- Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore -p:ValidateXcodeVersion=false`
-- Build the Apple silicon bundle: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`
-- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore -p:ValidateXcodeVersion=false`. `-t:Run` can launch a stale bundle; build the bundle first after source changes.
+- Restore workloads: `dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --version 11.0.100`. Requires Xcode 27.2; check [native release prerequisites](../../RELEASING.md#current-release-gate) before building.
+- Build: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --no-restore`
+- Build the Apple silicon bundle: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore`
+- Run on Apple silicon: `dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore`. `-t:Run` can launch a stale bundle; build the bundle first after source changes.
 
 ## Navigation And Ride Flow
 
 - Use native navigation bars and the shared `ToolbarItem` back control from `AppShell.WithBackNavigation`; let the platform choose its placement. Do not add custom navigation renderers or in-page back buttons. Keep page titles in the native bar rather than repeating them in content.
 - The Shell has no flyout: Home (ride choice and readiness), Ride (live dashboard), Workouts (lazy library), Results. Pairing and Settings are form-sheet modals wrapped in `NavigationPage`, opened through `DashboardDestination.Sensors` (FTMS machine), `HeartRateSensor` (Heart Rate Service), and `Settings`, and closed with `CloseSheetCommand`, so they never replace the ride dashboard.
 - Keep FTMS and heart-rate pairing in separate sheets; they are different Bluetooth profiles with independent connections.
+- Cancel the matching discovery scan when a sensor page disappears, via an observable pipeline and its cancellation command. Explicit sheet close awaits discovery cleanup before dismissal; never disconnect an established device merely because its sheet closes.
 - Starting any ride (free ride, workout, ramp test, or a machine-reported start) navigates to Ride immediately, before awaiting BLE acknowledgements. Show pending, rejected, and timed-out starts on the Ride page with Retry and End.
 - Keep the Ride page charts visible in every mode without scrolling; put secondary panels in the side column.
 - App menus live in Shell `MenuBarItems`. `AppDelegate.BuildMenu` applies them when MAUI finds no active window scene, then removes the system File, Format, View, and Help menus. Never reuse a system shortcut such as Cmd+H, Cmd+Q, or Cmd+W: UIKit rejects the conflicting menu and MAUI then drops every later app menu. Keep every action reachable from page UI too.

@@ -4,13 +4,15 @@
 
 ## Commands
 
+- Restore native workloads first: `dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --version 11.0.100`. Use Xcode 27.2; check [native release prerequisites](RELEASING.md#current-release-gate) for upstream package availability.
 - Restore packages: `dotnet restore Stationary.slnx`
-- Build the solution: `dotnet build Stationary.slnx --no-restore -p:ValidateXcodeVersion=false`
+- Build the solution: `dotnet build Stationary.slnx --no-restore`
 - Apply formatting and analyzer fixes: `dotnet format Stationary.slnx --no-restore`
 - Verify formatting and analyzer fixes: `dotnet format Stationary.slnx --verify-no-changes --no-restore`
 - Run all tests: `dotnet test --solution Stationary.slnx --no-restore`
 - Validate the static download site: `python3 -m unittest discover -s scripts -p 'test_*.py'`, then `python3 scripts/build_site.py`.
 - Prepare a website DMG on a supported macOS toolchain: `bash scripts/publish-macos.sh <major.minor.patch> <build>`. See [release gates](RELEASING.md); never bypass Xcode validation for distribution.
+- DMG presentation uses pinned build-only Python tools in `scripts/requirements-dmg.txt`, installed into a temporary venv by packaging. Regenerate its background with `swift scripts/render-dmg-background.swift scripts/dmg-background.png`; never add Finder extension-hiding metadata to the signed app.
 - Linux CI (excludes the Mac Catalyst dashboard): `dotnet restore Stationary.CI.slnf`, `dotnet build Stationary.CI.slnf --no-restore`, then `dotnet test --solution Stationary.CI.slnf --no-build`. Keep the filter updated when adding portable projects.
 - Build benchmarks: `dotnet build benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-restore`
 - Run benchmarks: `dotnet run --project benchmarks/Stationary.Ftms.Benchmarks/Stationary.Ftms.Benchmarks.csproj -c Release --no-build -- --filter '*FtmsCodecBenchmarks*' --join`

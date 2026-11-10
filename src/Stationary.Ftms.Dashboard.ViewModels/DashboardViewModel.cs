@@ -410,6 +410,9 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
             .DistinctUntilChanged()
             .ToProperty(this, viewModel => viewModel.IsWorking);
         subscriptions.Add(Observable.Merge(
+                CloseSheetCommand.ThrownExceptions,
+                CancelScanCommand.ThrownExceptions,
+                CancelHeartRateScanCommand.ThrownExceptions,
                 ExportSessionCommand.ThrownExceptions,
                 ApplyHeartRateZonesCommand.ThrownExceptions,
                 Telemetry.SetMetricUnitsCommand.ThrownExceptions,
@@ -1189,7 +1192,43 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     }
 
     [ReactiveCommand]
-    private void CloseSheet() => sheetDismissRequests.OnNext(Unit.Default);
+    private Task CloseSheetAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(async _ =>
+        {
+            await CancelScanDevicesAsync();
+            await CancelHeartRateScanDevicesAsync();
+            sheetDismissRequests.OnNext(Unit.Default);
+        }, cancellationToken);
+
+    [ReactiveCommand]
+    private Task CancelScanAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => CancelScanDevicesAsync(), cancellationToken);
+
+    [ReactiveCommand]
+    private Task CancelHeartRateScanAsync(CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(_ => CancelHeartRateScanDevicesAsync(), cancellationToken);
+
+    private async Task CancelScanDevicesAsync()
+    {
+        if (scanCancellation is null)
+        {
+            return;
+        }
+
+        await StopScanAsync();
+        ConnectionStatus = "Bluetooth scanning was cancelled.";
+    }
+
+    private async Task CancelHeartRateScanDevicesAsync()
+    {
+        if (heartRateScanCancellation is null)
+        {
+            return;
+        }
+
+        await StopHeartRateScanAsync();
+        HeartRateConnectionStatus = "Heart-rate sensor scanning was cancelled.";
+    }
 
     [ReactiveCommand]
     private void ShowToday() => RequestNavigation(DashboardDestination.Today);
@@ -1264,6 +1303,8 @@ public sealed partial class DashboardViewModel : ReactiveObject, IAsyncDisposabl
     private void DisposeCommands()
     {
         ScanCommand.Dispose();
+        CancelScanCommand.Dispose();
+        CancelHeartRateScanCommand.Dispose();
         ConnectCommand.Dispose();
         DisconnectCommand.Dispose();
         ScanHeartRateCommand.Dispose();

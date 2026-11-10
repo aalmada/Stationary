@@ -597,6 +597,98 @@ public sealed class GeneratedCommandTests
     }
 
     [Test]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    public async Task DismissingSensorSheet_CancelsDiscoveryAndAwaitsCleanup(bool heartRate, bool closeCommand)
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        var dashboard = environment.ViewModel;
+        var cleanupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var scanToken = CancellationToken.None;
+        Action? publishLateDevice = null;
+        async ValueTask DiscoverAsync(CancellationToken token)
+        {
+            scanToken = token;
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            }
+            finally
+            {
+                cleanupStarted.SetResult();
+                await finishCleanup.Task;
+            }
+        }
+
+        environment.Discovery.Discover = (publish, token) =>
+        {
+            publishLateDevice = () => publish(new("late-bike", "Late bike", "Indoor bike"));
+            return DiscoverAsync(token);
+        };
+        environment.HeartRateDiscovery.Discover = (publish, token) =>
+        {
+            publishLateDevice = () => publish(new("late-sensor", "Late sensor"));
+            return DiscoverAsync(token);
+        };
+        var dismissals = 0;
+        using var subscription = dashboard.SheetDismissRequests.Subscribe(_ => dismissals++);
+        await (heartRate ? dashboard.ScanHeartRateCommand : dashboard.ScanCommand).Execute().ToTask();
+        await Assert.That(heartRate ? dashboard.IsHeartRateScanning : dashboard.IsScanning).IsTrue();
+        await (heartRate ? dashboard.CancelScanCommand : dashboard.CancelHeartRateScanCommand).Execute().ToTask();
+        await Assert.That(heartRate ? dashboard.IsHeartRateScanning : dashboard.IsScanning).IsTrue();
+        var stop = (closeCommand
+            ? dashboard.CloseSheetCommand
+            : heartRate ? dashboard.CancelHeartRateScanCommand : dashboard.CancelScanCommand).Execute().ToTask();
+        try
+        {
+            await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await Assert.That(scanToken.IsCancellationRequested).IsTrue();
+            await Assert.That(stop.IsCompleted).IsFalse();
+            await Assert.That(dismissals).IsEqualTo(0);
+            publishLateDevice!();
+            await Assert.That(dashboard.DiscoveredDevices.Count).IsEqualTo(0);
+            await Assert.That(dashboard.HeartRateDiscoveredDevices.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            finishCleanup.SetResult();
+            await stop.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        await Assert.That(dashboard.IsScanning).IsFalse();
+        await Assert.That(dashboard.IsHeartRateScanning).IsFalse();
+        await Assert.That(dashboard.IsWorking).IsFalse();
+        await Assert.That(dismissals).IsEqualTo(closeCommand ? 1 : 0);
+        await Assert.That(heartRate ? dashboard.HeartRateConnectionStatus : dashboard.ConnectionStatus)
+            .Contains("cancelled");
+        environment.Discovery.Discover = null;
+        environment.HeartRateDiscovery.Discover = null;
+        await (heartRate ? dashboard.ScanHeartRateCommand : dashboard.ScanCommand).Execute().ToTask();
+        await Assert.That(dashboard.IsScanning).IsFalse();
+        await Assert.That(dashboard.IsHeartRateScanning).IsFalse();
+    }
+
+    [Test]
+    public async Task DismissingSensorSheetWithoutScan_PreservesConnection()
+    {
+        await using var environment = new DashboardTestEnvironment();
+        await environment.ReadyAsync();
+        await environment.ConnectAsync();
+        var status = environment.ViewModel.ConnectionStatus;
+
+        await environment.ViewModel.CancelScanCommand.Execute().ToTask();
+        await environment.ViewModel.CancelHeartRateScanCommand.Execute().ToTask();
+        await environment.ViewModel.CloseSheetCommand.Execute().ToTask();
+
+        await Assert.That(environment.ViewModel.IsConnected).IsTrue();
+        await Assert.That(environment.ViewModel.ConnectionStatus).IsEqualTo(status);
+    }
+
+    [Test]
     public async Task ControlCommands_RemainSerializedAcrossGeneratedCommands()
     {
         await using var environment = new DashboardTestEnvironment();

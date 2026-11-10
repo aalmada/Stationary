@@ -1,26 +1,42 @@
 # Website releases
 
-Stationary is beta software. Website beta distribution uses an Apple-silicon Mac Catalyst `.app` inside a read-only DMG. The app is ad-hoc signed: it is not Developer ID signed or Apple-notarized, and requires no Apple Developer Program subscription. Beta releases may use the currently pinned .NET 11 preview toolchain; stable releases retain a separate stable-only gate.
+Stationary is beta software. Website beta distribution uses an Apple-silicon Mac Catalyst `.app` inside a read-only DMG. The app is ad-hoc signed: it is not Developer ID signed or Apple-notarized, and requires no Apple Developer Program subscription. Beta releases may use prerelease toolchains, but the project now targets the official .NET 11 SDK and MAUI packages; stable releases retain a separate stable-only gate.
 
 ## Current release gate
 
-The repository currently pins prerelease .NET 11/MAUI versions. A normal arm64 Release publish and bundle validation passed with Xcode 27.0, which matches the installed Mac Catalyst workload. Beta packaging is explicitly opt-in and accepts .NET 11 prerelease SDKs/packages while still validating the bundle, embedded full license texts, and exact runtime notices. The default stable packaging path continues to reject prereleases. Do not disable `ValidateXcodeVersion` to conceal an Xcode mismatch.
+The repository pins .NET SDK **11.0.100** (runtime **11.0.0**) and MAUI **11.0.0**. Native builds use workload set **11.0.100**, whose Mac Catalyst SDK **27.2.11039** specifies **Xcode 27.2**. The previously tested 0.1.0 download was built with the RC toolchain and Xcode 27.0; it is unchanged by the source upgrade.
+
+The GA workload packages are now available. Workload set 11.0.100 installed successfully with selected Xcode 27.2 (27B52). Full solution restore/build, all 281 portable tests, formatting checks, and 17 distribution-script tests passed. A normal arm64 trimmed Release publish and local 0.1.1 build 2 DMG passed staged/mounted bundle validation, signature/architecture/entitlement checks, and image verification. Exact GA runtime/package notices were refreshed and stable-policy collection passed with no prerelease packages. This validates packaging, not runtime hardware behavior; test the new build before publishing. Do not disable `ValidateXcodeVersion` or substitute RC manifests into the GA set.
+
+The workload version is explicit in the native restore commands and release workflow, rather than `global.json`, so a missing Apple manifest does not block portable Linux builds/tests. Beta packaging is still explicitly opt-in; it validates the bundle, embedded full license texts, and exact runtime notices. The default stable packaging path continues to reject prereleases.
 
 Check the [macios releases](https://github.com/dotnet/macios/releases) and [Xcode compatibility guidance](https://learn.microsoft.com/dotnet/ios/troubleshooting/xcode-requirement). Update the SDK pin, central MAUI package versions, project `MauiVersion`, and workload selection together. Select the beta channel for prerelease SDKs/packages. The stable channel requires stable .NET 11 and restored packages. Both channels require exact runtime notices.
 
 ## Build a DMG
 
-On a Mac with .NET 11 RC3, the pinned MAUI workload, and Xcode 27.0, create a beta DMG with:
+On a Mac with .NET SDK 11.0.100, workload set 11.0.100, Xcode 27.2, and the release gate above satisfied, create a beta DMG with:
 
 ```bash
-dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj
+dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --version 11.0.100
 dotnet restore Stationary.slnx
 dotnet test --solution Stationary.CI.slnf --no-restore
 dotnet format Stationary.slnx --verify-no-changes --no-restore
-bash scripts/publish-macos.sh --beta 0.1.0 1
+bash scripts/publish-macos.sh --beta 0.1.1 4
 ```
 
 The explicit `--beta` option permits prerelease .NET 11 SDK/runtime/packages; without it the script enforces the stable-release policy. For stable releases, use `bash scripts/publish-macos.sh 1.0.0 1` after installing the stable supported toolchain. The script does not use Developer ID certificates or provisioning profiles. It explicitly publishes the dashboard project using the `Website` profile, collects and embeds dependency notices before signing, and creates a DMG with the app and an Applications link. The bundle validator checks the staged and mounted copies for signatures, arm64 native code, bundle identity/version/build, the generated minimum macOS, Bluetooth entitlement, missing notices, and development entitlements/profiles.
+
+Packaging requires Python 3.9 or later with `venv`/`pip` and network access to install the pinned build-only tools in [requirements-dmg.txt](scripts/requirements-dmg.txt). The script creates and removes an isolated temporary environment; it does not install into system Python. `dmgbuild` writes Finder metadata without Finder automation or Accessibility permissions.
+
+The installer has a 760-by-480-point window, retina navy/cyan/magenta artwork, a drag-to-Applications arrow, and fixed 112-point icons. The mounted layout is validated before copying output assets. Do not set `hide_extensions` on the signed app: it adds `com.apple.FinderInfo` metadata that invalidates strict signature verification. The background and volume icon are outside the signed app.
+
+To regenerate the committed background after changing its native drawing source:
+
+```bash
+swift scripts/render-dmg-background.swift scripts/dmg-background.png
+```
+
+Inspect the artwork and a freshly mounted DMG after layout changes. Existing release output directories are not overwritten; use a new empty output directory when rebuilding the same version locally.
 
 Outputs under `artifacts/macos/<version>/`:
 
@@ -49,15 +65,19 @@ The collector preserves package-provided license/copyright and third-party notic
 
 For packages without full license files, `licenses/<lowercase-package-id>-<exact-version>.txt` contains upstream license text. Additional native/runtime notices use `licenses/additional-*.txt`. The current supplements were retrieved from package repository commits, the Silk.NET-pinned MoltenVK submodule and its external dependency revisions, or the installed versioned .NET runtime pack. `licenses/sources.json` records provenance and SHA-256 hashes; retain original upstream texts rather than inventing license terms.
 
-After any dependency/toolchain change, review and update these supplements and their provenance. Production collection requires both `additional-dotnet-runtime-<exact-restored-version>-license.txt` and `additional-dotnet-runtime-<exact-restored-version>-third-party-notices.txt`; old runtime notices do not satisfy a newer runtime. Confirm actual native build provenance and all required attribution notices before distribution. Successful collection is an inventory check, not a legal opinion or proof that every native component has been audited.
+After any dependency/toolchain change, review and update these supplements and their provenance. Production collection requires both `additional-dotnet-runtime-<exact-restored-version>-license.txt` and `additional-dotnet-runtime-<exact-restored-version>-third-party-notices.txt`; old runtime notices do not satisfy a newer runtime. The GA upgrade includes exact 11.0.0 runtime license/third-party notices and missing GA package licenses, with sources/hashes recorded. Confirm actual native build provenance and all required attribution notices before distribution. Successful collection is an inventory check, not a legal opinion or proof that every native component has been audited.
 
 Packaging embeds `THIRD-PARTY-NOTICES.txt` in the app before signing and uploads the package inventory with the draft release.
+
+The approved app icon is `Resources/AppIcon/appicon.png` in the dashboard project. MAUI resizes it for platform assets; the Mac Catalyst manifest selects `Assets.xcassets/appicon.appiconset` through `XSAppIconAssets`. Verify the built bundle includes `appicon.icns`, `Assets.car`, and icon metadata after changing the artwork.
 
 ## Draft and verify
 
 The manually dispatched **Prepare Stationary beta release** workflow builds artifacts, verifies checksums, and creates a **draft prerelease** on main. The local script retains stable SDK/package checks when `--beta` is omitted. Configure the `macos-release` environment with appropriate maintainer protections. If the exact Xcode is unavailable on hosted runners, use the same local script and upload its outputs to a draft with `gh release create --draft --prerelease`; do not introduce untrusted self-hosted runners.
 
 For beta 0.1.0, the maintainer confirmed browser-downloaded installation/launch, Bluetooth, session CSV export, and the 3D scene on their Mac. A separate clean Mac, minimum-macOS host, secondary display, and upgrade testing were not confirmed. These are additional compatibility checks, not claims made by the beta release. The maintainer approved public beta distribution with that test scope.
+
+For beta 0.1.1, the maintainer reported the preceding local build working after quitting an older development instance and authorized publication of a fresh package. Build 4 adds the scan-dismissal fix, uses the official .NET 11 toolchain, and passed 286 portable tests, 20 distribution-script tests, formatting checks, Release publish, signatures, and mounted DMG/layout validation. Final-build browser/quarantine and hardware checks were not independently repeated; retain this limitation in the release notes.
 
 Before publishing:
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Windows.Input;
@@ -55,6 +56,16 @@ public sealed class AppShell : Shell, IDisposable
         this.sensorsPage = CreateSheet(sensorsPage, viewModel.CloseSheetCommand);
         this.heartRateSensorPage = CreateSheet(heartRateSensorPage, viewModel.CloseSheetCommand);
         this.settingsPage = CreateSheet(settingsPage, viewModel.CloseSheetCommand);
+        navigationSubscriptions.Add(Observable.FromEventPattern(
+                handler => sensorsPage.Disappearing += handler,
+                handler => sensorsPage.Disappearing -= handler)
+            .Select(static _ => Unit.Default)
+            .InvokeCommand(viewModel.CancelScanCommand));
+        navigationSubscriptions.Add(Observable.FromEventPattern(
+                handler => heartRateSensorPage.Disappearing += handler,
+                handler => heartRateSensorPage.Disappearing -= handler)
+            .Select(static _ => Unit.Default)
+            .InvokeCommand(viewModel.CancelHeartRateScanCommand));
         findFitnessMachineCommand = CreateSensorScanCommand(this.sensorsPage, viewModel.ScanCommand);
         findHeartRateSensorCommand = CreateSensorScanCommand(this.heartRateSensorPage, viewModel.ScanHeartRateCommand);
         toggleMetricUnitsCommand = CreateToggleCommand(viewModel.Telemetry.SetMetricUnitsCommand, () => viewModel.Telemetry.UseMetricUnits);

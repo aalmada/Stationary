@@ -36,19 +36,17 @@ For power-reporting indoor bikes, speed and distance are estimates based on powe
 
 ### Run from source
 
-The app currently targets Mac Catalyst. Install [Xcode](https://developer.apple.com/xcode/) and the [.NET SDK](https://dotnet.microsoft.com/download) version specified in [`global.json`](global.json), then run these commands on an Apple silicon Mac:
+The app currently targets Mac Catalyst. Install [Xcode 27.2](https://developer.apple.com/xcode/) and the [.NET 11.0.100 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0) specified in [`global.json`](global.json). The MAUI packages target 11.0.0; the app remains beta. See [current native-build prerequisites](RELEASING.md#current-release-gate), then run these commands on an Apple silicon Mac:
 
 ```bash
 git clone https://github.com/aalmada/Stationary.git
 cd Stationary
-dotnet workload install maui-maccatalyst
+dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --version 11.0.100
 dotnet restore Stationary.slnx
 dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
-  -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore \
-  -p:ValidateXcodeVersion=false
+  -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore
 dotnet build src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj \
-  -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore \
-  -p:ValidateXcodeVersion=false
+  -t:Run -f net11.0-maccatalyst -r maccatalyst-arm64 --no-restore
 ```
 
 On an Intel Mac, replace both occurrences of `maccatalyst-arm64` with `maccatalyst-x64`.
@@ -87,7 +85,7 @@ On macOS, with the prerequisites above:
 
 ```bash
 dotnet restore Stationary.slnx
-dotnet build Stationary.slnx --no-restore -p:ValidateXcodeVersion=false
+dotnet build Stationary.slnx --no-restore
 dotnet test --solution Stationary.slnx --no-restore
 dotnet format Stationary.slnx --verify-no-changes --no-restore
 ```

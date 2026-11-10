@@ -13,7 +13,7 @@ on:
         type: string
       xcode:
         description: 'Exact workload-supported Xcode version available on the runner'
-        default: '27.0'
+        default: '27.2'
         required: true
         type: string
 
@@ -57,7 +57,7 @@ jobs:
           fi
           echo "DEVELOPER_DIR=$developer" >> "$GITHUB_ENV"
       - name: Install pinned Mac Catalyst workload
-        run: dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj
+        run: dotnet workload restore src/Stationary.Ftms.Dashboard/Stationary.Ftms.Dashboard.csproj --version 11.0.100
       - name: Restore and validate
         run: |
           dotnet restore Stationary.slnx

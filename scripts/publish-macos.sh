@@ -96,15 +96,21 @@ mkdir "$work/image"
 ditto "$app" "$work/image/Stationary.app"
 app="$work/image/Stationary.app"
 minimum="$(python3 "$root/scripts/validate_macos_bundle.py" "$app" "$version" "$build")"
-ln -s /Applications "$work/image/Applications"
-hdiutil create -srcfolder "$work/image" -volname "Stationary $version" \
-    -format UDZO "$work/$name"
+python3 -m venv "$work/packaging-env"
+"$work/packaging-env/bin/python" -m pip install --disable-pip-version-check \
+    -r "$root/scripts/requirements-dmg.txt"
+"$work/packaging-env/bin/dmgbuild" -s "$root/scripts/dmg_settings.py" \
+    -D "app=$app" -D "background=$root/scripts/dmg-background.png" \
+    "Stationary $version" "$work/$name"
 hdiutil verify "$work/$name"
 mkdir "$mount"
 hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$work/$name"
 mounted=true
 [[ -d "$mount/Stationary.app" && "$(readlink "$mount/Applications")" == /Applications ]]
-[[ "$(python3 "$root/scripts/validate_macos_bundle.py" "$mount/Stationary.app" "$version" "$build")" == "$minimum" ]]
+[[ -f "$mount/.DS_Store" && -f "$mount/.background.png" ]]
+"$work/packaging-env/bin/python" "$root/scripts/validate_dmg_layout.py" "$mount"
+mounted_minimum="$(python3 "$root/scripts/validate_macos_bundle.py" "$mount/Stationary.app" "$version" "$build")"
+[[ "$mounted_minimum" == "$minimum" ]]
 hdiutil detach "$mount"
 mounted=false
 rmdir "$mount"

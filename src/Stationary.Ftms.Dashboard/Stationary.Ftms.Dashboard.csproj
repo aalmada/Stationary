@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net11.0-maccatalyst</TargetFramework>
     <UseMaui>true</UseMaui>
-    <MauiVersion>11.0.0-rc.2.26505.5</MauiVersion>
+    <MauiVersion>11.0.0</MauiVersion>
     <SingleProject>true</SingleProject>
     <ApplicationTitle>Stationary Beta</ApplicationTitle>
     <ApplicationId>com.stationary.ftms.dashboard</ApplicationId>
@@ -14,7 +14,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <MauiIcon Include="Resources/AppIcon/appicon.svg" />
+    <MauiIcon Include="Resources/AppIcon/appicon.png" Resize="true" BaseSize="1024,1024" />
   </ItemGroup>
   <ItemGroup Condition="'$(WebsiteNoticesPath)' != ''">
     <BundleResource Include="$(WebsiteNoticesPath)" LogicalName="THIRD-PARTY-NOTICES.txt" />

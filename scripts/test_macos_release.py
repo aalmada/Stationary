@@ -1,4 +1,5 @@
 import os
+import runpy
 import subprocess
 import tempfile
 import unittest
@@ -90,6 +91,53 @@ class PackagingPreflightTests(unittest.TestCase):
             self.assertIn("mock restore reached", result.stderr)
             self.assertTrue(output.exists())
             self.assertFalse(any(output.iterdir()))
+
+
+class InstallerLayoutTests(unittest.TestCase):
+    def test_layout_preserves_install_target_and_readable_positions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = root / "Stationary.app"
+            app.mkdir()
+            background = root / "background.png"
+            background.write_bytes(b"test")
+            settings = runpy.run_path(
+                str(ROOT / "scripts" / "dmg_settings.py"),
+                init_globals={"defines": {"app": str(app), "background": str(background)}},
+            )
+            self.assertEqual(settings["symlinks"], {"Applications": "/Applications"})
+            self.assertEqual(settings["format"], "UDZO")
+            self.assertEqual(settings["window_rect"][1], (760, 480))
+            self.assertEqual(settings["icon_locations"],
+                             {"Stationary.app": (190, 240), "Applications": (570, 240)})
+            self.assertEqual(settings["icon_size"], 112)
+            self.assertFalse(settings["show_toolbar"])
+            self.assertFalse(settings["show_sidebar"])
+            self.assertEqual(settings["hide_extensions"], [])
+
+    def test_missing_artwork_or_app_fails_explicitly(self):
+        with self.assertRaisesRegex(ValueError, "staged app and background"):
+            runpy.run_path(
+                str(ROOT / "scripts" / "dmg_settings.py"),
+                init_globals={"defines": {"app": "/missing.app", "background": "/missing.png"}},
+            )
+
+    def test_mounted_bundle_validator_failure_stops_packaging(self):
+        script = (ROOT / "scripts" / "publish-macos.sh").read_text()
+        start = script.index('mounted_minimum="')
+        end = script.index('hdiutil detach "$mount"', start)
+        with tempfile.TemporaryDirectory() as directory:
+            tool = Path(directory) / "python3"
+            tool.write_text("#!/bin/sh\necho 'invalid signature' >&2\nexit 1\n")
+            tool.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-c", "set -e\n" + script[start:end] + "\necho INVALID_SUCCESS"],
+                env=os.environ | {"PATH": f"{directory}:{os.environ['PATH']}"},
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("invalid signature", result.stderr)
+            self.assertNotIn("INVALID_SUCCESS", result.stdout)
 
 
 if __name__ == "__main__":
